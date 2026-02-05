@@ -22,3 +22,6 @@
     tokio={workspace=true}
     tokio-stream="0.1.17"
     vowlr-util={path="../util"}
+
+[dev-dependencies]
+env_logger.workspace = true

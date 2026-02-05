@@ -8,11 +8,11 @@ mod special_operators;
 
 use super::{GraphDataContext, WorkbenchMenuItems};
 use crate::components::user_input::file_upload::handle_internal_sparql;
-use grapher::prelude::{Characteristic, ElementType, GraphDisplayData};
 use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
+use grapher::prelude::{ElementType, GraphDisplayData};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use log::{debug, error};
+use log::error;
 use std::collections::HashMap;
 use vowlr_sparql_queries::prelude::QueryAssembler;
 
@@ -32,7 +32,7 @@ fn update_graph(query: String, graph_data: RwSignal<GraphDisplayData>) {
                     .rend_write_chan
                     .send(RenderEvent::LoadGraph(new_graph_data));
             }
-            Err(e) => error!("{}", e),
+            Err(e) => error!("{e}"),
         }
     });
 }
@@ -153,9 +153,8 @@ pub fn FilterMenu() -> impl IntoView {
                     element_counts
                         .get()
                         .into_keys()
-                        .into_iter()
                         .collect::<Vec<_>>(),
-                    vec![is_owl_class],
+                    &[is_owl_class],
                 )
                 checks=element_checks
                 counts=element_counts
@@ -170,9 +169,8 @@ pub fn FilterMenu() -> impl IntoView {
                     element_counts
                         .get()
                         .into_keys()
-                        .into_iter()
                         .collect::<Vec<_>>(),
-                    vec![is_rdf_class],
+                    &[is_rdf_class],
                 )
                 checks=element_checks
                 counts=element_counts
@@ -187,9 +185,8 @@ pub fn FilterMenu() -> impl IntoView {
                     element_counts
                         .get()
                         .into_keys()
-                        .into_iter()
                         .collect::<Vec<_>>(),
-                    vec![is_set_operator],
+                    &[is_set_operator],
                 )
                 checks=element_checks
                 counts=element_counts
@@ -204,9 +201,8 @@ pub fn FilterMenu() -> impl IntoView {
                     element_counts
                         .get()
                         .into_keys()
-                        .into_iter()
                         .collect::<Vec<_>>(),
-                    vec![is_property],
+                    &[is_property],
                 )
                 checks=element_checks
                 counts=element_counts

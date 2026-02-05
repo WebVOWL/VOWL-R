@@ -26,7 +26,9 @@ pub fn hydrate() {
     use crate::app::App;
     use log::info;
     console_error_panic_hook::set_once();
-    console_log::init_with_level(log::Level::Info).expect("error initializing logger");
+    if let Err(e) = console_log::init_with_level(log::Level::Info) {
+        log::error!("Failed to initialize console logger: {e}");
+    }
     leptos::mount::hydrate_body(App);
     info!("Hydration complete");
 }

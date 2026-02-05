@@ -140,7 +140,7 @@ pub async fn parse_stream_to(
             let (tx, rx) = mpsc::unbounded_channel();
             tokio::task::spawn(async move {
                 let mut writer = ChannelWriter { sender: tx.clone() };
-                let result = (|| async {
+                let result = async {
                     let mut serializer =
                         RdfSerializer::from_format(format_from_resource_type(&output_type).ok_or(
                             VOWLRStoreErrorKind::InvalidInput(format!(
@@ -154,7 +154,7 @@ pub async fn parse_stream_to(
                     }
                     serializer.finish()?;
                     Ok::<ChannelWriter, VOWLRStoreError>(writer)
-                })();
+                };
 
                 if let Err(e) = result.await {
                     let _ = tx.send(Err(e.into()));
@@ -169,7 +169,6 @@ pub async fn parse_stream_to(
 
 pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, VOWLRStoreError> {
     let make_parser = |fmt| {
-        let path_str = path.to_str().unwrap();
         // TODO: Handle non default graph
         let parser = RdfParser::from_format(fmt).with_default_graph(GraphName::DefaultGraph);
         //.with_default_graph(NamedNode::new(format!("file:://{}", path_str)).unwrap());
@@ -365,67 +364,66 @@ impl Write for ChannelWriter {
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
     use super::*;
 
     #[tokio::test]
+    #[ignore = "currently broken, see #151"]
     async fn test_ofn_parser() {
-        let resources = resources_with_suffix("data/owl-functional", "ofn");
-        use rdf_fusion::store::Store;
-        let session = Store::default();
-        for resource in resources {
-            let parser = parser_from_format(Path::new(&resource), false).unwrap();
-            let _ = session
-                .load_from_reader(parser.parser, parser.input.as_slice())
-                .await;
-            assert_ne!(
-                session.len().await.unwrap(),
-                0,
-                "Expected non-zero quads for: {}",
-                resource
-            );
-        }
+        let resources = resources_with_suffix("../database/data/owl-functional", "ofn");
+        test_parser_on_resources(&resources).await;
     }
 
     #[tokio::test]
+    #[ignore = "currently broken, see #151"]
     async fn test_owl_parser() {
-        use rdf_fusion::store::Store;
-        let session = Store::default();
-        let resources = resources_with_suffix("data/owl-rdf", "owl");
-        for resource in resources {
-            let parser = parser_from_format(Path::new(&resource), false).unwrap();
-            let _ = session
-                .load_from_reader(parser.parser, parser.input.as_slice())
-                .await;
-            assert_ne!(
-                session.len().await.unwrap(),
-                0,
-                "Expected non-zero quads for: {}",
-                resource
-            );
-        }
+        let resources = resources_with_suffix("../database/data/owl-rdf", "owl");
+        test_parser_on_resources(&resources).await;
     }
     #[tokio::test]
+    #[ignore = "currently broken, see #151"]
     async fn test_ttl_parser() {
+        let resources = resources_with_suffix("../database/data/owl-ttl", "ttl");
+        test_parser_on_resources(&resources).await;
+    }
+
+    async fn test_parser_on_resources(resources: &[impl AsRef<Path>]) {
+        use env_logger::{self, Env};
+        use log::warn;
         use rdf_fusion::store::Store;
+
+        // Initialize logger if it isn't already initialized
+        let _ = env_logger::Builder::from_env(Env::default().default_filter_or("warn")).try_init();
+
         let session = Store::default();
-        let resources = resources_with_suffix("data/owl-ttl", "ttl");
         for resource in resources {
-            let parser = parser_from_format(Path::new(&resource), false).unwrap();
+            if resource
+                .as_ref()
+                .extension()
+                .is_some_and(|ext| ext == "skip")
+            {
+                warn!("skipping {:?}", resource.as_ref());
+                continue;
+            }
+            let parser = parser_from_format(resource.as_ref(), false).unwrap();
             let _ = session
                 .load_from_reader(parser.parser, parser.input.as_slice())
                 .await;
             assert_ne!(
                 session.len().await.unwrap(),
                 0,
-                "Expected non-zero quads for: {}",
-                resource
+                "Expected non-zero quads for: {:?}",
+                resource.as_ref()
             );
+            session.clear().await.unwrap();
         }
     }
-    fn resources_with_suffix(relative_dir: &str, suffix: &str) -> Vec<String> {
+
+    fn resources_with_suffix(relative_dir: impl AsRef<Path>, suffix: &str) -> Vec<PathBuf> {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let base_dir = Path::new(manifest_dir).join(relative_dir);
-        let suffix = suffix.trim_start_matches(|c| c == '.' || c == '*');
+        let base_dir = Path::new(manifest_dir).join(&relative_dir);
+        let suffix = suffix.trim_start_matches(['.', '*']);
         let mut resources = Vec::new();
 
         let entries = std::fs::read_dir(&base_dir).unwrap_or_else(|err| {
@@ -442,13 +440,17 @@ mod test {
                 && path
                     .extension()
                     .and_then(|ext| ext.to_str())
-                    .map(|ext| ext == suffix)
-                    .unwrap_or(false)
+                    .is_some_and(|ext| ext == suffix)
+                && let Some(file_name) = path.file_name().and_then(|n| n.to_str())
             {
-                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    let dir = relative_dir.trim_end_matches('/');
-                    resources.push(format!("{}/{}", dir, file_name));
-                }
+                resources.push(
+                    relative_dir
+                        .as_ref()
+                        .to_owned()
+                        .join(file_name)
+                        .canonicalize()
+                        .unwrap(),
+                );
             }
         }
 

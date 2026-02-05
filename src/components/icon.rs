@@ -41,13 +41,14 @@ pub fn Icon(
 #[component]
 pub fn MaybeShowIcon(#[prop(optional, into)] icon: MaybeProp<icondata::Icon>) -> impl IntoView {
     move || {
-        if let Some(ico) = *icon.read() {
-            Either::Left(view! {
-                <Icon icon=ico>
-                </Icon>
-            })
-        } else {
-            Either::Right(())
-        }
+        icon.read().map_or_else(
+            || Either::Right(()),
+            |ico| {
+                Either::Left(view! {
+                    <Icon icon=ico>
+                    </Icon>
+                })
+            },
+        )
     }
 }

@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::format,
-    mem::{swap, take},
+    mem::take,
     time::{Duration, Instant},
 };
 
@@ -13,8 +12,8 @@ use crate::{
 use fluent_uri::Iri;
 use futures::StreamExt;
 use grapher::prelude::{
-    Characteristic, ElementType, GenericEdge, GenericNode, GenericType, GraphDisplayData, OwlEdge,
-    OwlNode, OwlType, RdfEdge, RdfType, RdfsEdge, RdfsNode, RdfsType,
+    ElementType, GraphDisplayData, OwlEdge, OwlNode, OwlType, RdfEdge, RdfType, RdfsEdge, RdfsNode,
+    RdfsType,
 };
 use log::{debug, error, info, trace, warn};
 use oxrdf::{IriParseError, NamedNode, vocab::rdf};
@@ -190,11 +189,9 @@ impl GraphDisplayDataSolutionSerializer {
         if let Some(elem) = data_buffer.node_element_buffer.get(&x) {
             debug!("Resolved: {}: {}", x, elem);
             return Some(x);
-        } else {
-            if let Some(elem) = data_buffer.edge_element_buffer.get(&x) {
-                debug!("Resolved: {}: {}", x, elem);
-                return Some(x);
-            }
+        } else if let Some(elem) = data_buffer.edge_element_buffer.get(&x) {
+            debug!("Resolved: {}: {}", x, elem);
+            return Some(x);
         }
 
         while let Some(redirected) = data_buffer.edge_redirection.get(&x) {
@@ -307,17 +304,11 @@ impl GraphDisplayDataSolutionSerializer {
         element_iri: String,
         edge: Edge,
     ) {
-        if data_buffer.edges_include_map.contains_key(&element_iri) {
-            data_buffer
-                .edges_include_map
-                .get_mut(&element_iri)
-                .unwrap()
-                .insert(edge);
-        } else {
-            data_buffer
-                .edges_include_map
-                .insert(element_iri, HashSet::from([edge]));
-        }
+        data_buffer
+            .edges_include_map
+            .entry(element_iri)
+            .or_default()
+            .insert(edge);
     }
 
     pub fn redirect_iri(
@@ -389,7 +380,7 @@ impl GraphDisplayDataSolutionSerializer {
                 edge_type
             };
 
-        match self.resolve_so(data_buffer, &triple) {
+        match self.resolve_so(data_buffer, triple) {
             (Some(sub_iri), Some(obj_iri)) => {
                 let edge = Edge {
                     subject: sub_iri.clone(),
@@ -700,6 +691,10 @@ impl GraphDisplayDataSolutionSerializer {
                     for mut domain_triple in domains {
                         match &domain_triple.target {
                             Some(target_term) => {
+                                #[expect(
+                                    clippy::single_match,
+                                    reason = "We want to be explicit about the individual cases"
+                                )]
                                 match self.resolve(data_buffer, target_term.to_string()) {
                                     // Case 2.1: Domain is unresolved. Range is still unknown.
                                     None => {
@@ -761,6 +756,10 @@ impl GraphDisplayDataSolutionSerializer {
                     for mut range_triple in ranges {
                         match &range_triple.target {
                             Some(target_term) => {
+                                #[expect(
+                                    clippy::single_match,
+                                    reason = "We want to be explicit about the individual cases"
+                                )]
                                 match self.resolve(data_buffer, target_term.to_string()) {
                                     // Case 2.1: range is unresolved. Range is still unknown.
                                     None => {
@@ -944,12 +943,8 @@ impl GraphDisplayDataSolutionSerializer {
         match &triple.element_type {
             Term::BlankNode(bnode) => {
                 // The query must never put blank nodes in the ?nodeType variable
-                let msg = format!(
-                    "Illegal blank node during serialization: '{}'",
-                    bnode.to_string()
-                );
+                let msg = format!("Illegal blank node during serialization: '{bnode}'");
                 data_buffer.failed_buffer.push((Some(triple), msg));
-                return;
             }
             Term::Literal(literal) => {
                 // NOTE: Any string literal goes here, e.g. 'EquivalentClass'.
@@ -1023,7 +1018,7 @@ impl GraphDisplayDataSolutionSerializer {
                                 match data_buffer.unknown_edge_buffer.remove(&subj_iri) {
                                     Some(direction) => {
                                         // TODO: Handle multiple domains. It is part of RDF spec
-                                        if direction.domains.len() > 0 {
+                                        if !direction.domains.is_empty() {
                                             let msg = format!(
                                                 "Cannot resolve a property '{}' with multiple domains: {:#?}",
                                                 subj_iri, direction.domains
@@ -1056,11 +1051,10 @@ impl GraphDisplayDataSolutionSerializer {
                                                     }
                                                 };
                                                 // Get label here to please borrow checker
-                                                let wrapped_label =
-                                                    match data_buffer.label_buffer.get(&subj_iri) {
-                                                        Some(label) => Some(label.clone()),
-                                                        None => None,
-                                                    };
+                                                let wrapped_label = data_buffer
+                                                    .label_buffer
+                                                    .get(&subj_iri)
+                                                    .cloned();
 
                                                 for target_triple in direction.ranges.iter() {
                                                     match (&triple.target, &target_triple.target) {
@@ -1151,7 +1145,7 @@ impl GraphDisplayDataSolutionSerializer {
                                 match data_buffer.unknown_edge_buffer.remove(&subj_iri) {
                                     Some(direction) => {
                                         // TODO: Handle multiple ranges. It is part of RDF spec
-                                        if direction.ranges.len() > 0 {
+                                        if !direction.ranges.is_empty() {
                                             let msg = format!(
                                                 "Cannot resolve a property '{}' with multiple ranges: {:#?}",
                                                 subj_iri, direction.domains
@@ -1184,11 +1178,10 @@ impl GraphDisplayDataSolutionSerializer {
                                                     }
                                                 };
                                                 // Get label here to please borrow checker
-                                                let wrapped_label =
-                                                    match data_buffer.label_buffer.get(&subj_iri) {
-                                                        Some(label) => Some(label.clone()),
-                                                        None => None,
-                                                    };
+                                                let wrapped_label = data_buffer
+                                                    .label_buffer
+                                                    .get(&subj_iri)
+                                                    .cloned();
 
                                                 for target_triple in direction.domains.iter() {
                                                     match (&triple.target, &target_triple.target) {
@@ -1303,14 +1296,14 @@ impl GraphDisplayDataSolutionSerializer {
                     ),
                     owl::COMPLEMENT_OF => {
                         self.insert_edge(data_buffer, &triple, ElementType::NoDraw, None);
-                        if let Some(_) = triple.target {
-                            if let Some(index) = self.resolve(data_buffer, triple.id.to_string()) {
-                                self.upgrade_node_type(
-                                    data_buffer,
-                                    index,
-                                    ElementType::Owl(OwlType::Node(OwlNode::Complement)),
-                                );
-                            }
+                        if triple.target.is_some()
+                            && let Some(index) = self.resolve(data_buffer, triple.id.to_string())
+                        {
+                            self.upgrade_node_type(
+                                data_buffer,
+                                index,
+                                ElementType::Owl(OwlType::Node(OwlNode::Complement)),
+                            );
                         }
                     }
                     // TODO owl::DATATYPE_COMPLEMENT_OF => {}
@@ -1340,14 +1333,14 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::DIFFERENT_FROM => {}
                     owl::DISJOINT_UNION_OF => {
                         self.insert_edge(data_buffer, &triple, ElementType::NoDraw, None);
-                        if let Some(_) = triple.target {
-                            if let Some(index) = self.resolve(data_buffer, triple.id.to_string()) {
-                                self.upgrade_node_type(
-                                    data_buffer,
-                                    index,
-                                    ElementType::Owl(OwlType::Node(OwlNode::DisjointUnion)),
-                                );
-                            }
+                        if triple.target.is_some()
+                            && let Some(index) = self.resolve(data_buffer, triple.id.to_string())
+                        {
+                            self.upgrade_node_type(
+                                data_buffer,
+                                index,
+                                ElementType::Owl(OwlType::Node(OwlNode::DisjointUnion)),
+                            );
                         }
                     }
                     owl::DISJOINT_WITH => {
@@ -1400,7 +1393,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         None => {
                                             match data_buffer.unknown_buffer.remove(&target_str) {
                                                 Some(items) => {
-                                                    if items.len() > 0 {
+                                                    if !items.is_empty() {
                                                         warn!(
                                                             "Removed unresolved triples for object '{}' during merge into equivalent subject '{}':\n\t{:#?}",
                                                             target_str, triple.id, items
@@ -1503,9 +1496,8 @@ impl GraphDisplayDataSolutionSerializer {
                     owl::ONTOLOGY => {
                         if let Some(base) = &data_buffer.document_base {
                             warn!(
-                                "Attempting to override document base '{}' with new base '{}'. Skipping",
-                                base,
-                                triple.id.to_string()
+                                "Attempting to override document base '{base}' with new base '{}'. Skipping",
+                                triple.id
                             );
                         } else {
                             // Remove ">" to enable substring matching
@@ -1571,6 +1563,12 @@ impl GraphDisplayDataSolutionSerializer {
                 };
             }
         }
+    }
+}
+
+impl Default for GraphDisplayDataSolutionSerializer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1737,7 +1735,7 @@ mod test {
                 .edge_redirection
                 .get("<http://example.com#Warden>")
                 .unwrap()
-                == "<http://example.com#Guardian>".to_string()
+                == "<http://example.com#Guardian>"
         );
         assert!(data_buffer.edge_buffer.contains(&Edge {
             subject: "<http://example.com#Warden1>".to_string(),
@@ -1769,7 +1767,7 @@ mod test {
             },
         );
         let s = serializer.resolve(
-            &mut data_buffer,
+            &data_buffer,
             "_:e1013e66f734c508511575854b0c9396".to_string(),
         );
         assert!(s.is_some());
@@ -1779,7 +1777,7 @@ mod test {
         for (k, v) in data_buffer.edge_redirection.iter() {
             println!("edge_redirection: {} -> {}", k, v);
         }
-        assert!(s.unwrap() == "<http://example.com#Guardian>".to_string());
+        assert!(s.unwrap() == "<http://example.com#Guardian>");
         assert!(
             !data_buffer
                 .edges_include_map

@@ -1,7 +1,4 @@
-use std::{
-    io::{Error, ErrorKind},
-    panic::Location,
-};
+use std::{io::Error, panic::Location};
 
 use horned_owl::error::HornedError;
 use rdf_fusion::{
@@ -29,9 +26,9 @@ pub struct VOWLRStoreError {
     location: &'static Location<'static>,
 }
 
-impl Into<Error> for VOWLRStoreError {
-    fn into(self) -> Error {
-        Error::new(ErrorKind::Other, self.to_string())
+impl From<VOWLRStoreError> for Error {
+    fn from(val: VOWLRStoreError) -> Self {
+        Error::other(val.to_string())
     }
 }
 impl From<String> for VOWLRStoreError {
@@ -39,7 +36,7 @@ impl From<String> for VOWLRStoreError {
     fn from(error: String) -> Self {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::InvalidInput(error),
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }
@@ -49,7 +46,7 @@ impl From<HornedError> for VOWLRStoreError {
     fn from(error: HornedError) -> Self {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::HornedError(error),
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }
@@ -59,7 +56,7 @@ impl From<IriParseError> for VOWLRStoreError {
     fn from(error: IriParseError) -> Self {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::IriParseError(error),
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }
@@ -69,7 +66,7 @@ impl From<LoaderError> for VOWLRStoreError {
     fn from(error: LoaderError) -> Self {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::LoaderError(error),
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }
@@ -78,7 +75,7 @@ impl From<VOWLRStoreErrorKind> for VOWLRStoreError {
     fn from(error: VOWLRStoreErrorKind) -> Self {
         VOWLRStoreError {
             inner: error,
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }
@@ -88,7 +85,7 @@ impl From<std::io::Error> for VOWLRStoreError {
     fn from(error: std::io::Error) -> Self {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::IOError(error),
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }
@@ -97,7 +94,7 @@ impl From<QueryEvaluationError> for VOWLRStoreError {
     fn from(error: QueryEvaluationError) -> Self {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::QueryEvaluationError(error),
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }
@@ -106,7 +103,7 @@ impl From<JoinError> for VOWLRStoreError {
     fn from(error: JoinError) -> Self {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::JoinError(error),
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }
@@ -116,7 +113,7 @@ impl From<StorageError> for VOWLRStoreError {
     fn from(error: StorageError) -> Self {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::StorageError(error),
-            location: &Location::caller(),
+            location: Location::caller(),
         }
     }
 }

@@ -2,7 +2,7 @@ use crate::components::buttons::graph_interaction_buttons::GraphInteractionButto
 use leptos::prelude::*;
 
 #[component]
-pub fn Accordion(#[prop(into)] title: String, children: Children) -> impl IntoView {
+pub fn Accordion(#[prop(into)] title: &'static str, children: Children) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);
 
     view! {
@@ -11,7 +11,7 @@ pub fn Accordion(#[prop(into)] title: String, children: Children) -> impl IntoVi
                 class="flex justify-between items-center py-3 px-4 w-full font-medium text-left text-gray-700 transition-colors hover:bg-gray-50"
                 on:click=move |_| set_is_open.update(|v| *v = !*v)
             >
-                <span>{title.clone()}</span>
+                <span>{title}</span>
                 <span
                     class="text-gray-500 transition-transform"
                     class=("rotate-180", move || is_open.get())

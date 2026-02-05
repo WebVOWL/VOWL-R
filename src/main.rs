@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use actix_files::Files;
-use actix_web::*;
+use actix_web::{App, HttpServer, middleware, web};
 use env_logger::Env;
 use leptos::prelude::*;
 use leptos_actix::{LeptosRoutes, generate_route_list};
@@ -19,7 +19,9 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting {pkg_name} server [v{pkg_version}]");
 
-    let conf = get_configuration(None).unwrap();
+    // TODO: properly handle this error
+    #[expect(clippy::expect_used)]
+    let conf = get_configuration(None).expect("could not load config");
     let addr = conf.leptos_options.site_addr;
 
     HttpServer::new(move || {

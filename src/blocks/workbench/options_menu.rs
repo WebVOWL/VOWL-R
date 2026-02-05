@@ -15,6 +15,10 @@ pub fn SimulatorSettings() -> impl IntoView {
     let quadtree_theta = RwSignal::new(QuadTreeTheta::default().0.into());
     let freeze_thresh = RwSignal::new(FreezeThreshold::default().0.into());
 
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "These values should never be big enough to be truncated"
+    )]
     Effect::new(move |_| {
         let messages = [
             SimulatorEvent::RepelForceUpdated(repel_force.get() as f32),

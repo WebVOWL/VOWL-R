@@ -1,5 +1,8 @@
 use leptos::serde_json;
 use leptos::{IntoView, WasmSplitManifest, component, config::LeptosOptions, prelude::*, view};
+use log::error;
+use std::collections::HashMap;
+use std::fmt::Write;
 use std::{path::PathBuf, sync::OnceLock};
 
 /// Inserts hydration scripts that add interactivity to your server-rendered HTML.
@@ -7,6 +10,10 @@ use std::{path::PathBuf, sync::OnceLock};
 /// This should be included in the `<head>` of your application shell.
 #[allow(dead_code)]
 #[component]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "LeptosOptions should be owned"
+)]
 pub fn HydrationScripts(
     /// Configuration options for this project.
     options: LeptosOptions,
@@ -35,8 +42,11 @@ pub fn HydrationScripts(
         let file = std::fs::read_to_string(path).ok()?;
         let manifest = WasmSplitManifest(ArcStoredValue::new((
             format!("{root}/{pkg_dir}"),
-            serde_json::from_str(&file).expect("could not read manifest file"),
-            format!("__wasm_split_manifest.json"),
+            serde_json::from_str(&file).unwrap_or_else(|e| {
+                error!("could not read manifest file: {e}");
+                HashMap::new()
+            }),
+            "__wasm_split_manifest.json".to_string(),
         )));
 
         Some(manifest)
@@ -47,26 +57,12 @@ pub fn HydrationScripts(
     let mut js_file_name = options.output_name.to_string();
     let mut wasm_file_name = options.output_name.to_string();
     if options.hash_files {
-        let hash_path = std::env::current_exe()
-            .map(|path| path.parent().map(|p| p.to_path_buf()).unwrap_or_default())
-            .unwrap_or_default()
-            .join(options.hash_file.as_ref());
-        if hash_path.exists() {
-            let hashes = std::fs::read_to_string(&hash_path).expect("failed to read hash file");
-            for line in hashes.lines() {
-                let line = line.trim();
-                if !line.is_empty() {
-                    if let Some((file, hash)) = line.split_once(':') {
-                        if file == "js" {
-                            js_file_name.push_str(&format!(".{}", hash.trim()));
-                        } else if file == "wasm" {
-                            wasm_file_name.push_str(&format!(".{}", hash.trim()));
-                        }
-                    }
-                }
-            }
-        } else {
-            leptos::logging::error!("File hashing is active but no hash file was found");
+        if let Err(e) =
+            append_filename_hashes(&mut js_file_name, &mut wasm_file_name, &options.hash_file)
+        {
+            leptos::logging::error!(
+                "File hashing is active but could not build file names with hashes: {e}"
+            );
         }
     } else if std::option_env!("LEPTOS_OUTPUT_NAME").is_none() {
         wasm_file_name.push_str("_bg");
@@ -110,4 +106,30 @@ pub fn HydrationScripts(
             )}
         </script>
     }
+}
+
+fn append_filename_hashes(
+    js_file_name: &mut String,
+    wasm_file_name: &mut String,
+    hash_file: impl AsRef<str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let hash_path = std::env::current_exe()?
+        .parent()
+        .ok_or("current executable does not have parent directory")?
+        .to_path_buf()
+        .join(hash_file.as_ref());
+    let hashes = std::fs::read_to_string(&hash_path)?;
+    for line in hashes.lines() {
+        let line = line.trim();
+        if !line.is_empty()
+            && let Some((file, hash)) = line.split_once(':')
+        {
+            if file == "js" {
+                write!(js_file_name, ".{}", hash.trim())?;
+            } else if file == "wasm" {
+                write!(wasm_file_name, ".{}", hash.trim())?;
+            }
+        }
+    }
+    Ok(())
 }

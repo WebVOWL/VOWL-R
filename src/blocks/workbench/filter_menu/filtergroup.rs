@@ -14,7 +14,7 @@ pub fn FilterGroup<T>(
 where
     T: std::fmt::Display + ElementLegend + Copy + Clone + Eq + Hash + Send + Sync + 'static,
 {
-    if items.len() == 0 {
+    if items.is_empty() {
         Either::Left(())
     } else {
         Either::Right(view! {
@@ -45,7 +45,7 @@ where
                                                 }
                                             })
                                             .sum();
-                                        format!("{}: ({}/{})", name, rendered, total_count)
+                                        format!("{name}: ({rendered}/{total_count})")
                                     }
                                 }
                             </div>

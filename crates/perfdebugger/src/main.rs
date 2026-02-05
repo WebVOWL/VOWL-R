@@ -17,7 +17,7 @@ async fn main() {
 
         let store = VOWLRStore::default();
         store
-            .insert_file(&path, false)
+            .insert_file(path, false)
             .await
             .expect("Error inserting file");
 

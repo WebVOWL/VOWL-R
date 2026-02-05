@@ -19,7 +19,7 @@ pub fn VowlrDesc() -> impl IntoView {
 
 pub fn Version() -> impl IntoView {
     let version = env!("CARGO_PKG_VERSION");
-    view! {<p><b>{format!("Version {}", version)}</b></p> }
+    view! {<p><b>{format!("Version {version}")}</b></p> }
 }
 
 #[component]

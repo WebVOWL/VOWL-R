@@ -39,8 +39,8 @@ pub fn NewWorkbench() -> impl IntoView {
     let total_graph_data = RwSignal::new(GraphDisplayData::new());
 
     provide_context(GraphDataContext {
-        graph_data: graph_data.clone(),
-        total_graph_data: total_graph_data.clone(),
+        graph_data,
+        total_graph_data,
     });
 
     view! {
