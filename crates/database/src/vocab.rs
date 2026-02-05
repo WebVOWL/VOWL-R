@@ -11,9 +11,9 @@ pub mod owl {
     /// The class of collections of pairwise disjoint classes.
     pub const ALL_DISJOINT_CLASSES: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/2002/07/owl#AllDisjointClasses");
-    /// The class of collections of pairwise disjoint classes.
+    /// The class of collections of pairwise disjoint properties.
     pub const ALL_DISJOINT_PROPERTIES: NamedNodeRef<'_> =
-        NamedNodeRef::new_unchecked("http://www.w3.org/2002/07/owl#AllDisjointClasses");
+        NamedNodeRef::new_unchecked("http://www.w3.org/2002/07/owl#AllDisjointProperties");
     /// The class of annotated annotations for which the RDF serialization consists of an annotated subject, predicate and object.
     pub const ANNOTATION: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/2002/07/owl#Annotation");
