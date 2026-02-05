@@ -39,13 +39,17 @@
 # Enables a statically linked runtime. Useful for running in e.g. "stratch" Docker containers.
 #
 # "-Zpre-link-args"
+# Add extra object file(s) very early in the link stage (usually first).
+# This allows overriding the default memory allocator with mimalloc when compiling a static binary. 
 # https://users.rust-lang.org/t/why-isnt-zpre-link-args-stabilized-yet/130162
 # https://github.com/rust-lang/rust/issues/57837
+
 
 # Workaround for rustflags not being cumulative
 # https://github.com/rust-lang/cargo/issues/5376#issuecomment-2163350032
 [target.'cfg(all())']
     rustflags=["-Zshare-generics=y", "-Zthreads=0"]
+
 
 # Docker
 [target.x86_64-unknown-linux-musl]
@@ -55,7 +59,7 @@
         "-Clinker-plugin-lto",
         "-Clink-arg=-fuse-ld=mold",
         "-Clink-arg=-flto",
-        # "-Zpre-link-args=/usr/lib/libmimalloc.so",
+        "-Zpre-link-args=link_libs/mimalloc-secure.o",
     ]
     # TODO: Investigate performance influence of target-features:
     # - https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
@@ -68,20 +72,22 @@
     # TODO: Use Criterion for smaller benchmarks, e.g. test a datastructure, function etc.
     # - https://docs.rs/criterion/latest/criterion/
 
+
 # Local dev server
 [target.x86_64-unknown-linux-gnu]
     linker="clang"
     rustflags=["-Clink-arg=-fuse-ld=mold"]
 
+
 # Frontend of program
 [target.wasm32-unknown-unknown]
     rustflags=[
         "-Clink-arg=--max-memory=4294967296",
-        "-Ctarget-feature=+atomics",
-        "-Ctarget-feature=+simd128",
+        "-Ctarget-feature=+atomics,+simd128",
         '--cfg',
         'getrandom_backend="wasm_js"',
     ]
+
 
 [unstable]
     # We need to build the standard library from source to support the "wasm32-unknown-unknown" target.
