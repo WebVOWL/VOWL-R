@@ -29,7 +29,9 @@ pub mod owl {
     /// The class of OWL classes.
     pub const CLASS: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/2002/07/owl#Class");
-    /// The class of OWL data ranges, which are special kinds of datatypes. Note: The use of the IRI owl:DataRange has been deprecated as of OWL 2. The IRI rdfs:Datatype SHOULD be used instead.
+    /// NOTE: The use of the IRI owl:DataRange has been deprecated as of OWL 2. The IRI rdfs:Datatype SHOULD be used instead.
+    ///
+    /// The class of OWL data ranges, which are special kinds of datatypes.
     pub const DATA_RANGE: NamedNodeRef<'_> =
         NamedNodeRef::new_unchecked("http://www.w3.org/2002/07/owl#DataRange");
     /// The class of data properties.
