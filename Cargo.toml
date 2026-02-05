@@ -324,3 +324,8 @@
         #
         # Optional. Defaults to "/api". Env: SERVER_FN_PREFIX
         server-fn-prefix="/api"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = { level = "deny" }
