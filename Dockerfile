@@ -36,12 +36,15 @@ ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 # Build VOWL-R
 RUN ./build.sh binary
 
-
 FROM scratch AS runner
 
-WORKDIR /app
-
 USER 10001
+
+# Make a directory for temporary files writable by 10001
+# (Done this way as no shell command is available)
+COPY --chown=10001 --from=builder --exclude=/tmp/* /tmp /tmp
+
+WORKDIR /app
 
 # Import VOWL-R from the build stage
 COPY --chown=10001 --from=builder /build/target/x86_64-unknown-linux-musl/release/vowlr /app/

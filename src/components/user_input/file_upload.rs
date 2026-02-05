@@ -5,7 +5,7 @@ use leptos::prelude::*;
 use leptos::server_fn::ServerFnError;
 use leptos::server_fn::codec::{MultipartData, MultipartFormData, Rkyv, StreamingText, TextStream};
 use leptos::task::spawn_local;
-use log::{debug, info, warn};
+use log::{debug, info};
 #[cfg(feature = "server")]
 use reqwest::Client;
 use std::cell::RefCell;
@@ -13,9 +13,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "server")]
-use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, QueryResults};
-#[cfg(feature = "server")]
-use vowlr_database::store::VOWLRStore;
+use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, QueryResults, VOWLRStore};
 use vowlr_util::datatypes::DataType;
 use web_sys::{FileList, FormData};
 
@@ -97,18 +95,25 @@ pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), Serv
         if !name.is_empty() {
             info!("Receiving file '{}'", name);
             progress::reset(&name);
-            let _ = session.start_upload(&name).await;
+            debug!("Resetting progress");
+
+            session
+                .start_upload(&name)
+                .await
+                .map_err(|e| ServerFnError::new(e.to_string()))?;
 
             dtype = Path::new(&name).into();
         } else {
-            warn!("Received empty file string");
+            return Err(ServerFnError::new("Received empty file string"));
         }
 
         while let Ok(Some(chunk)) = field.chunk().await {
             let len = chunk.len();
             count += len;
-            eprint!("{}--", count);
-            let _ = session.upload_chunk(&chunk).await;
+            session
+                .upload_chunk(&chunk)
+                .await
+                .map_err(|e| ServerFnError::new(e.to_string()))?;
             progress::add_chunk(&name, len).await;
         }
 
@@ -117,7 +122,10 @@ pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), Serv
         }
     }
 
-    let _ = session.complete_upload().await;
+    session
+        .complete_upload()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
     Ok((dtype, count))
 }
 
@@ -138,29 +146,32 @@ pub async fn handle_remote(url: String) -> Result<(DataType, usize), ServerFnErr
     let mut session = VOWLRStore::default();
     let progress_key = url.clone();
     progress::reset(&progress_key);
-    let _ = session.start_upload(&url).await;
+    session
+        .start_upload(&url)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let mut total = 0;
     let dtype = Path::new(&url).into();
 
     let mut stream = resp.bytes_stream();
     while let Some(chunk_result) = stream.next().await {
-        let chunk = match chunk_result {
-            Ok(c) => c,
-            Err(e) => {
-                return Err(ServerFnError::ServerError(format!(
-                    "Error reading chunk: {e}"
-                )));
-            }
-        };
+        let chunk =
+            chunk_result.map_err(|e| ServerFnError::new(format!("Error reading chunk: {e}")))?;
 
         total += chunk.len();
-        session.upload_chunk(&chunk).await.ok();
+        session
+            .upload_chunk(&chunk)
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
         progress::add_chunk(&progress_key, chunk.len()).await;
     }
 
     progress::remove(&progress_key);
-    session.complete_upload().await.ok();
+    session
+        .complete_upload()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
     Ok((dtype, total))
 }
 
@@ -179,44 +190,40 @@ pub async fn handle_sparql(
         _ => DataType::SPARQLJSON.mime_type(),
     };
 
-    let resp = match client
+    let resp = client
         .post(&endpoint)
         .header("Accept", accept_type)
         .form(&[("query", query)])
         .send()
         .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            return Err(ServerFnError::ServerError(format!(
-                "Error querying SPARQL endpoint: {e}"
-            )));
-        }
-    };
+        .map_err(|e| ServerFnError::new(format!("Error querying SPARQL endpoint: {e}")))?;
 
     let progress_key = format!("sparql-{}", endpoint);
     progress::reset(&progress_key);
-    let _ = session.start_upload(&progress_key).await;
+    session
+        .start_upload(&progress_key)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let mut total = 0;
     let mut stream = resp.bytes_stream();
     while let Some(chunk_result) = stream.next().await {
-        let chunk = match chunk_result {
-            Ok(c) => c,
-            Err(e) => {
-                return Err(ServerFnError::ServerError(format!(
-                    "Error reading chunk: {e}"
-                )));
-            }
-        };
+        let chunk =
+            chunk_result.map_err(|e| ServerFnError::new(format!("Error reading chunk: {e}")))?;
 
         total += chunk.len();
-        session.upload_chunk(&chunk).await.ok();
+        session
+            .upload_chunk(&chunk)
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
         progress::add_chunk(&progress_key, chunk.len()).await;
     }
 
     progress::remove(&progress_key);
-    session.complete_upload().await.ok();
+    session
+        .complete_upload()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let dtype = if accept_type.contains("xml") {
         DataType::SPARQLXML
@@ -231,7 +238,7 @@ pub async fn handle_internal_sparql(query: String) -> Result<GraphDisplayData, S
     let vowlr = VOWLRStore::default();
 
     let mut data_buffer = GraphDisplayData::new();
-    let mut solution_serializer = GraphDisplayDataSolutionSerializer::new();
+    let solution_serializer = GraphDisplayDataSolutionSerializer::new();
     let query_stream = vowlr.session.query(query.as_str()).await.unwrap();
     if let QueryResults::Solutions(solutions) = query_stream {
         solution_serializer

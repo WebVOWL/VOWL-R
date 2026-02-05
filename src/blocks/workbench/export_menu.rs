@@ -4,7 +4,7 @@ use futures::StreamExt;
 use leptos::prelude::*;
 use leptos::server_fn::codec::{ByteStream, Streaming};
 #[cfg(feature = "server")]
-use vowlr_database::store::VOWLRStore;
+use vowlr_database::prelude::VOWLRStore;
 
 #[server(output = Streaming)]
 pub async fn export_owl(resource_type: String) -> Result<ByteStream<ServerFnError>, ServerFnError> {

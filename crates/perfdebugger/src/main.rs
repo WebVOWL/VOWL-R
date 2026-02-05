@@ -4,7 +4,7 @@ use grapher::run;
 use perfdebugger::util::query;
 use std::env;
 use std::path::Path;
-use vowlr_database::store::VOWLRStore;
+use vowlr_database::prelude::VOWLRStore;
 use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 
 #[tokio::main]

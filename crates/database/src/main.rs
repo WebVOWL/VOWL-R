@@ -5,8 +5,7 @@ use log::info;
 use rdf_fusion::{execution::results::QueryResults, store::Store};
 use std::env;
 use std::path::Path;
-use vowlr_database::prelude::GraphDisplayDataSolutionSerializer;
-use vowlr_database::store::VOWLRStore;
+use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, VOWLRStore};
 use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 
 #[tokio::main]

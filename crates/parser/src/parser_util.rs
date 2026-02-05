@@ -1,4 +1,4 @@
-use crate::errors::{WebVowlStoreError, WebVowlStoreErrorKind};
+use crate::errors::{VOWLRStoreError, VOWLRStoreErrorKind};
 use futures::{StreamExt, stream::BoxStream};
 use horned_owl::{
     io::{rdf::reader::ConcreteRDFOntology, *},
@@ -28,10 +28,10 @@ pub enum ParserInput {
 }
 
 impl ParserInput {
-    pub fn from_path(path: &Path) -> Result<Self, WebVowlStoreError> {
+    pub fn from_path(path: &Path) -> Result<Self, VOWLRStoreError> {
         std::fs::read(path)
             .map(ParserInput::File)
-            .map_err(WebVowlStoreError::from)
+            .map_err(VOWLRStoreError::from)
     }
 
     pub fn as_slice(&self) -> &[u8] {
@@ -80,14 +80,14 @@ pub fn format_from_resource_type(resource_type: &DataType) -> Option<RdfFormat> 
 pub async fn parse_stream_to(
     mut stream: QuadStream,
     output_type: DataType,
-) -> Result<BoxStream<'static, Result<Vec<u8>, WebVowlStoreError>>, WebVowlStoreError> {
+) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLRStoreError>>, VOWLRStoreError> {
     match output_type {
         DataType::OFN | DataType::OWX | DataType::OWL => {
             let (tx, rx) = mpsc::unbounded_channel();
             let mut buf = Vec::new();
             let mut serializer =
                 RdfSerializer::from_format(format_from_resource_type(&DataType::OWL).ok_or(
-                    WebVowlStoreErrorKind::InvalidInput(format!(
+                    VOWLRStoreErrorKind::InvalidInput(format!(
                         "Unsupported output type: {:?}",
                         output_type
                     )),
@@ -123,12 +123,9 @@ pub async fn parse_stream_to(
                         writer.flush()?;
                         Ok(writer)
                     }
-                    _ => Err(WebVowlStoreError::from(
-                        WebVowlStoreErrorKind::InvalidInput(format!(
-                            "Unsupported output type: {:?}",
-                            output_type
-                        )),
-                    )),
+                    _ => Err(VOWLRStoreError::from(VOWLRStoreErrorKind::InvalidInput(
+                        format!("Unsupported output type: {:?}", output_type),
+                    ))),
                 })();
 
                 if let Err(e) = result {
@@ -136,7 +133,7 @@ pub async fn parse_stream_to(
                 }
             });
             Ok(UnboundedReceiverStream::new(rx)
-                .map(|result| result.map_err(WebVowlStoreError::from))
+                .map(|result| result.map_err(VOWLRStoreError::from))
                 .boxed())
         }
         _ => {
@@ -146,7 +143,7 @@ pub async fn parse_stream_to(
                 let result = (|| async {
                     let mut serializer =
                         RdfSerializer::from_format(format_from_resource_type(&output_type).ok_or(
-                            WebVowlStoreErrorKind::InvalidInput(format!(
+                            VOWLRStoreErrorKind::InvalidInput(format!(
                                 "Unsupported output type: {:?}",
                                 output_type
                             )),
@@ -156,7 +153,7 @@ pub async fn parse_stream_to(
                         serializer.serialize_quad(&quad?)?;
                     }
                     serializer.finish()?;
-                    Ok::<ChannelWriter, WebVowlStoreError>(writer)
+                    Ok::<ChannelWriter, VOWLRStoreError>(writer)
                 })();
 
                 if let Err(e) = result.await {
@@ -164,13 +161,13 @@ pub async fn parse_stream_to(
                 }
             });
             Ok(UnboundedReceiverStream::new(rx)
-                .map(|result| result.map_err(WebVowlStoreError::from))
+                .map(|result| result.map_err(VOWLRStoreError::from))
                 .boxed())
         }
     }
 }
 
-pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, WebVowlStoreError> {
+pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, VOWLRStoreError> {
     let make_parser = |fmt| {
         let path_str = path.to_str().unwrap();
         // TODO: Handle non default graph
@@ -339,7 +336,7 @@ pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, 
                 input,
             })
         }
-        _ => Err(WebVowlStoreErrorKind::InvalidInput(format!(
+        _ => Err(VOWLRStoreErrorKind::InvalidInput(format!(
             "Unsupported parser: {}",
             path.display()
         ))),

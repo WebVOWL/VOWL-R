@@ -22,7 +22,7 @@ use rdf_fusion::{
     execution::results::QuerySolutionStream,
     model::{Term, vocab::rdfs},
 };
-use vowlr_parser::errors::WebVowlStoreError;
+use vowlr_parser::errors::VOWLRStoreError;
 
 pub struct GraphDisplayDataSolutionSerializer {
     pub resolvable_iris: HashMap<String, (NamedNode, ElementType)>,
@@ -55,7 +55,7 @@ impl GraphDisplayDataSolutionSerializer {
         &self,
         data: &mut GraphDisplayData,
         mut solution_stream: QuerySolutionStream,
-    ) -> Result<(), WebVowlStoreError> {
+    ) -> Result<(), VOWLRStoreError> {
         let mut count: u32 = 0;
         info!("Serializing query solution stream...");
         let start_time = Instant::now();

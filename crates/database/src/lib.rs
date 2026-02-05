@@ -1,8 +1,10 @@
 mod serializers;
-pub mod store;
-pub use vowlr_sparql_queries;
+mod store;
 mod vocab;
+
 pub mod prelude {
     pub use crate::serializers::frontend::GraphDisplayDataSolutionSerializer;
     pub use rdf_fusion::execution::results::QueryResults;
+
+    pub use crate::store::VOWLRStore;
 }

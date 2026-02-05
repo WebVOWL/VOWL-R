@@ -12,7 +12,7 @@ use rdf_fusion::{
 use tokio::task::JoinError;
 
 #[derive(Debug)]
-pub enum WebVowlStoreErrorKind {
+pub enum VOWLRStoreErrorKind {
     InvalidInput(String),
     HornedError(HornedError),
     IOError(std::io::Error),
@@ -24,120 +24,120 @@ pub enum WebVowlStoreErrorKind {
 }
 
 #[derive(Debug)]
-pub struct WebVowlStoreError {
-    inner: WebVowlStoreErrorKind,
+pub struct VOWLRStoreError {
+    inner: VOWLRStoreErrorKind,
     location: &'static Location<'static>,
 }
 
-impl Into<Error> for WebVowlStoreError {
+impl Into<Error> for VOWLRStoreError {
     fn into(self) -> Error {
         Error::new(ErrorKind::Other, self.to_string())
     }
 }
-impl From<String> for WebVowlStoreError {
+impl From<String> for VOWLRStoreError {
     #[track_caller]
     fn from(error: String) -> Self {
-        WebVowlStoreError {
-            inner: WebVowlStoreErrorKind::InvalidInput(error),
+        VOWLRStoreError {
+            inner: VOWLRStoreErrorKind::InvalidInput(error),
             location: &Location::caller(),
         }
     }
 }
 
-impl From<HornedError> for WebVowlStoreError {
+impl From<HornedError> for VOWLRStoreError {
     #[track_caller]
     fn from(error: HornedError) -> Self {
-        WebVowlStoreError {
-            inner: WebVowlStoreErrorKind::HornedError(error),
+        VOWLRStoreError {
+            inner: VOWLRStoreErrorKind::HornedError(error),
             location: &Location::caller(),
         }
     }
 }
 
-impl From<IriParseError> for WebVowlStoreError {
+impl From<IriParseError> for VOWLRStoreError {
     #[track_caller]
     fn from(error: IriParseError) -> Self {
-        WebVowlStoreError {
-            inner: WebVowlStoreErrorKind::IriParseError(error),
+        VOWLRStoreError {
+            inner: VOWLRStoreErrorKind::IriParseError(error),
             location: &Location::caller(),
         }
     }
 }
 
-impl From<LoaderError> for WebVowlStoreError {
+impl From<LoaderError> for VOWLRStoreError {
     #[track_caller]
     fn from(error: LoaderError) -> Self {
-        WebVowlStoreError {
-            inner: WebVowlStoreErrorKind::LoaderError(error),
+        VOWLRStoreError {
+            inner: VOWLRStoreErrorKind::LoaderError(error),
             location: &Location::caller(),
         }
     }
 }
-impl From<WebVowlStoreErrorKind> for WebVowlStoreError {
+impl From<VOWLRStoreErrorKind> for VOWLRStoreError {
     #[track_caller]
-    fn from(error: WebVowlStoreErrorKind) -> Self {
-        WebVowlStoreError {
+    fn from(error: VOWLRStoreErrorKind) -> Self {
+        VOWLRStoreError {
             inner: error,
             location: &Location::caller(),
         }
     }
 }
 
-impl From<std::io::Error> for WebVowlStoreError {
+impl From<std::io::Error> for VOWLRStoreError {
     #[track_caller]
     fn from(error: std::io::Error) -> Self {
-        WebVowlStoreError {
-            inner: WebVowlStoreErrorKind::IOError(error),
+        VOWLRStoreError {
+            inner: VOWLRStoreErrorKind::IOError(error),
             location: &Location::caller(),
         }
     }
 }
-impl From<QueryEvaluationError> for WebVowlStoreError {
+impl From<QueryEvaluationError> for VOWLRStoreError {
     #[track_caller]
     fn from(error: QueryEvaluationError) -> Self {
-        WebVowlStoreError {
-            inner: WebVowlStoreErrorKind::QueryEvaluationError(error),
+        VOWLRStoreError {
+            inner: VOWLRStoreErrorKind::QueryEvaluationError(error),
             location: &Location::caller(),
         }
     }
 }
-impl From<JoinError> for WebVowlStoreError {
+impl From<JoinError> for VOWLRStoreError {
     #[track_caller]
     fn from(error: JoinError) -> Self {
-        WebVowlStoreError {
-            inner: WebVowlStoreErrorKind::JoinError(error),
+        VOWLRStoreError {
+            inner: VOWLRStoreErrorKind::JoinError(error),
             location: &Location::caller(),
         }
     }
 }
 
-impl From<StorageError> for WebVowlStoreError {
+impl From<StorageError> for VOWLRStoreError {
     #[track_caller]
     fn from(error: StorageError) -> Self {
-        WebVowlStoreError {
-            inner: WebVowlStoreErrorKind::StorageError(error),
+        VOWLRStoreError {
+            inner: VOWLRStoreErrorKind::StorageError(error),
             location: &Location::caller(),
         }
     }
 }
 
-impl std::fmt::Display for WebVowlStoreError {
+impl std::fmt::Display for VOWLRStoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?} at {}", self.inner, self.location)
     }
 }
 
-impl std::error::Error for WebVowlStoreError {
+impl std::error::Error for VOWLRStoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.inner {
-            WebVowlStoreErrorKind::InvalidInput(_) => None,
-            WebVowlStoreErrorKind::HornedError(e) => Some(e),
-            WebVowlStoreErrorKind::IOError(e) => Some(e),
-            WebVowlStoreErrorKind::IriParseError(e) => Some(e),
-            WebVowlStoreErrorKind::LoaderError(e) => Some(e),
-            WebVowlStoreErrorKind::QueryEvaluationError(e) => Some(e),
-            WebVowlStoreErrorKind::JoinError(e) => Some(e),
-            WebVowlStoreErrorKind::StorageError(e) => Some(e),
+            VOWLRStoreErrorKind::InvalidInput(_) => None,
+            VOWLRStoreErrorKind::HornedError(e) => Some(e),
+            VOWLRStoreErrorKind::IOError(e) => Some(e),
+            VOWLRStoreErrorKind::IriParseError(e) => Some(e),
+            VOWLRStoreErrorKind::LoaderError(e) => Some(e),
+            VOWLRStoreErrorKind::QueryEvaluationError(e) => Some(e),
+            VOWLRStoreErrorKind::JoinError(e) => Some(e),
+            VOWLRStoreErrorKind::StorageError(e) => Some(e),
         }
     }
 }
