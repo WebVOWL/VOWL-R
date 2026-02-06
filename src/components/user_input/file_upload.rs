@@ -107,13 +107,12 @@ pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), Serv
 
         session.start_upload(&name).await?;
 
+        dtype = Path::new(&name).into();
+
         while let Ok(Some(chunk)) = field.chunk().await {
             let len = chunk.len();
             count += len;
-            session
-                .upload_chunk(&chunk)
-                .await
-                .map_err(|e| ServerFnError::new(e.to_string()))?;
+            session.upload_chunk(&chunk).await?;
             progress::add_chunk(&name, len).await;
         }
 
