@@ -48,7 +48,7 @@ impl QueryAssembler {
             snippets
                 .iter()
                 .map(|item| item.to_string())
-                .filter(|item| item.len() > 0)
+                .filter(|item| !item.is_empty())
                 .collect::<Vec<_>>()
                 .join(" UNION "),
         )
@@ -62,10 +62,10 @@ impl QueryAssembler {
             .map(|(elem, _)| elem.snippet())
             .collect::<Vec<&str>>();
 
-        if snippets.len() > 0 {
-            snippets.extend(GENERAL_SNIPPETS);
-        } else {
+        if snippets.is_empty() {
             snippets.push(VOID);
+        } else {
+            snippets.extend(GENERAL_SNIPPETS);
         }
         Self::assemble_query(DEFAULT_PREFIXES.into(), snippets)
     }

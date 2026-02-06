@@ -1,6 +1,6 @@
 use crate::blocks::{right_side_bar::RightSidebar, workbench::NewWorkbench};
 use leptos::prelude::*;
-use leptos_meta::*;
+use leptos_meta::Title;
 
 #[component]
 pub fn Home() -> impl IntoView {

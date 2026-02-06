@@ -7,12 +7,12 @@ pub fn ProgressBar(
 ) -> impl IntoView {
     let pro = move || {
         let t = *total.read();
-        let p = if t != 0 {
+
+        if t != 0 {
             (*progress.read() / t).clamp(0, 1) * 100
         } else {
             0
-        };
-        p
+        }
     };
 
     view! {

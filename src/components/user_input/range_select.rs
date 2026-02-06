@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use log::error;
 use web_sys::HtmlInputElement;
 use web_sys::wasm_bindgen::JsCast;
 
@@ -13,9 +14,8 @@ pub fn Slider(
 ) -> impl IntoView
 where
 {
-    let name = label.replace(" ", "-");
-    let slider_class = format!(
-        "
+    let name = label.replace(' ', "-");
+    let slider_class = "
         relative \
         overflow-hidden \
         w-full \
@@ -28,7 +28,7 @@ where
         disabled:opacity-30% \
         disabled:cursor-not-allowed
         "
-    );
+    .to_string();
 
     view! {
         <div class="flex flex-col justify-center content-around size-fit">
@@ -40,11 +40,16 @@ where
             </label>
             <input
                 on:input=move |event| {
-                    let t = event
-                        .target()
-                        .unwrap()
-                        .unchecked_into::<HtmlInputElement>();
-                    value.set(t.value().parse::<f64>().unwrap());
+                    let Some(t) = event.target() else {
+                        error!("Input event does not have target");
+                        return;
+                    };
+                    let t = t.unchecked_into::<HtmlInputElement>();
+                    let Ok(v) = t.value().parse::<f64>() else {
+                        error!("Slider value could not be parsed to float");
+                        return;
+                    };
+                    value.set(v);
                 }
                 type="range"
                 id=name

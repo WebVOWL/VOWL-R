@@ -1,4 +1,3 @@
-mod store;
 use env_logger::Env;
 use grapher::prelude::GraphDisplayData;
 use log::info;
@@ -13,15 +12,14 @@ pub async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let session = Store::default();
     let args = env::args().collect::<Vec<String>>();
-    let path;
-    if args.len() > 1 {
-        path = Path::new(&args[1]);
+    let path = if args.len() > 1 {
+        Path::new(&args[1])
     } else {
-        path = Path::new("crates/database/owl1-unions-simple.owl");
-    }
+        Path::new("crates/database/owl1-unions-simple.owl")
+    };
     let vowlr = VOWLRStore::new(session);
     vowlr
-        .insert_file(&path, false)
+        .insert_file(path, false)
         .await
         .expect("Error inserting file");
     info!("Loaded {} quads", vowlr.session.len().await.unwrap());
