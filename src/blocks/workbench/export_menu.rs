@@ -40,7 +40,7 @@ pub fn ExportButton(
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 pub fn download_ontology(resource_type: &str, progress_message: RwSignal<String>) {
     let resource = resource_type.to_string();
     let (mime_type, download_name) = download_metadata(resource_type);
@@ -118,7 +118,7 @@ pub fn download_ontology(resource_type: &str, progress_message: RwSignal<String>
     );
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 fn download_metadata(resource_type: &str) -> (&'static str, String) {
     let normalized = resource_type.to_ascii_uppercase();
     let extension = match normalized.as_str() {

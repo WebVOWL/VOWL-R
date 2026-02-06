@@ -4,13 +4,13 @@
 #![allow(non_snake_case)]
 
 // The entry-point of the client-side graph renderer.
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 pub use grapher::init_render;
 
 // Expose an async initThreadPool function in the final generated JavaScript.
 // You'll need to invoke it right after instantiating your module on the main
 // thread in order to prepare the threadpool before calling into actual library functions.
-#[cfg(feature = "wasm")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 pub use wasm_bindgen_rayon::init_thread_pool;
 
 pub mod app;

@@ -61,16 +61,6 @@
         "-Clink-arg=-flto",
         "-Zpre-link-args=link_libs/mimalloc-secure.o",
     ]
-    # TODO: Investigate performance influence of target-features:
-    # - https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
-    # - https://doc.rust-lang.org/rustc/codegen-options/index.html?highlight=target-feature#target-feature
-    # TODO: Investigate Profile-guided optimization:
-    # - https://doc.rust-lang.org/rustc/profile-guided-optimization.html
-    # TODO: Investigate implementing performance reports similar to CodSpeed:
-    # - [Example] https://github.com/tobixdev/rdf-fusion/pull/166
-    # - https://codspeed.io/
-    # TODO: Use Criterion for smaller benchmarks, e.g. test a datastructure, function etc.
-    # - https://docs.rs/criterion/latest/criterion/
 
 
 # Local dev server
