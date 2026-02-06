@@ -26,10 +26,13 @@ pub fn ListElement(
                 <MaybeShowIcon icon=icon></MaybeShowIcon>
                 <span class="text-sm font-medium">{title}</span>
             </a>
-            <Show when=move || *show_element.read() fallback=|| () >
-              <div node_ref=target class="absolute top-0 m-4 left-full w-fit max-h-[80vh] min-h-[80vh] overflow-y-scroll bg-white border-gray-100">
-                  {children()}
-              </div>
+            <Show when=move || *show_element.read() fallback=|| ()>
+                <div
+                    node_ref=target
+                    class="overflow-y-scroll absolute top-0 left-full m-4 bg-white border-gray-100 w-fit max-h-[80vh] min-h-[80vh]"
+                >
+                    {children()}
+                </div>
             </Show>
         </li>
     }

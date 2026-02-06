@@ -101,9 +101,8 @@ where
     );
 
     view! {
-        <div class="group relative inline-block m-2">
-            {children()}
-            <div class=tooltip_class>
+        <div class="inline-block relative m-2 group">
+            {children()} <div class=tooltip_class>
                 <span class=content_class></span>
                 {move || content.get().to_string()}
             </div>

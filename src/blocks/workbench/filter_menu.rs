@@ -150,10 +150,7 @@ pub fn FilterMenu() -> impl IntoView {
                 name="OWL Classes"
                 is_open=open_owl
                 items=filter(
-                    element_counts
-                        .get()
-                        .into_keys()
-                        .collect::<Vec<_>>(),
+                    element_counts.get().into_keys().collect::<Vec<_>>(),
                     &[is_owl_class],
                 )
                 checks=element_checks
@@ -166,10 +163,7 @@ pub fn FilterMenu() -> impl IntoView {
                 name="RDF"
                 is_open=open_rdf
                 items=filter(
-                    element_counts
-                        .get()
-                        .into_keys()
-                        .collect::<Vec<_>>(),
+                    element_counts.get().into_keys().collect::<Vec<_>>(),
                     &[is_rdf_class],
                 )
                 checks=element_checks
@@ -182,10 +176,7 @@ pub fn FilterMenu() -> impl IntoView {
                 name="Set Operators"
                 is_open=open_set_operations
                 items=filter(
-                    element_counts
-                        .get()
-                        .into_keys()
-                        .collect::<Vec<_>>(),
+                    element_counts.get().into_keys().collect::<Vec<_>>(),
                     &[is_set_operator],
                 )
                 checks=element_checks
@@ -198,10 +189,7 @@ pub fn FilterMenu() -> impl IntoView {
                 name="Properties"
                 is_open=open_properties
                 items=filter(
-                    element_counts
-                        .get()
-                        .into_keys()
-                        .collect::<Vec<_>>(),
+                    element_counts.get().into_keys().collect::<Vec<_>>(),
                     &[is_property],
                 )
                 checks=element_checks

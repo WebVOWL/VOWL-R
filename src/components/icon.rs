@@ -43,12 +43,7 @@ pub fn MaybeShowIcon(#[prop(optional, into)] icon: MaybeProp<icondata::Icon>) ->
     move || {
         icon.read().map_or_else(
             || Either::Right(()),
-            |ico| {
-                Either::Left(view! {
-                    <Icon icon=ico>
-                    </Icon>
-                })
-            },
+            |ico| Either::Left(view! { <Icon icon=ico></Icon> }),
         )
     }
 }

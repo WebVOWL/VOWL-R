@@ -24,14 +24,18 @@ where
             {items
                 .into_iter()
                 .map(|item| {
-                    let legend_view = item.legend().map_or_else(|| Either::Right(
+                    let legend_view = item
+                        .legend()
+                        .map_or_else(
+                            || Either::Right(
                                 view! {
                                     <div
                                         class="w-8 h-8 bg-gray-50 rounded border border-gray-200 border-dashed"
                                         aria-hidden="true"
                                     ></div>
                                 },
-                            ), |file| Either::Left(
+                            ),
+                            |file| Either::Left(
                                 view! {
                                     <img
                                         src=file
@@ -39,7 +43,8 @@ where
                                         class="object-contain w-8 h-8"
                                     />
                                 },
-                            ));
+                            ),
+                        );
                     view! {
                         <div class="flex justify-between items-center py-1 text-sm text-gray-700">
                             <label class="flex gap-3 items-center cursor-pointer">

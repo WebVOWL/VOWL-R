@@ -50,7 +50,7 @@ pub fn NewWorkbench() -> impl IntoView {
             </ListElement>
 
             // <ListElement title="Search" icon=icondata::BiMenuRegular>
-            //     <SearchMenu />
+            // <SearchMenu />
             // </ListElement>
 
             <ListElement title="Filter" icon=icondata::BiMenuRegular>
