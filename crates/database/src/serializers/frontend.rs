@@ -17,7 +17,7 @@ use grapher::prelude::{
     OwlNode, OwlType, RdfEdge, RdfType, RdfsEdge, RdfsNode, RdfsType,
 };
 use log::{debug, error, info, trace, warn};
-use oxrdf::{IriParseError, NamedNode, vocab::rdf};
+use oxrdf::{BlankNode, IriParseError, NamedNode, vocab::rdf};
 use rdf_fusion::{
     execution::results::QuerySolutionStream,
     model::{Term, vocab::rdfs},
@@ -79,6 +79,7 @@ impl GraphDisplayDataSolutionSerializer {
             self.write_node_triple(&mut data_buffer, triple);
             count += 1;
         }
+        self.check_external_classes(&mut data_buffer);
         self.try_resolve_unknown_edges(&mut data_buffer);
         self.check_all_unknowns(&mut data_buffer);
 
@@ -934,6 +935,30 @@ impl GraphDisplayDataSolutionSerializer {
             for triple in directions.ranges {
                 self.write_node_triple(data_buffer, triple);
             }
+        }
+    }
+
+    fn check_external_classes(&self, data_buffer: &mut SerializationDataBuffer) {
+        let mut triples_to_add = Vec::new();
+        for (idx, triples) in data_buffer.unknown_buffer.iter() {
+            let id = idx[1..idx.len() - 1].to_string();
+            if let Some(base) = &data_buffer.document_base {
+                if !id.contains(base) {
+                    // dummy triple, only subject matters. 
+                    let triple = Triple::new(
+                        Term::NamedNode(NamedNode::new(id.clone()).unwrap()),
+                        Term::BlankNode(BlankNode::new("_:external_class").unwrap()),
+                        None,
+                    );
+                    triples_to_add.push(triple);
+                }
+            }
+        }
+        for triple in triples_to_add {
+            self.insert_node(
+                data_buffer, 
+                &triple, 
+                ElementType::Owl(OwlType::Node(OwlNode::ExternalClass)));
         }
     }
 
