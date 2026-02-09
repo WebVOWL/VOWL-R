@@ -352,7 +352,15 @@ impl Display for SerializationDataBuffer {
         writeln!(f, "\tunknown_buffer:")?;
         for (iri, triples) in self.unknown_buffer.iter() {
             write!(f, "\t\t{} : ", iri)?;
-            writeln!(f, "{}", triples.iter().map(|t| t.to_string()).collect::<Vec<String>>().join("\n"))?;
+            writeln!(
+                f,
+                "{}",
+                triples
+                    .iter()
+                    .map(|t| t.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            )?;
         }
         writeln!(f, "\tfailed_buffer:")?;
         for (triple, reason) in self.failed_buffer.iter() {
