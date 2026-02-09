@@ -4,11 +4,17 @@ use crate::components::{
     user_input::file_upload::{FileUpload, handle_internal_sparql},
 };
 use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
+use leptos::context::Provider;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use log::{error, info};
 use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 use web_sys::HtmlInputElement;
+
+#[derive(Clone)]
+struct ErrorLogContext {
+    errors: RwSignal<Vec<String>>,
+}
 
 #[component]
 fn SelectStaticInput() -> impl IntoView {
@@ -56,6 +62,7 @@ fn UploadInput() -> impl IntoView {
         graph_data,
         total_graph_data,
     } = expect_context::<GraphDataContext>();
+    let error_log = expect_context::<ErrorLogContext>();
     let upload = FileUpload::new();
     let local_loading_done = upload.local_action.value();
     let remote_loading_done = upload.remote_action.value();
@@ -78,10 +85,18 @@ fn UploadInput() -> impl IntoView {
                                 .rend_write_chan
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
-                        Err(e) => error!("{e}"),
+                        Err(e) => {
+                            let err_msg = format!("Error processing file: {}", e);
+                            error!("{}", err_msg);
+                            error_log.errors.update(|errors| errors.push(err_msg));
+                        }
                     }
                 }),
-                Err(e) => error!("{e}"),
+                Err(e) => {
+                    let err_msg = format!("Error loading file: {}", e);
+                    error!("{}", err_msg);
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
             }
         }
     });
@@ -99,10 +114,18 @@ fn UploadInput() -> impl IntoView {
                                 .rend_write_chan
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
-                        Err(e) => error!("{e}"),
+                        Err(e) => {
+                            let err_msg = format!("Error processing URL: {}", e);
+                            error!("{}", err_msg);
+                            error_log.errors.update(|errors| errors.push(err_msg));
+                        }
                     }
                 }),
-                Err(e) => error!("{e}"),
+                Err(e) => {
+                    let err_msg = format!("Error loading from URL: {}", e);
+                    error!("{}", err_msg);
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
             }
         }
     });
@@ -213,25 +236,32 @@ fn UploadInput() -> impl IntoView {
 
 #[component]
 fn FetchData() -> impl IntoView {
+    let error_log = expect_context::<ErrorLogContext>();
+
+    let handle_reload = move || {
+        spawn_local(async move {
+            let output_result = handle_internal_sparql(DEFAULT_QUERY.to_string()).await;
+            match output_result {
+                Ok(graph_data) => {
+                    let _ = EVENT_DISPATCHER
+                        .rend_write_chan
+                        .send(RenderEvent::LoadGraph(graph_data));
+                }
+                Err(e) => {
+                    let err_msg = format!("Error reloading data: {}", e);
+                    error!("{}", err_msg);
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
+            }
+        })
+    };
+
     view! {
         <div class="flex flex-col gap-2">
             <button
                 class="flex relative justify-center items-center p-1 mt-1 text-xs bg-gray-200 rounded text-[#000000]"
                 on:click=move |_| {
-                    spawn_local(async {
-                        let output_result = handle_internal_sparql(
-                                DEFAULT_QUERY.to_string(),
-                            )
-                            .await;
-                        match output_result {
-                            Ok(graph_data) => {
-                                let _ = EVENT_DISPATCHER
-                                    .rend_write_chan
-                                    .send(RenderEvent::LoadGraph(graph_data));
-                            }
-                            Err(e) => error!("{e}"),
-                        }
-                    });
+                    handle_reload();
                 }
             >
                 <Icon class="pr-0.5" icon=icondata::AiReloadOutlined />
@@ -367,12 +397,71 @@ fn Sparql() -> impl IntoView {
 
 #[component]
 pub fn OntologyMenu() -> impl IntoView {
+    let all_errors = RwSignal::new(Vec::<String>::new());
+    let error_log_context = ErrorLogContext { errors: all_errors };
+    let show_errors = RwSignal::new(false);
+
     view! {
         <WorkbenchMenuItems title="Load Ontology">
-            <SelectStaticInput />
-            <UploadInput />
-            <Sparql />
-            <FetchData />
+            <Provider value=error_log_context>
+                <SelectStaticInput />
+                <UploadInput />
+                <Sparql />
+                <FetchData />
+            </Provider>
+
+            <div class="pt-2 mt-4 border-t">
+                <button
+                    class="flex justify-between items-center p-2 w-full text-xs bg-gray-200 rounded hover:bg-gray-300"
+                    on:click=move |_| {
+                        show_errors.update(|v| *v = !*v);
+                    }
+                >
+                    <span>"Error Log"</span>
+                    <span class="text-xs text-red-600">
+                        {move || {
+                            let error_count = all_errors.get().len();
+                            if error_count > 0 {
+                                format!("({})", error_count)
+                            } else {
+                                String::new()
+                            }
+                        }}
+                    </span>
+                    <span class="text-xs">
+                        {move || if show_errors.get() { "▼" } else { "▶" }}
+                    </span>
+                </button>
+
+                {move || {
+                    if show_errors.get() {
+                        let errors = all_errors.get();
+                        view! {
+                            <div class="overflow-y-auto p-2 mt-2 max-h-48 bg-red-50 rounded border border-red-200">
+                                {if errors.is_empty() {
+                                    view! { <p class="text-xs text-gray-600">"No errors"</p> }
+                                        .into_any()
+                                } else {
+                                    view! {
+                                        <ul class="space-y-1 text-xs text-red-700">
+                                            {errors
+                                                .into_iter()
+                                                .map(|err| {
+                                                    view! { <li>"• "{err}</li> }
+                                                })
+                                                .collect_view()}
+                                        </ul>
+                                    }
+                                        .into_any()
+                                }}
+                            </div>
+                        }
+                            .into_any()
+                    } else {
+                        view! { <></> }.into_any()
+                    }
+                }}
+            </div>
         </WorkbenchMenuItems>
     }
 }

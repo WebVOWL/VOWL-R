@@ -102,20 +102,34 @@ impl GraphDisplayDataSolutionSerializer {
             0
         );
         if !data_buffer.failed_buffer.is_empty() {
-            let mut f = String::from("[\n");
+            let total = data_buffer.failed_buffer.len();
+
+            let mut full = String::from("[\n");
             for (triple, reason) in data_buffer.failed_buffer.iter() {
                 match triple {
-                    Some(triple) => {
-                        f.push_str(format!("\t\t{} : {}\n", triple, reason).as_str());
-                    }
-                    None => {
-                        f.push_str(format!("\t\tNO TRIPLE : {}\n", reason).as_str());
-                    }
+                    Some(t) => full.push_str(&format!("\t{} : {}\n", t, reason)),
+                    None => full.push_str(&format!("\tNO TRIPLE : {}\n", reason)),
                 }
             }
-            f.push(']');
-            error!("Failed to serialize: {}", f);
+            full.push(']');
+            error!("Failed to serialize: {}", full);
+
+            let mut preview = String::new();
+            for (i, (triple, reason)) in data_buffer.failed_buffer.iter().take(20).enumerate() {
+                let line = match triple {
+                    Some(t) => format!("{}: {} : {}", i + 1, t, reason),
+                    None => format!("{}: NO TRIPLE : {}", i + 1, reason),
+                };
+                preview.push_str(&line);
+                preview.push('\n');
+            }
+
+            return Err(VOWLRStoreError::from(format!(
+                "Serialization failed ({} errors): {}",
+                total, preview
+            )));
         }
+
         debug!("{}", data_buffer);
         *data = data_buffer.into();
         debug!("{}", data);

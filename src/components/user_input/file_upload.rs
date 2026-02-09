@@ -233,16 +233,24 @@ pub async fn handle_sparql(
 }
 
 #[server (input = Rkyv, output = Rkyv)]
-pub async fn handle_internal_sparql(query: String) -> Result<GraphDisplayData, ServerFnError> {
+pub async fn handle_internal_sparql(
+    query: String,
+) -> Result<GraphDisplayData, ServerFnError<String>> {
     let vowlr = VOWLRStore::default();
 
     let mut data_buffer = GraphDisplayData::new();
     let solution_serializer = GraphDisplayDataSolutionSerializer::new();
+    let query_stream = vowlr
+        .session
+        .query(query.as_str())
+        .await
+        .map_err(|e| ServerFnError::ServerError(format!("SPARQL query failed: {e}")))?;
     let query_stream = vowlr.session.query(query.as_str()).await?;
     if let QueryResults::Solutions(solutions) = query_stream {
         solution_serializer
             .serialize_nodes_stream(&mut data_buffer, solutions)
-            .await?;
+            .await
+            .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
     } else {
         return Err(ServerFnError::ServerError(
             "Query stream is not a solutions stream".to_string(),
