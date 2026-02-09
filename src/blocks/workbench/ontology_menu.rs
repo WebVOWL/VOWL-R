@@ -388,12 +388,71 @@ pub fn Sparql() -> impl IntoView {
 
 #[component]
 pub fn OntologyMenu() -> impl IntoView {
+    let all_errors = RwSignal::new(Vec::<String>::new());
+    let error_log_context = ErrorLogContext { errors: all_errors };
+    let show_errors = RwSignal::new(false);
+
     view! {
         <WorkbenchMenuItems title="Load Ontology">
-            <SelectStaticInput />
-            <UploadInput />
-            <Sparql />
-            <FetchData />
+            <Provider value=error_log_context>
+                <SelectStaticInput />
+                <UploadInput />
+                <Sparql />
+                <FetchData />
+            </Provider>
+
+            <div class="pt-2 mt-4 border-t">
+                <button
+                    class="flex justify-between items-center p-2 w-full text-xs bg-gray-200 rounded hover:bg-gray-300"
+                    on:click=move |_| {
+                        show_errors.update(|v| *v = !*v);
+                    }
+                >
+                    <span>"Error Log"</span>
+                    <span class="text-xs text-red-600">
+                        {move || {
+                            let error_count = all_errors.get().len();
+                            if error_count > 0 {
+                                format!("({})", error_count)
+                            } else {
+                                String::new()
+                            }
+                        }}
+                    </span>
+                    <span class="text-xs">
+                        {move || if show_errors.get() { "▼" } else { "▶" }}
+                    </span>
+                </button>
+
+                {move || {
+                    if show_errors.get() {
+                        let errors = all_errors.get();
+                        view! {
+                            <div class="overflow-y-auto p-2 mt-2 max-h-48 bg-red-50 rounded border border-red-200">
+                                {if errors.is_empty() {
+                                    view! { <p class="text-xs text-gray-600">"No errors"</p> }
+                                        .into_any()
+                                } else {
+                                    view! {
+                                        <ul class="space-y-1 text-xs text-red-700">
+                                            {errors
+                                                .into_iter()
+                                                .map(|err| {
+                                                    view! { <li>"• "{err}</li> }
+                                                })
+                                                .collect_view()}
+                                        </ul>
+                                    }
+                                        .into_any()
+                                }}
+                            </div>
+                        }
+                            .into_any()
+                    } else {
+                        view! { <></> }.into_any()
+                    }
+                }}
+            </div>
         </WorkbenchMenuItems>
     }
 }
