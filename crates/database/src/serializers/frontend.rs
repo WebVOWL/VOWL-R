@@ -940,18 +940,17 @@ impl GraphDisplayDataSolutionSerializer {
 
     fn check_external_classes(&self, data_buffer: &mut SerializationDataBuffer) {
         let mut triples_to_add = Vec::new();
-        for (idx, triples) in data_buffer.unknown_buffer.iter() {
+        for (idx, _) in data_buffer.unknown_buffer.iter() {
             let id = idx[1..idx.len() - 1].to_string();
-            if let Some(base) = &data_buffer.document_base {
-                if !id.contains(base) {
-                    // dummy triple, only subject matters. 
-                    let triple = Triple::new(
-                        Term::NamedNode(NamedNode::new(id.clone()).unwrap()),
-                        Term::BlankNode(BlankNode::new("_:external_class").unwrap()),
-                        None,
-                    );
-                    triples_to_add.push(triple);
-                }
+            if let Some(base) = &data_buffer.document_base && !id.contains(base) {
+                // dummy triple, only subject matters. 
+                let triple = Triple::new(
+                    Term::NamedNode(NamedNode::new(id.clone()).unwrap()),
+                    Term::BlankNode(BlankNode::new("_:external_class").unwrap()),
+                    None,
+                );
+                triples_to_add.push(triple);
+                
             }
         }
         for triple in triples_to_add {
