@@ -361,7 +361,7 @@ impl GraphDisplayDataSolutionSerializer {
             return;
         }
 
-        let new_type = if self.is_external(data_buffer, &triple.id) {
+        let new_type = if self.is_external(data_buffer, &triple.id.to_string()) {
             ElementType::Owl(OwlType::Node(OwlNode::ExternalClass))
         } else {
             node_type
@@ -384,7 +384,7 @@ impl GraphDisplayDataSolutionSerializer {
     ) -> Option<Edge> {
         // Skip external check for NoDraw edges - they should always retain their type
         let new_type =
-            if edge_type != ElementType::NoDraw && self.is_external(data_buffer, &triple.id) {
+            if edge_type != ElementType::NoDraw && self.is_external(data_buffer, &triple.id.to_string()) {
                 ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty))
             } else {
                 edge_type
@@ -423,15 +423,14 @@ impl GraphDisplayDataSolutionSerializer {
         None
     }
 
-    fn is_external(&self, data_buffer: &SerializationDataBuffer, iri: &Term) -> bool {
-        !iri.is_blank_node()
-            && match &data_buffer.document_base {
-                Some(base) => !iri.to_string().starts_with(base),
-                None => {
-                    warn!("Cannot determine externals: Missing document base!");
-                    false
-                }
+    fn is_external(&self, data_buffer: &SerializationDataBuffer, iri: &String) -> bool {
+        match &data_buffer.document_base {
+            Some(base) => !iri.to_string().contains(base),
+            None => {
+                warn!("Cannot determine externals: Missing document base!");
+                false
             }
+        }
     }
 
     fn merge_nodes(&self, data_buffer: &mut SerializationDataBuffer, old: String, new: String) {
@@ -941,13 +940,10 @@ impl GraphDisplayDataSolutionSerializer {
     fn check_external_classes(&self, data_buffer: &mut SerializationDataBuffer) {
         let mut triples_to_add = Vec::new();
         for (idx, _) in data_buffer.unknown_buffer.iter() {
-            let id = idx[1..idx.len() - 1].to_string();
-            if let Some(base) = &data_buffer.document_base
-                && !id.contains(base)
-            {
+            if self.is_external(data_buffer, idx) {
                 // dummy triple, only subject matters.
                 let triple = Triple::new(
-                    Term::NamedNode(NamedNode::new(id.clone()).unwrap()),
+                    Term::NamedNode(NamedNode::new(idx.clone()).unwrap()),
                     Term::BlankNode(BlankNode::new("_:external_class").unwrap()),
                     None,
                 );
