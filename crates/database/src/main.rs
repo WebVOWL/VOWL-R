@@ -7,7 +7,6 @@ use std::env;
 use std::path::Path;
 use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, VOWLRStore};
 use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
-use futures::StreamExt;
 
 #[tokio::main]
 pub async fn main() {
@@ -25,8 +24,12 @@ pub async fn main() {
         .await
         .expect("Error inserting file");
     info!("Loaded {} quads", vowlr.session.len().await.unwrap());
-    
-    let all_stream = vowlr.session.query("SELECT * WHERE { ?s ?p ?o }").await.unwrap();
+
+    let all_stream = vowlr
+        .session
+        .query("SELECT * WHERE { ?s ?p ?o }")
+        .await
+        .unwrap();
     if let QueryResults::Solutions(mut solutions) = all_stream {
         while let Some(solution) = solutions.next().await {
             let solution = solution.unwrap();
