@@ -803,13 +803,10 @@ impl GraphDisplayDataSolutionSerializer {
                             );
                         }
                     }
-                    //TODO: OWL1
-                    // owl::INVERSE_FUNCTIONAL_PROPERTY => {}
-
-                    //TODO: OWL1
-                    // owl::INVERSE_OF => {}
-
-                    //TODO: OWL1
+                    owl::INVERSE_FUNCTIONAL_PROPERTY => {
+                        self.insert_characteristic(data_buffer, triple, "InverseFunctionalProperty".to_string());
+                    }
+                    // TODO owl::INVERSE_OF => {}
                     // owl::IRREFLEXIVE_PROPERTY => {}
 
                     //TODO: OWL1
@@ -910,6 +907,26 @@ impl GraphDisplayDataSolutionSerializer {
                 };
             }
         }
+    }
+    
+    fn insert_characteristic(&self, data_buffer: &mut SerializationDataBuffer, triple: Triple, arg: String) {
+        let resolved = self.resolve(data_buffer, triple.id.to_string());
+        match resolved {
+            Some(s) => {
+                match data_buffer.node_characteristics.get_mut(&s) {
+                    Some(char) => {
+                        char.push(arg);
+                    }
+                    None => {
+                        data_buffer.node_characteristics.insert(s, vec![arg]);
+                    }
+                }
+            }
+            None => {
+                self.add_to_unknown_buffer(data_buffer, triple.id.to_string(), triple);
+            }
+        }
+        
     }
 }
 
