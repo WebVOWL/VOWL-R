@@ -831,15 +831,11 @@ impl GraphDisplayDataSolutionSerializer {
                         }
                     }
                     owl::INVERSE_FUNCTIONAL_PROPERTY => {
-<<<<<<< HEAD
                         self.insert_characteristic(
                             data_buffer,
                             triple,
                             "InverseFunctionalProperty".to_string(),
                         );
-=======
-                        self.insert_characteristic(data_buffer, triple, "InverseFunctionalProperty".to_string());
->>>>>>> e625e76 (initial object properties)
                     }
                     // TODO owl::INVERSE_OF => {}
                     // owl::IRREFLEXIVE_PROPERTY => {}
