@@ -124,6 +124,15 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(())
     }
 
+    /// Removes prefix "<" and suffix ">" from the input to
+    /// comply with https://www.ietf.org/rfc/rfc3987.html (p. 12)
+    fn trim_tag_circumfix(&self, input: &String) -> String {
+        input
+            .trim_start_matches('<')
+            .trim_end_matches('>')
+            .to_string()
+    }
+
     /// Extract label info from the query solution and store until
     /// they can be mapped to their ElementType.
     fn extract_label(
@@ -152,10 +161,7 @@ impl GraphDisplayDataSolutionSerializer {
             }
             // Case 2: Try parsing the iri
             None => {
-                // Remove '<' and '>' from iri string to
-                // comply with https://www.ietf.org/rfc/rfc3987.html (p. 12)
-                let compliant_iri = iri[1..iri.len() - 1].to_string();
-                match Iri::parse(compliant_iri) {
+                match Iri::parse(self.trim_tag_circumfix(&iri)) {
                     // Case 2.1: Look for fragments in the iri
                     Ok(id_iri) => match id_iri.fragment() {
                         Some(frag) => {
@@ -426,7 +432,7 @@ impl GraphDisplayDataSolutionSerializer {
 
     fn is_external(&self, data_buffer: &SerializationDataBuffer, iri: &String) -> bool {
         match &data_buffer.document_base {
-            Some(base) => !iri.to_string().contains(base),
+            Some(base) => !iri.contains(base),
             None => {
                 warn!("Cannot determine externals: Missing document base!");
                 false
@@ -944,7 +950,7 @@ impl GraphDisplayDataSolutionSerializer {
             if self.is_external(data_buffer, idx) {
                 // dummy triple, only subject matters.
                 let triple = Triple::new(
-                    Term::NamedNode(NamedNode::new(idx.clone()).unwrap()),
+                    Term::NamedNode(NamedNode::new(self.trim_tag_circumfix(idx)).unwrap()),
                     Term::BlankNode(BlankNode::new("_:external_class").unwrap()),
                     None,
                 );
