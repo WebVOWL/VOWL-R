@@ -16,7 +16,7 @@ use grapher::prelude::{
     RdfsType,
 };
 use log::{debug, error, info, trace, warn};
-use oxrdf::{IriParseError, NamedNode, vocab::rdf};
+use oxrdf::{BlankNode, IriParseError, NamedNode, vocab::rdf};
 use rdf_fusion::{
     execution::results::QuerySolutionStream,
     model::{Term, vocab::rdfs},
@@ -78,6 +78,7 @@ impl GraphDisplayDataSolutionSerializer {
             self.write_node_triple(&mut data_buffer, triple);
             count += 1;
         }
+        self.check_external_classes(&mut data_buffer);
         self.try_resolve_unknown_edges(&mut data_buffer);
         self.check_all_unknowns(&mut data_buffer);
 
@@ -122,6 +123,15 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(())
     }
 
+    /// Removes prefix "<" and suffix ">" from the input to
+    /// comply with https://www.ietf.org/rfc/rfc3987.html (p. 12)
+    fn trim_tag_circumfix(&self, input: &String) -> String {
+        input
+            .trim_start_matches('<')
+            .trim_end_matches('>')
+            .to_string()
+    }
+
     /// Extract label info from the query solution and store until
     /// they can be mapped to their ElementType.
     fn extract_label(
@@ -150,10 +160,7 @@ impl GraphDisplayDataSolutionSerializer {
             }
             // Case 2: Try parsing the iri
             None => {
-                // Remove '<' and '>' from iri string to
-                // comply with https://www.ietf.org/rfc/rfc3987.html (p. 12)
-                let compliant_iri = iri[1..iri.len() - 1].to_string();
-                match Iri::parse(compliant_iri) {
+                match Iri::parse(self.trim_tag_circumfix(&iri)) {
                     // Case 2.1: Look for fragments in the iri
                     Ok(id_iri) => match id_iri.fragment() {
                         Some(frag) => {
@@ -351,7 +358,7 @@ impl GraphDisplayDataSolutionSerializer {
             return;
         }
 
-        let new_type = if self.is_external(data_buffer, &triple.id) {
+        let new_type = if self.is_external(data_buffer, &triple.id.to_string()) {
             ElementType::Owl(OwlType::Node(OwlNode::ExternalClass))
         } else {
             node_type
@@ -373,12 +380,13 @@ impl GraphDisplayDataSolutionSerializer {
         label: Option<String>,
     ) -> Option<Edge> {
         // Skip external check for NoDraw edges - they should always retain their type
-        let new_type =
-            if edge_type != ElementType::NoDraw && self.is_external(data_buffer, &triple.id) {
-                ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty))
-            } else {
-                edge_type
-            };
+        let new_type = if edge_type != ElementType::NoDraw
+            && self.is_external(data_buffer, &triple.id.to_string())
+        {
+            ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty))
+        } else {
+            edge_type
+        };
 
         match self.resolve_so(data_buffer, triple) {
             (Some(sub_iri), Some(obj_iri)) => {
@@ -413,15 +421,14 @@ impl GraphDisplayDataSolutionSerializer {
         None
     }
 
-    fn is_external(&self, data_buffer: &SerializationDataBuffer, iri: &Term) -> bool {
-        !iri.is_blank_node()
-            && match &data_buffer.document_base {
-                Some(base) => !iri.to_string().starts_with(base),
-                None => {
-                    warn!("Cannot determine externals: Missing document base!");
-                    false
-                }
+    fn is_external(&self, data_buffer: &SerializationDataBuffer, iri: &String) -> bool {
+        match &data_buffer.document_base {
+            Some(base) => !iri.contains(base),
+            None => {
+                warn!("Cannot determine externals: Missing document base!");
+                false
             }
+        }
     }
 
     fn merge_nodes(&self, data_buffer: &mut SerializationDataBuffer, old: String, new: String) {
@@ -933,6 +940,28 @@ impl GraphDisplayDataSolutionSerializer {
             for triple in directions.ranges {
                 self.write_node_triple(data_buffer, triple);
             }
+        }
+    }
+
+    fn check_external_classes(&self, data_buffer: &mut SerializationDataBuffer) {
+        let mut triples_to_add = Vec::new();
+        for (idx, _) in data_buffer.unknown_buffer.iter() {
+            if self.is_external(data_buffer, idx) {
+                // dummy triple, only subject matters.
+                let triple = Triple::new(
+                    Term::NamedNode(NamedNode::new(self.trim_tag_circumfix(idx)).unwrap()),
+                    Term::BlankNode(BlankNode::new("_:external_class").unwrap()),
+                    None,
+                );
+                triples_to_add.push(triple);
+            }
+        }
+        for triple in triples_to_add {
+            self.insert_node(
+                data_buffer,
+                &triple,
+                ElementType::Owl(OwlType::Node(OwlNode::ExternalClass)),
+            );
         }
     }
 
