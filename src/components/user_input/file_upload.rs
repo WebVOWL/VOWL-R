@@ -245,7 +245,6 @@ pub async fn handle_internal_sparql(
         .query(query.as_str())
         .await
         .map_err(|e| ServerFnError::ServerError(format!("SPARQL query failed: {e}")))?;
-    let query_stream = vowlr.session.query(query.as_str()).await?;
     if let QueryResults::Solutions(solutions) = query_stream {
         solution_serializer
             .serialize_nodes_stream(&mut data_buffer, solutions)
