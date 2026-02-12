@@ -83,14 +83,12 @@ pub fn UploadInput() -> impl IntoView {
                         }
                         Err(e) => {
                             let err_msg = format!("Error processing file: {}", e);
-                            error!("{}", err_msg);
                             error_log.errors.update(|errors| errors.push(err_msg));
                         }
                     }
                 }),
                 Err(e) => {
                     let err_msg = format!("Error loading file: {}", e);
-                    error!("{}", err_msg);
                     error_log.errors.update(|errors| errors.push(err_msg));
                 }
             }
@@ -112,14 +110,12 @@ pub fn UploadInput() -> impl IntoView {
                         }
                         Err(e) => {
                             let err_msg = format!("Error processing URL: {}", e);
-                            error!("{}", err_msg);
                             error_log.errors.update(|errors| errors.push(err_msg));
                         }
                     }
                 }),
                 Err(e) => {
                     let err_msg = format!("Error loading from URL: {}", e);
-                    error!("{}", err_msg);
                     error_log.errors.update(|errors| errors.push(err_msg));
                 }
             }
@@ -245,7 +241,6 @@ pub fn FetchData() -> impl IntoView {
                 }
                 Err(e) => {
                     let err_msg = format!("Error reloading data: {}", e);
-                    error!("{}", err_msg);
                     error_log.errors.update(|errors| errors.push(err_msg));
                 }
             }
