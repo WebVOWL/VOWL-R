@@ -1,9 +1,10 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
+    hash::{Hash, Hasher},
 };
 
-use grapher::prelude::{ElementType, GraphDisplayData};
+use grapher::prelude::{ElementType, GraphDisplayData, OwlEdge, OwlType};
 use log::error;
 use oxrdf::Term;
 
@@ -46,7 +47,7 @@ impl Triple {
     }
 }
 
-#[derive(Debug, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Edge {
     /// The subject IRI
     subject: String,
@@ -55,6 +56,32 @@ pub struct Edge {
     /// The object IRI
     object: String,
 }
+impl Hash for Edge {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let eq_so = [
+            ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))
+        ];
+        if eq_so.contains(&self.element_type) {
+            // For symmetric relations, AND the string bytes together
+            let subject_bytes = self.subject.as_bytes();
+            let object_bytes = self.object.as_bytes();
+            let min_len = subject_bytes.len().min(object_bytes.len());
+            
+            let mut combined = Vec::with_capacity(min_len);
+            for i in 0..min_len {
+                combined.push(subject_bytes[i] & object_bytes[i]);
+            }
+            
+            combined.hash(state);
+            self.element_type.hash(state);
+        } else {
+            self.subject.hash(state);
+            self.element_type.hash(state);
+            self.object.hash(state);
+        }
+    }
+}
+
 impl Display for Edge {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
