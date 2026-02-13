@@ -100,6 +100,43 @@
             # 6. Safety: Remove nil to avoid phantom edges
             # FILTER(?label != rdf:nil)
         }
+        UNION {
+            ?nodeType a ?property
+            ?nodeType rdfs:range ?id
+            ?nodeType rdfs:domain ?target
+            FILTER(?property IN (
+                owl:ObjectProperty
+            )) 
+        }
+        UNION {
+            ?nodeType a ?property
+            ?nodeType rdfs:range ?id
+            ?nodeType rdfs:domain ?target
+            FILTER(?property IN (
+                owl:ObjectProperty
+            )) 
+        }
+        UNION {
+            VALUES ?char {
+                owl:ObjectProperty
+            }
+            ?nodeType a ?char
+            ?nodeType rdfs:range ?id
+            FILTER NOT EXISTS(?nodeType rdfs:domain ?id)
+            BIND(?target AS owl:Thing)
+        }
+        UNION {
+            VALUES ?char {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
+            }
+            ?nodeType a ?char
+            ?nodeType rdfs:domain ?id
+            FILTER NOT EXISTS(?nodeType rdfs:range ?id)
+            BIND(?target AS owl:Thing)
+        }
         UNION
         {
             # 3. Identify datatypes
