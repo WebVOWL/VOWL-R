@@ -1575,13 +1575,22 @@ impl GraphDisplayDataSolutionSerializer {
         match resolved {
             Some(s) => match data_buffer.node_characteristics.get_mut(&s) {
                 Some(char) => {
+                    for (k, v) in data_buffer.resolved_edge_map.iter() {
+                        info!("{} -> {}", k, v);
+                    }
+                    info!("Inserting characteristic: {} -> {}", s, arg);
                     char.push(arg);
                 }
                 None => {
-                    data_buffer.edge_characteristics.insert(s, vec![arg]);
+                    for (k, v) in data_buffer.resolved_edge_map.iter() {
+                        info!("{} -> {}", k, v);
+                    }
+                    info!("Inserting characteristic: {} -> {}", s, arg);
+                    //data_buffer.edge_characteristics.insert(s, vec![arg]);
                 }
             },
             None => {
+                info!("Adding characteristic to unknown buffer: {}", triple);
                 self.add_to_unknown_buffer(data_buffer, triple.id.to_string(), triple);
             }
         }
