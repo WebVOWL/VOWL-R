@@ -5,10 +5,9 @@ use crate::components::{
     user_input::file_upload::{FileUpload, handle_internal_sparql},
 };
 use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
-use leptos::context::Provider;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use log::{error, info};
+use log::info;
 use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 use web_sys::HtmlInputElement;
 
@@ -82,13 +81,13 @@ pub fn UploadInput() -> impl IntoView {
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
                         Err(e) => {
-                            let err_msg = format!("Error processing file: {}", e);
+                            let err_msg = format!("Error processing file: {e}");
                             error_log.errors.update(|errors| errors.push(err_msg));
                         }
                     }
                 }),
                 Err(e) => {
-                    let err_msg = format!("Error loading file: {}", e);
+                    let err_msg = format!("Error loading file: {e}");
                     error_log.errors.update(|errors| errors.push(err_msg));
                 }
             }
@@ -109,13 +108,13 @@ pub fn UploadInput() -> impl IntoView {
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
                         Err(e) => {
-                            let err_msg = format!("Error processing URL: {}", e);
+                            let err_msg = format!("Error processing URL: {e}");
                             error_log.errors.update(|errors| errors.push(err_msg));
                         }
                     }
                 }),
                 Err(e) => {
-                    let err_msg = format!("Error loading from URL: {}", e);
+                    let err_msg = format!("Error loading from URL: {e}");
                     error_log.errors.update(|errors| errors.push(err_msg));
                 }
             }
@@ -240,11 +239,11 @@ pub fn FetchData() -> impl IntoView {
                         .send(RenderEvent::LoadGraph(graph_data));
                 }
                 Err(e) => {
-                    let err_msg = format!("Error reloading data: {}", e);
+                    let err_msg = format!("Error reloading data: {e}");
                     error_log.errors.update(|errors| errors.push(err_msg));
                 }
             }
-        })
+        });
     };
 
     view! {

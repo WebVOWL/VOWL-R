@@ -47,15 +47,15 @@ pub fn NewWorkbench() -> impl IntoView {
     });
 
     let all_errors = RwSignal::new(Vec::<String>::new());
-    provide_context(ErrorLogContext { errors: all_errors });
 
-    let error_context =
-        use_context::<ErrorLogContext>().expect("ErrorLogContext should be provided");
+    let error_context = ErrorLogContext { errors: all_errors };
+
+    provide_context(error_context.clone());
 
     let error_title = Signal::derive(move || {
         let count = error_context.errors.get().len();
         if count > 0 {
-            format!("Error Log ({})", count)
+            format!("Error Log ({count})")
         } else {
             "Error Log".to_string()
         }
