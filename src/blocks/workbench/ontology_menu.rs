@@ -1,3 +1,4 @@
+use super::error_log::ErrorLogContext;
 use super::{GraphDataContext, WorkbenchMenuItems};
 use crate::components::{
     icon::Icon,
@@ -6,12 +7,12 @@ use crate::components::{
 use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use log::{error, info};
+use log::info;
 use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 use web_sys::HtmlInputElement;
 
 #[component]
-fn SelectStaticInput() -> impl IntoView {
+pub fn SelectStaticInput() -> impl IntoView {
     let selected_ontology = RwSignal::new("Friend of a Friend (FOAF) vocabulary".to_string());
 
     let ontologies = move || {
@@ -51,11 +52,12 @@ fn SelectStaticInput() -> impl IntoView {
 }
 
 #[component]
-fn UploadInput() -> impl IntoView {
+pub fn UploadInput() -> impl IntoView {
     let GraphDataContext {
         graph_data,
         total_graph_data,
     } = expect_context::<GraphDataContext>();
+    let error_log = expect_context::<ErrorLogContext>();
     let upload = FileUpload::new();
     let local_loading_done = upload.local_action.value();
     let remote_loading_done = upload.remote_action.value();
@@ -78,10 +80,16 @@ fn UploadInput() -> impl IntoView {
                                 .rend_write_chan
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
-                        Err(e) => error!("{e}"),
+                        Err(e) => {
+                            let err_msg = format!("Error processing file: {e}");
+                            error_log.errors.update(|errors| errors.push(err_msg));
+                        }
                     }
                 }),
-                Err(e) => error!("{e}"),
+                Err(e) => {
+                    let err_msg = format!("Error loading file: {e}");
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
             }
         }
     });
@@ -99,10 +107,16 @@ fn UploadInput() -> impl IntoView {
                                 .rend_write_chan
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
-                        Err(e) => error!("{e}"),
+                        Err(e) => {
+                            let err_msg = format!("Error processing URL: {e}");
+                            error_log.errors.update(|errors| errors.push(err_msg));
+                        }
                     }
                 }),
-                Err(e) => error!("{e}"),
+                Err(e) => {
+                    let err_msg = format!("Error loading from URL: {e}");
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
             }
         }
     });
@@ -212,26 +226,32 @@ fn UploadInput() -> impl IntoView {
 }
 
 #[component]
-fn FetchData() -> impl IntoView {
+pub fn FetchData() -> impl IntoView {
+    let error_log = expect_context::<ErrorLogContext>();
+
+    let handle_reload = move || {
+        spawn_local(async move {
+            let output_result = handle_internal_sparql(DEFAULT_QUERY.to_string()).await;
+            match output_result {
+                Ok(graph_data) => {
+                    let _ = EVENT_DISPATCHER
+                        .rend_write_chan
+                        .send(RenderEvent::LoadGraph(graph_data));
+                }
+                Err(e) => {
+                    let err_msg = format!("Error reloading data: {e}");
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
+            }
+        });
+    };
+
     view! {
         <div class="flex flex-col gap-2">
             <button
                 class="flex relative justify-center items-center p-1 mt-1 text-xs bg-gray-200 rounded text-[#000000]"
                 on:click=move |_| {
-                    spawn_local(async {
-                        let output_result = handle_internal_sparql(
-                                DEFAULT_QUERY.to_string(),
-                            )
-                            .await;
-                        match output_result {
-                            Ok(graph_data) => {
-                                let _ = EVENT_DISPATCHER
-                                    .rend_write_chan
-                                    .send(RenderEvent::LoadGraph(graph_data));
-                            }
-                            Err(e) => error!("{e}"),
-                        }
-                    });
+                    handle_reload();
                 }
             >
                 <Icon class="pr-0.5" icon=icondata::AiReloadOutlined />
@@ -242,7 +262,7 @@ fn FetchData() -> impl IntoView {
 }
 
 #[component]
-fn Sparql() -> impl IntoView {
+pub fn Sparql() -> impl IntoView {
     let upload = FileUpload::new();
     let upload_progress = upload.tracker.upload_progress;
     let parsing_status = upload.tracker.parsing_status;
