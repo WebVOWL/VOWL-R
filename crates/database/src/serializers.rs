@@ -256,6 +256,7 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
             let subject_idx = iricache.get(&edge.subject);
             let object_idx = iricache.get(&edge.object);
             let maybe_label = val.edge_label_buffer.remove(edge);
+            let characteristics = val.edge_characteristics.remove(&edge);
 
             match (subject_idx, object_idx, maybe_label) {
                 (Some(subject_idx), Some(object_idx), Some(label)) => {
@@ -266,6 +267,9 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
                         display_data.elements.len() - 1,
                         *object_idx,
                     ]);
+                    if let Some(characteristics) = characteristics {
+                        display_data.characteristics.insert(display_data.elements.len() - 1, characteristics.join("\n"));
+                    }
                 }
                 (Some(_), Some(_), None) => {
                     error!("Label in edge not found in iricache: {}", edge.subject);
