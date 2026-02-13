@@ -218,7 +218,7 @@ impl GraphDisplayDataSolutionSerializer {
         let resolved_object = match &triple.target {
             Some(target) => self.resolve(data_buffer, target.to_string()),
             None => {
-                warn!("Cannot resolve object of triple:\n {}", triple);
+                warn!("No object in triple:\n {}", triple);
                 None
             }
         };
