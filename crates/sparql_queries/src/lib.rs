@@ -15,7 +15,7 @@ pub mod prelude {
     use crate::assembly::DEFAULT_PREFIXES;
     pub use crate::assembly::QueryAssembler;
     use crate::snippets::general::{
-        COLLECTIONS, DOMAIN_AND_RANGE, LABEL, ONTOLOGY, OWL_DEPRECATED, XML_BASE,
+        COLLECTIONS, DOMAIN_RANGES, LABEL, ONTOLOGY, OWL_DEPRECATED, XML_BASE,
     };
     use crate::snippets::snippets_from_enum;
 
@@ -24,7 +24,7 @@ pub mod prelude {
         ONTOLOGY,
         XML_BASE,
         COLLECTIONS,
-        DOMAIN_AND_RANGE,
+        DOMAIN_RANGES,
         OWL_DEPRECATED,
         LABEL,
     ];
@@ -43,6 +43,6 @@ pub mod prelude {
         ]
         .concat();
 
-        QueryAssembler::assemble_query(DEFAULT_PREFIXES.into(), snippets)
+        QueryAssembler::assemble_query(DEFAULT_PREFIXES.into(), vec![DOMAIN_RANGES])
     });
 }

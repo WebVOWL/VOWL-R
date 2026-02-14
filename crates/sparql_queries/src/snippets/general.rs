@@ -85,3 +85,39 @@ pub const DOMAIN_AND_RANGE: &str = r#"{
                 BIND(rdfs:range AS ?nodeType)
             }
             }"#;
+pub const DOMAIN_RANGES: &str = r#"{
+        {
+            VALUES ?property {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
+            }
+            ?nodeType a ?property .
+            ?nodeType rdfs:range ?id .
+            ?nodeType rdfs:domain ?target .
+        } UNION {
+            VALUES ?property {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
+            }
+            ?nodeType a ?property . 
+            ?nodeType rdfs:range ?id 
+            FILTER NOT EXISTS(?nodeType rdfs:domain ?id)
+            BIND(?target AS owl:Thing)
+        } UNION {
+            VALUES ?property {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
+            }
+            ?nodeType a ?property .
+            ?nodeType rdfs:domain ?id 
+            FILTER NOT EXISTS(?nodeType rdfs:range ?id)
+            BIND(?target AS owl:Thing)
+        }
+        
+        }"#;
