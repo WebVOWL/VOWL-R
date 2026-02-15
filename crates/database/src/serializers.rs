@@ -196,6 +196,22 @@ pub struct SerializationDataBuffer {
     /// Used in cases where multiple elements should refer to a particular instance.
     /// E.g. multiple properties referring to the same instance of owl:Thing.
     global_element_mappings: HashMap<ElementType, usize>,
+
+    /// Stores the edges of a property.
+    ///
+    /// - Key = The property IRI.
+    /// - Value = The edges of the property.
+    property_edge_map: HashMap<String, Edge>,
+    /// Stores the domains of a property.
+    ///
+    /// - Key = The property IRI.
+    /// - Value = The domains of the property.
+    property_domain_map: HashMap<String, HashSet<String>>,
+    /// Stores the ranges of a property.
+    ///
+    /// - Key = The property IRI.
+    /// - Value = The ranges of the property.
+    property_range_map: HashMap<String, HashSet<String>>,
     /// Stores labels of subject/object.
     ///
     /// - Key = The IRI the label belongs to.
@@ -254,6 +270,9 @@ impl SerializationDataBuffer {
             label_buffer: HashMap::new(),
             edge_label_buffer: HashMap::new(),
             edge_buffer: HashSet::new(),
+            property_edge_map: HashMap::new(),
+            property_domain_map: HashMap::new(),
+            property_range_map: HashMap::new(),
             unknown_edge_buffer: HashMap::new(),
             unknown_buffer: HashMap::new(),
             failed_buffer: Vec::new(),
@@ -261,6 +280,17 @@ impl SerializationDataBuffer {
             edge_characteristics: HashMap::new(),
             node_characteristics: HashMap::new(),
         }
+    }
+}
+impl SerializationDataBuffer {
+    pub fn add_property_edge(&mut self, property_iri: String, edge: Edge) {
+        self.property_edge_map.insert(property_iri, edge);
+    }
+    pub fn add_property_domain(&mut self, property_iri: String, domain: String) {
+        self.property_domain_map.entry(property_iri).or_default().insert(domain);
+    }
+    pub fn add_property_range(&mut self, property_iri: String, range: String) {
+        self.property_range_map.entry(property_iri).or_default().insert(range);
     }
 }
 
