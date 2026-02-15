@@ -1330,8 +1330,44 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::VERSION_IRI => {}
                     // owl::WITH_RESTRICTIONS => {}
                     _ => {
-                        // Visualization of this element is not supported
-                        warn!("Visualization of term '{}' is not supported", uri);
+                        match triple.target.clone() {
+                            Some(target) => {
+                                match (
+                                    self.resolve(data_buffer, triple.id.to_string()),
+                                    self.resolve(data_buffer, triple.element_type.to_string()),
+                                    self.resolve(data_buffer, target.to_string()),
+                                ) {
+                                    (Some(range), Some(property), Some(domain)) => {
+                                        trace!("Resolving object property: range: {}, property: {}, domain: {}", range, property, domain);
+                                        let edge = self.insert_edge(
+                                            data_buffer, 
+                                            &triple, 
+                                            ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)), 
+                                            data_buffer.label_buffer.get(&property).cloned());
+                                        if let Some(edge) = edge {
+                                            data_buffer.add_property_edge(property.clone(), edge);
+                                            data_buffer.add_property_domain(property.clone(), domain);
+                                            data_buffer.add_property_range(property.clone(), range);
+                                        }
+                                    }
+                                    (Some(_), Some(_), None) => {
+                                        trace!("Adding unknown buffer: target: {}, triple: {}", target.to_string(), triple);
+                                        self.add_to_unknown_buffer(data_buffer, target.to_string(), triple);
+                                    }
+                                    (Some(_), None, Some(_)) => {
+                                        trace!("Adding unknown buffer: element type: {}, triple: {}", triple.element_type.to_string(), triple);
+                                        self.add_to_unknown_buffer(data_buffer, triple.element_type.to_string(), triple);
+                                    }
+                                    _ => {
+                                        trace!("Adding unknown buffer: triple: {}", triple);
+                                        self.add_to_unknown_buffer(data_buffer, triple.id.to_string(), triple);
+                                    }
+                                }
+                            }
+                            None => {
+                                error!("object property triples should have a target: {}", triple);
+                            }
+                        }
                     }
                 };
             }
