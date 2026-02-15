@@ -546,12 +546,10 @@ impl GraphDisplayDataSolutionSerializer {
                             ElementType::Rdfs(RdfsType::Node(RdfsNode::Datatype)),
                         );
                     }
+                    rdfs::DOMAIN => {
+                        error!("sparql query should not have rdfs:domain triples: {}", triple);
+                    }
 
-                    // NOTE: Domain is handled in the SPARQL query.
-                    // Thus, we don't need to match it here.
-                    // rdfs::DOMAIN => {}
-
-                    //TODO: OWL1
                     // rdfs::IS_DEFINED_BY => {}
 
                     // rdfs::LABEL => {}
@@ -563,10 +561,9 @@ impl GraphDisplayDataSolutionSerializer {
                         );
                     }
                     // rdfs::MEMBER => {}
-
-                    // NOTE: Range is handled in the SPARQL query.
-                    // Thus, we don't need to match it here.
-                    // rdfs::RANGE => {}
+                    rdfs::RANGE => {
+                        error!("sparql query should not have rdfs:range triples: {}", triple);
+                    }
                     rdfs::RESOURCE => {
                         self.insert_node(
                             data_buffer,
