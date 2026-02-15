@@ -1003,9 +1003,8 @@ impl GraphDisplayDataSolutionSerializer {
                                             );
                                             node.ok()
                                         } else if target == rdfs::LITERAL.into() {
-                                            let target_iri = range[1..range.len() - 1]
-                                                .to_string()
-                                                + "_literal";
+                                            let target_iri =
+                                                range[1..range.len() - 1].to_string() + "_literal";
                                             let node = self.create_node(
                                                 target_iri.clone(),
                                                 rdfs::LITERAL.into(),
@@ -1041,32 +1040,37 @@ impl GraphDisplayDataSolutionSerializer {
                                     (None, Some(property), None) => {
                                         trace!("No domain and range: {}", triple);
                                         if triple.element_type == owl::DATATYPE_PROPERTY.into() {
-                                            let local_literal = NamedNode::new( property.to_string() + "_locallitral").unwrap();
+                                            let local_literal = NamedNode::new(
+                                                property.to_string() + "_locallitral",
+                                            )
+                                            .unwrap();
                                             let literal_triple = self.create_node(
                                                 local_literal.to_string(),
                                                 rdfs::LITERAL.into(),
                                                 None,
                                             );
-                                            let local_thing = NamedNode::new( property.to_string() + "_localthing").unwrap();
+                                            let local_thing = NamedNode::new(
+                                                property.to_string() + "_localthing",
+                                            )
+                                            .unwrap();
                                             let thing_triple = self.create_node(
                                                 local_thing.to_string(),
                                                 owl::THING.into(),
                                                 None,
                                             );
                                             match (literal_triple, thing_triple) {
-                                                (Ok(literal), Ok(thing)) => {
-                                                    (
-                                                        Some(vec![literal.clone(), thing.clone()]),
-                                                        Some(Triple {
-                                                            id: thing.id.clone(),
-                                                            element_type: triple.element_type,
-                                                            target: Some(literal.id)
-                                                        }),
-                                                    )
-                                                }
-                                                (_, _) => (None, None)
+                                                (Ok(literal), Ok(thing)) => (
+                                                    Some(vec![literal.clone(), thing.clone()]),
+                                                    Some(Triple {
+                                                        id: thing.id.clone(),
+                                                        element_type: triple.element_type,
+                                                        target: Some(literal.id),
+                                                    }),
+                                                ),
+                                                (_, _) => (None, None),
                                             }
-                                        } else if triple.element_type == owl::OBJECT_PROPERTY.into() {
+                                        } else if triple.element_type == owl::OBJECT_PROPERTY.into()
+                                        {
                                             let global_thing =
                                                 NamedNode::new(owl::THING.to_string() + "_thing")
                                                     .unwrap();
@@ -1089,7 +1093,9 @@ impl GraphDisplayDataSolutionSerializer {
                                                     (None, None)
                                                 }
                                             }
-                                        } else { (None, None) }
+                                        } else {
+                                            (None, None)
+                                        }
                                     }
 
                                     (Some(_), None, Some(_)) => {
@@ -1113,7 +1119,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         );
                                         (None, None)
                                     }
-                            };
+                                };
                             match node_triple {
                                 Some(node_triples) => {
                                     for node_triple in node_triples {
@@ -1125,16 +1131,18 @@ impl GraphDisplayDataSolutionSerializer {
                                             );
                                         } else if node_triple.element_type == rdfs::LITERAL.into() {
                                             self.insert_node(
-                                                data_buffer,    
+                                                data_buffer,
                                                 &node_triple,
-                                                ElementType::Rdfs(RdfsType::Node(RdfsNode::Literal)),
+                                                ElementType::Rdfs(RdfsType::Node(
+                                                    RdfsNode::Literal,
+                                                )),
                                             );
                                         }
                                     }
                                 }
                                 None => error!("Error creating node {:?}", node_triple),
                             }
-                            
+
                             match edge_triple {
                                 Some(edge_triple) => {
                                     let edge = self.insert_edge(
