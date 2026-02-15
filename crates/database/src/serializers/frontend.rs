@@ -78,7 +78,6 @@ impl GraphDisplayDataSolutionSerializer {
             self.write_node_triple(&mut data_buffer, triple);
             count += 1;
         }
-        self.try_resolve_unknown_edges(&mut data_buffer);
         self.check_all_unknowns(&mut data_buffer);
 
         let finish_time = Instant::now()
