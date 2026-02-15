@@ -43,10 +43,7 @@
         <dct:date rdf:datatype="&xsd;string">October 12, 2010</dct:date>
         <dct:format rdf:datatype="&xsd;string">rdf/xml</dct:format>
   	</owl:Ontology>
-  
-  	<rdf:Description rdf:about="&previousfile;">
-    	<rdf:type rdf:resource="&owl;Ontology"/>
-  	</rdf:Description>
+
   
     <!-- 
     ///////////////////////////////////////////////////////////////////////////////////////
