@@ -103,10 +103,10 @@ pub const DOMAIN_RANGES: &str = r#"{
                 owl:ObjectProperty
                 rdf:Property
             }
-            ?nodeType a ?property . 
-            ?nodeType rdfs:range ?id 
-            FILTER NOT EXISTS(?nodeType rdfs:domain ?id)
-            BIND(?target AS owl:Thing)
+            ?nodeType a ?property .
+            ?nodeType rdfs:range ?id .
+            FILTER NOT EXISTS { ?nodeType rdfs:domain ?x }
+            BIND(owl:Thing AS ?target)
         } UNION {
             VALUES ?property {
                 owl:DeprecatedProperty
@@ -115,9 +115,9 @@ pub const DOMAIN_RANGES: &str = r#"{
                 rdf:Property
             }
             ?nodeType a ?property .
-            ?nodeType rdfs:domain ?id 
-            FILTER NOT EXISTS(?nodeType rdfs:range ?id)
-            BIND(?target AS owl:Thing)
+            ?nodeType rdfs:domain ?id .
+            FILTER NOT EXISTS { ?nodeType rdfs:range ?x }
+            BIND(owl:Thing AS ?target)
         }
         
         }"#;
