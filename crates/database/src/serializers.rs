@@ -55,6 +55,8 @@ pub struct Edge {
     element_type: ElementType,
     /// The object IRI
     object: String,
+    /// The property IRI
+    property: Option<String>,
 }
 impl Hash for Edge {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -74,6 +76,11 @@ impl Hash for Edge {
             
             combined.hash(state);
             self.element_type.hash(state);
+        } else if self.element_type == ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)) {
+            self.subject.hash(state);
+            self.element_type.hash(state);
+            self.object.hash(state);
+            self.property.hash(state);
         } else {
             self.subject.hash(state);
             self.element_type.hash(state);
