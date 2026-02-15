@@ -43,6 +43,6 @@ pub mod prelude {
         ]
         .concat();
 
-        QueryAssembler::assemble_query(DEFAULT_PREFIXES.into(), vec![DOMAIN_RANGES])
+        QueryAssembler::assemble_query(DEFAULT_PREFIXES.into(), snippets)
     });
 }
