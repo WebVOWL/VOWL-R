@@ -931,9 +931,9 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::VERSION_INFO => {}
                     // owl::VERSION_IRI => {}
                     // owl::WITH_RESTRICTIONS => {}
-                    _ => match triple.target.clone() {
-                        Some(target) => {
-                            let (node_triple, edge_triple): (Option<Vec<Triple>>, Option<Triple>) =
+                    _ => {
+                        match triple.target.clone() {
+                            Some(target) => {
                                 match (
                                     self.resolve(data_buffer, triple.id.to_string()),
                                     self.resolve(data_buffer, triple.element_type.to_string()),
