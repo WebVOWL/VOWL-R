@@ -177,7 +177,7 @@ impl GraphDisplayDataSolutionSerializer {
                     },
                     Err(e) => {
                         // Do not make a 'warn!'. A parse error is allowed to happen (e.g. on blank nodes).
-                        debug!("Failed to parse iri '{}':\n{:?}", iri, e);
+                        trace!("Failed to parse iri '{}':\n{:?}", iri, e);
                     }
                 }
             }
