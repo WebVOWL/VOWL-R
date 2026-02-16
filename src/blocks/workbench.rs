@@ -1,4 +1,5 @@
 mod about_menu;
+mod error_log;
 mod export_menu;
 mod filter_menu;
 mod ontology_menu;
@@ -7,6 +8,8 @@ mod options_menu;
 use crate::components::lists::{ListDetails, ListElement};
 use crate::components::menu::vertical_menu::VerticalMenu;
 use about_menu::AboutMenu;
+use error_log::ErrorLogContext;
+use error_log::ErrorMenu;
 use export_menu::ExportMenu;
 use filter_menu::FilterMenu;
 use grapher::prelude::GraphDisplayData;
@@ -43,6 +46,21 @@ pub fn NewWorkbench() -> impl IntoView {
         total_graph_data,
     });
 
+    let all_errors = RwSignal::new(Vec::<String>::new());
+
+    let error_context = ErrorLogContext { errors: all_errors };
+
+    provide_context(error_context.clone());
+
+    let error_title = Signal::derive(move || {
+        let count = error_context.errors.get().len();
+        if count > 0 {
+            format!("Error Log ({count})")
+        } else {
+            "Error Log".to_string()
+        }
+    });
+
     view! {
         <VerticalMenu>
             <ListElement title="Load Ontology" icon=icondata::BiMenuRegular>
@@ -70,6 +88,10 @@ pub fn NewWorkbench() -> impl IntoView {
             <ListElement title="About" icon=icondata::BiMenuRegular>
                 <AboutMenu />
             </ListElement>
+            <ListElement title=error_title icon=icondata::BiErrorAltRegular>
+                <ErrorMenu />
+            </ListElement>
+
         </VerticalMenu>
     }
 }
