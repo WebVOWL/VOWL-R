@@ -11,4 +11,5 @@ pub mod prelude {
     pub use crate::store::VOWLRStore;
 }
 
-pub const SYMMETRIC_EDGE_TYPES: [ElementType; 1] = [ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))];
+pub const SYMMETRIC_EDGE_TYPES: [ElementType; 1] =
+    [ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))];
