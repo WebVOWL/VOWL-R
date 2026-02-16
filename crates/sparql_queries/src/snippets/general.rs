@@ -88,7 +88,7 @@ pub const DOMAIN_AND_RANGE: &str = r#"{
 pub const DOMAIN_RANGES: &str = r#"{
         {
             VALUES ?property {
-                owl:DeprecatedProperty
+                owl:DeprecatedProperty  
                 owl:DatatypeProperty
                 owl:ObjectProperty
                 rdf:Property
@@ -106,7 +106,7 @@ pub const DOMAIN_RANGES: &str = r#"{
             ?nodeType a ?property .
             ?nodeType rdfs:range ?target .
             FILTER NOT EXISTS { ?nodeType rdfs:domain ?x }
-            BIND(owl:Thing AS ?id)
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?id)
         } UNION {
             VALUES ?property {
                 owl:DeprecatedProperty
@@ -117,7 +117,7 @@ pub const DOMAIN_RANGES: &str = r#"{
             ?nodeType a ?property .
             ?nodeType rdfs:domain ?id .
             FILTER NOT EXISTS { ?nodeType rdfs:range ?x }
-            BIND(owl:Thing AS ?target)
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?target)
         } UNION {
             VALUES ?property {
                 owl:DeprecatedProperty
@@ -128,8 +128,8 @@ pub const DOMAIN_RANGES: &str = r#"{
             ?nodeType a ?property .
             FILTER NOT EXISTS { ?nodeType rdfs:range ?x }
             FILTER NOT EXISTS { ?nodeType rdfs:domain ?x }
-            BIND(owl:Thing AS ?target)
             BIND(owl:Thing AS ?id)
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?target)
         }
         
         }"#;
