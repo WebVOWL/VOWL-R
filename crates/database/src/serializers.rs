@@ -66,29 +66,6 @@ impl Display for Edge {
     }
 }
 
-/// Stores the domains and ranges of an edge while it's partially resolved.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct EdgeDirections {
-    /// The domain (or source) of an edge.
-    domains: HashSet<Triple>,
-    /// The range (or target) of an edge.
-    ranges: HashSet<Triple>,
-}
-
-impl EdgeDirections {
-    pub fn new() -> Self {
-        Self {
-            domains: HashSet::new(),
-            ranges: HashSet::new(),
-        }
-    }
-}
-
-pub enum EdgeDirectionHint {
-    Domain,
-    Range,
-}
-
 pub struct SerializationDataBuffer {
     /// Stores all resolved node elements.
     ///
@@ -178,17 +155,7 @@ pub struct SerializationDataBuffer {
     /// Maps from edge to its characteristic.
     edge_characteristics: HashMap<Edge, Vec<String>>,
     /// Maps from node iri to its characteristics.
-    node_characteristics: HashMap<String, Vec<String>>,
-    /// Stores partially resolved edges.
-    ///
-    /// In cases where the edge IRI and its type are known,
-    /// but not the source and target it points to.
-    ///
-    /// This usually happens with domain/range queries.
-    ///
-    /// - Key = The edge IRI.
-    /// - Value = A collection of sources and targets of the edge.
-    unknown_edge_buffer: HashMap<String, EdgeDirections>,
+    node_characteristics: HashMap<Term, Vec<String>>,
     /// Stores unresolved triples.
     ///
     /// - Key = The unresolved IRI of the triple
@@ -221,7 +188,6 @@ impl SerializationDataBuffer {
             label_buffer: HashMap::new(),
             edge_label_buffer: HashMap::new(),
             edge_buffer: HashSet::new(),
-            unknown_edge_buffer: HashMap::new(),
             unknown_buffer: HashMap::new(),
             failed_buffer: Vec::new(),
             document_base: None,
@@ -344,11 +310,6 @@ impl Display for SerializationDataBuffer {
         }
         writeln!(f, "\tedge_characteristics: {:?}", self.edge_characteristics)?;
         writeln!(f, "\tnode_characteristics: {:?}", self.node_characteristics)?;
-        writeln!(f, "\tunknown_edge_buffer:")?;
-        for (iri, directions) in self.unknown_edge_buffer.iter() {
-            writeln!(f, "\t\t{} : domains : {:#?}", iri, directions.domains)?;
-            writeln!(f, "\t\t{} : ranges : {:#?}", iri, directions.ranges)?;
-        }
         writeln!(f, "\tunknown_buffer:")?;
         for (iri, triples) in self.unknown_buffer.iter() {
             write!(f, "\t\t{} : ", iri)?;
