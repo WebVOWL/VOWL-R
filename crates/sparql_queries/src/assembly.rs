@@ -1,9 +1,7 @@
 use crate::{
-    element_type_injection::SparqlSnippet,
-    prelude::GENERAL_SNIPPETS,
-    snippets::{void::VOID},
+    element_type_injection::SparqlSnippet, prelude::GENERAL_SNIPPETS, snippets::void::VOID,
 };
-use grapher::prelude::{ElementType};
+use grapher::prelude::ElementType;
 use std::collections::HashMap;
 
 // TODO: Remove when automatic prefix fetching is implemented.
