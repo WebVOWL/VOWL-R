@@ -1119,7 +1119,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         );
                                         (None, None)
                                     }
-                                };
+                            };
                             match node_triple {
                                 Some(node_triples) => {
                                     for node_triple in node_triples {
