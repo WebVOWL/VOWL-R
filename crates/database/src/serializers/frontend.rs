@@ -11,7 +11,6 @@ use crate::{
 };
 use fluent_uri::Iri;
 use futures::StreamExt;
-use grapher::prelude::GraphDisplayData;
 use grapher::prelude::{
     ElementType, GraphDisplayData, OwlEdge, OwlNode, OwlType, RdfEdge, RdfType, RdfsEdge, RdfsNode,
     RdfsType,
@@ -20,7 +19,7 @@ use log::{debug, error, info, trace, warn};
 use rdf_fusion::{
     execution::results::QuerySolutionStream,
     model::{
-        BlankNode, IriParseError, NamedNode, Term,
+        BlankNode, Term,
         vocab::{rdf, rdfs},
     },
 };
@@ -365,8 +364,8 @@ impl GraphDisplayDataSolutionSerializer {
 
     fn merge_nodes(&self, data_buffer: &mut SerializationDataBuffer, old: &Term, new: &Term) {
         debug!("Merging node '{old}' into '{new}'");
-        data_buffer.node_element_buffer.remove(&old);
-        self.update_edges(data_buffer, &old, &new);
+        data_buffer.node_element_buffer.remove(old);
+        self.update_edges(data_buffer, old, new);
         self.redirect_iri(data_buffer, old, new);
     }
 
@@ -707,19 +706,19 @@ impl GraphDisplayDataSolutionSerializer {
                                     // the subject.
 
                                     // Move object label to subject.
-                                    if let Some(label) = data_buffer.label_buffer.remove(&target) {
+                                    if let Some(label) = data_buffer.label_buffer.remove(target) {
                                         debug!("Removed label: {}", label);
                                         self.extend_element_label(data_buffer, &triple.id, label);
                                     }
 
                                     // Remove object from existence.
-                                    match data_buffer.node_element_buffer.remove(&target) {
+                                    match data_buffer.node_element_buffer.remove(target) {
                                         // Case 1.1: Object exists in the elememt buffer
                                         Some(_) => {
                                             self.merge_nodes(data_buffer, target, &triple.id);
                                         }
                                         // Case 1.2: Look in the unknown buffer
-                                        None => match data_buffer.unknown_buffer.remove(&target) {
+                                        None => match data_buffer.unknown_buffer.remove(target) {
                                             Some(items) => {
                                                 if !items.is_empty() {
                                                     warn!(

@@ -32,7 +32,7 @@ pub fn get_reserved_iris() -> HashSet<String> {
         owl::UNION_OF,
     ];
 
-    let iris = vec![rdf, rdfs, owl]
+    let iris = [rdf, rdfs, owl]
         .iter()
         .flatten()
         .map(|elem| trim_tag_circumfix(&elem.to_string()))
@@ -43,7 +43,7 @@ pub fn get_reserved_iris() -> HashSet<String> {
 
 /// Removes prefix "<" and suffix ">" from the input to
 /// comply with https://www.ietf.org/rfc/rfc3987.html (p. 12)
-pub fn trim_tag_circumfix(input: &String) -> String {
+pub fn trim_tag_circumfix(input: &str) -> String {
     input
         .trim_start_matches('<')
         .trim_end_matches('>')
