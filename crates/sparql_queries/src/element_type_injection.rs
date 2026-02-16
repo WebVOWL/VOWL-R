@@ -171,7 +171,7 @@ impl SparqlSnippet for OwlEdge {
         match self {
             OwlEdge::DatatypeProperty => {
                 r#"{
-                ?id owl:DatatypeProperty ?target
+                ?id a owl:DatatypeProperty 
                 BIND(owl:DatatypeProperty AS ?nodeType)
                 }"#
             }
