@@ -482,10 +482,14 @@ mod tests {
         };
 
         // Test that they are NOT equal
+<<<<<<< HEAD
         assert_ne!(
             edge1, edge2,
             "Non-symmetric edges should NOT be equal when subject/object are swapped"
         );
+=======
+        assert_ne!(edge1, edge2, "Non-symmetric edges should NOT be equal when subject/object are swapped");
+>>>>>>> 770dfd0 (fixed Rework Object/Datatype-properties)
 
         // Test that they both appear in the HashSet
         let mut edge_set = HashSet::new();
