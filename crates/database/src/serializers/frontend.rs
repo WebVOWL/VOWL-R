@@ -25,29 +25,13 @@ use rdf_fusion::{
 use vowlr_parser::errors::VOWLRStoreError;
 
 pub struct GraphDisplayDataSolutionSerializer {
-    pub resolvable_iris: HashMap<String, (NamedNode, ElementType)>,
+    pub resolvable_iris: HashSet<String>,
 }
 
 impl GraphDisplayDataSolutionSerializer {
     pub fn new() -> Self {
-        let resolvables = HashMap::from_iter([
-            (
-                rdfs::LITERAL.to_string(),
-                (
-                    rdfs::LITERAL.into_owned(),
-                    ElementType::Rdfs(RdfsType::Node(RdfsNode::Literal)),
-                ),
-            ),
-            (
-                owl::THING.to_string(),
-                (
-                    owl::THING.into_owned(),
-                    ElementType::Owl(OwlType::Node(OwlNode::Thing)),
-                ),
-            ),
-        ]);
         Self {
-            resolvable_iris: resolvables,
+            resolvable_iris: get_reserved_iris(),
         }
     }
 
@@ -122,15 +106,6 @@ impl GraphDisplayDataSolutionSerializer {
         *data = data_buffer.into();
         debug!("{}", data);
         Ok(())
-    }
-
-    /// Removes prefix "<" and suffix ">" from the input to
-    /// comply with https://www.ietf.org/rfc/rfc3987.html (p. 12)
-    fn trim_tag_circumfix(&self, input: &String) -> String {
-        input
-            .trim_start_matches('<')
-            .trim_end_matches('>')
-            .to_string()
     }
 
     /// Extract label info from the query solution and store until
@@ -396,7 +371,7 @@ impl GraphDisplayDataSolutionSerializer {
 
     fn is_external(&self, data_buffer: &SerializationDataBuffer, iri: &String) -> bool {
         match &data_buffer.document_base {
-            Some(base) => !iri.contains(base),
+            Some(base) => !clean_iri.contains(base) && !self.resolvable_iris.contains(&clean_iri),
             None => {
                 warn!("Cannot determine externals: Missing document base!");
                 false

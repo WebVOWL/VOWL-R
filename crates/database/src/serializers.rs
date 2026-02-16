@@ -8,6 +8,7 @@ use log::error;
 use oxrdf::Term;
 
 pub mod frontend;
+pub mod util;
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
 pub struct Triple {
