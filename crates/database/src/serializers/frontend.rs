@@ -227,42 +227,7 @@ impl GraphDisplayDataSolutionSerializer {
             );
         } else {
             trace!("Adding to element buffer: {}: {}", triple.id, element_type);
-            element_buffer.insert(triple.id.clone(), element_type);
-        }
-    }
-
-    /// Add a subject edge IRI to the partially resolved edge buffer.
-    fn add_to_unknown_edge_buffer(
-        &self,
-        data_buffer: &mut SerializationDataBuffer,
-        subject_iri: String,
-        triple: Triple,
-        hint: EdgeDirectionHint,
-    ) {
-        if let Some(direction) = data_buffer.unknown_edge_buffer.get_mut(&subject_iri) {
-            match hint {
-                EdgeDirectionHint::Domain => {
-                    direction.domains.insert(triple);
-                }
-                EdgeDirectionHint::Range => {
-                    direction.ranges.insert(triple);
-                }
-            }
-        } else {
-            let mut direction = EdgeDirections::new();
-
-            match hint {
-                EdgeDirectionHint::Domain => {
-                    direction.domains.insert(triple);
-                }
-                EdgeDirectionHint::Range => {
-                    direction.ranges.insert(triple);
-                }
-            }
-
-            data_buffer
-                .unknown_edge_buffer
-                .insert(subject_iri, direction);
+            element_buffer.insert(triple.id, element_type);
         }
     }
 
@@ -369,7 +334,7 @@ impl GraphDisplayDataSolutionSerializer {
                     subject: sub_iri.clone(),
                     element_type: new_type,
                     object: obj_iri.clone(),
-                    property: property,
+                    property,
                 };
                 trace!(
                     "Inserting edge: {} -> {} -> {}",
@@ -496,28 +461,31 @@ impl GraphDisplayDataSolutionSerializer {
         }
     }
 
+    fn create_node(
+        &self,
+        id: String,
+        node_type: NamedNode,
+        object_iri: Option<String>,
+    ) -> Result<Triple, IriParseError> {
+        let subject = NamedNode::new(id)?;
+        let object = match object_iri {
+            Some(iri) => {
+                let obj = NamedNode::new(iri)?;
+                Some(Term::NamedNode(obj))
+            }
+            None => None,
+        };
+
+        let t = Triple::new(Term::NamedNode(subject), Term::NamedNode(node_type), object);
+        debug!("Created new triple: {}", t);
+        Ok(t)
+    }
+
     fn check_all_unknowns(&self, data_buffer: &mut SerializationDataBuffer) {
-        info!("Second pass: Resolving all possible unknowns");
+        info!("Third pass: Resolving all possible unknowns");
 
-        let unknown_nodes = take(&mut data_buffer.unknown_buffer);
-        for (term, triples) in unknown_nodes {
-            if !data_buffer.label_buffer.contains_key(&term) {
-                self.extract_label(data_buffer, None, &term);
-            }
-
-            if self.is_external(data_buffer, &term) {
-                // dummy triple, only subject matters.
-                let external_triple = Triple::new(
-                    term,
-                    Term::BlankNode(BlankNode::new("_:external_class").unwrap()),
-                    None,
-                );
-                self.insert_node(
-                    data_buffer,
-                    &external_triple,
-                    ElementType::Owl(OwlType::Node(OwlNode::ExternalClass)),
-                );
-            }
+        let unknowns = take(&mut data_buffer.unknown_buffer);
+        for (_, triples) in unknowns {
             for triple in triples {
                 self.write_node_triple(data_buffer, triple);
             }
