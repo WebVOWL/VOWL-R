@@ -932,169 +932,175 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::WITH_RESTRICTIONS => {}
                     _ => match triple.target.clone() {
                         Some(target) => {
-                            match (
-                                self.resolve(data_buffer, triple.id.to_string()),
-                                self.resolve(data_buffer, triple.element_type.to_string()),
-                                self.resolve(data_buffer, target.to_string()),
-                            ) {
-                                (Some(range), Some(property), Some(domain)) => {
-                                    trace!(
-                                        "Resolving object property: range: {}, property: {}, domain: {}",
-                                        range, property, domain
-                                    );
+                            let (node_triple, edge_triple): (Option<Triple>, Option<Triple>) =
+                                match (
+                                    self.resolve(data_buffer, triple.id.to_string()),
+                                    self.resolve(data_buffer, triple.element_type.to_string()),
+                                    self.resolve(data_buffer, target.to_string()),
+                                ) {
+                                    (Some(domain), Some(property), Some(range)) => {
+                                        trace!(
+                                            "Resolving object property: range: {}, property: {}, domain: {}",
+                                            range, property, domain
+                                        );
+                                        (None, Some(triple))
+                                    }
+                                    (Some(domain), Some(_), None) => {
+                                        trace!("range is owl:Thing: {}", triple);
+                                        if target == owl::THING.into() {
+                                            let target_iri =
+                                                domain[1..domain.len() - 1].to_string() + "_thing";
+                                            let node = self.create_node(
+                                                target_iri.clone(),
+                                                owl::THING.into(),
+                                                None,
+                                            );
+                                            match node {
+                                                Ok(node) => (
+                                                    Some(node.clone()),
+                                                    Some(Triple {
+                                                        id: triple.id,
+                                                        element_type: triple.element_type,
+                                                        target: Some(node.id),
+                                                    }),
+                                                ),
+                                                Err(_) => (None, None),
+                                            }
+                                        } else {
+                                            trace!(
+                                                "Adding unknown buffer: target: {}, triple: {}",
+                                                target, triple
+                                            );
+                                            self.add_to_unknown_buffer(
+                                                data_buffer,
+                                                target.to_string(),
+                                                triple,
+                                            );
+                                            (None, None)
+                                        }
+                                    }
+                                    (None, Some(_), Some(range)) => {
+                                        if triple.id == owl::THING.into() {
+                                            trace!("Range is owl:Thing: {}", triple);
+                                            let target_iri =
+                                                range[1..range.len() - 1].to_string() + "_thing";
+                                            let node = self.create_node(
+                                                target_iri,
+                                                owl::THING.into(),
+                                                None,
+                                            );
+                                            match node {
+                                                Ok(node) => (
+                                                    Some(node.clone()),
+                                                    Some(Triple {
+                                                        id: node.id,
+                                                        element_type: triple.element_type,
+                                                        target: triple.target,
+                                                    }),
+                                                ),
+                                                Err(_) => (None, None),
+                                            }
+                                        } else {
+                                            trace!(
+                                                "Adding unknown buffer: id: {}, triple: {}",
+                                                triple.id, triple
+                                            );
+                                            self.add_to_unknown_buffer(
+                                                data_buffer,
+                                                triple.id.to_string(),
+                                                triple,
+                                            );
+                                            (None, None)
+                                        }
+                                    }
+                                    (None, Some(_), None) => {
+                                        trace!("No domain and range: {}", triple);
+                                        let global_thing =
+                                            NamedNode::new(owl::THING.to_string() + "_global")
+                                                .unwrap();
+                                        let node_triple = self.create_node(
+                                            global_thing.to_string(),
+                                            global_thing,
+                                            None,
+                                        );
+                                        match node_triple {
+                                            Ok(node) => (
+                                                Some(node.clone()),
+                                                Some(Triple {
+                                                    id: node.id.clone(),
+                                                    element_type: triple.element_type,
+                                                    target: Some(node.id),
+                                                }),
+                                            ),
+                                            Err(e) => {
+                                                error!("Error creating node: {}", e);
+                                                (None, None)
+                                            }
+                                        }
+                                    }
+
+                                    (Some(_), None, Some(_)) => {
+                                        trace!(
+                                            "Adding unknown buffer: element type: {}, triple: {}",
+                                            triple.element_type, triple
+                                        );
+                                        self.add_to_unknown_buffer(
+                                            data_buffer,
+                                            triple.element_type.to_string(),
+                                            triple,
+                                        );
+                                        (None, None)
+                                    }
+                                    _ => {
+                                        trace!("Adding unknown buffer: triple: {}", triple);
+                                        self.add_to_unknown_buffer(
+                                            data_buffer,
+                                            triple.id.to_string(),
+                                            triple,
+                                        );
+                                        (None, None)
+                                    }
+                                };
+                            match node_triple {
+                                Some(node_triple) => self.insert_node(
+                                    data_buffer,
+                                    &node_triple,
+                                    ElementType::Owl(OwlType::Node(OwlNode::Thing)),
+                                ),
+                                None => error!("Error creating node {:?}", node_triple),
+                            }
+                            match edge_triple {
+                                Some(edge_triple) => {
                                     let edge = self.insert_edge(
                                         data_buffer,
-                                        &triple,
+                                        &edge_triple,
                                         ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
-                                        data_buffer.label_buffer.get(&property).cloned(),
+                                        data_buffer
+                                            .label_buffer
+                                            .get(&edge_triple.element_type.to_string())
+                                            .cloned(),
                                     );
                                     if let Some(edge) = edge {
-                                        data_buffer.add_property_edge(property.clone(), edge);
-                                        data_buffer.add_property_domain(property.clone(), domain);
-                                        data_buffer.add_property_range(property.clone(), range);
-                                    }
-                                }
-                                (Some(range), Some(property), None) => {
-                                    trace!("Domain is owl:Thing: {}", triple);
-                                    if target == owl::THING.into() {
-                                        let target_iri =
-                                            property[1..property.len() - 1].to_string() + "_d";
-                                        let node =
-                                            self.create_node(target_iri, owl::THING.into(), None);
-                                        match node {
-                                            Ok(node) => {
-                                                self.insert_node(
-                                                    data_buffer,
-                                                    &node,
-                                                    ElementType::Owl(OwlType::Node(OwlNode::Thing)),
-                                                );
-                                                let triple = Triple {
-                                                    id: triple.id.clone(),
-                                                    element_type: triple.element_type.clone(),
-                                                    target: Some(node.id.clone()),
-                                                };
-                                                let edge = self.insert_edge(
-                                                    data_buffer,
-                                                    &triple,
-                                                    ElementType::Owl(OwlType::Edge(
-                                                        OwlEdge::ObjectProperty,
-                                                    )),
-                                                    data_buffer
-                                                        .label_buffer
-                                                        .get(&property)
-                                                        .cloned(),
-                                                );
-                                                if let Some(e) = edge {
-                                                    warn!("Domain edge succeed");
-                                                    data_buffer
-                                                        .add_property_edge(property.clone(), e);
-                                                    data_buffer.add_property_domain(
-                                                        property.clone(),
-                                                        node.id.to_string(),
-                                                    );
-                                                    data_buffer.add_property_range(
-                                                        property.clone(),
-                                                        range,
-                                                    );
-                                                }
-                                            }
-                                            Err(e) => {
-                                                error!("Error creating node: {}", e);
-                                            }
-                                        }
-                                    } else {
-                                        trace!(
-                                            "Adding unknown buffer: target: {}, triple: {}",
-                                            target.to_string(),
-                                            triple
+                                        data_buffer.add_property_edge(
+                                            edge_triple.element_type.to_string(),
+                                            edge,
                                         );
-                                        self.add_to_unknown_buffer(
-                                            data_buffer,
-                                            target.to_string(),
-                                            triple,
+                                        data_buffer.add_property_domain(
+                                            edge_triple.element_type.to_string(),
+                                            edge_triple
+                                                .target
+                                                .clone()
+                                                .expect("target should be a string")
+                                                .to_string(),
+                                        );
+                                        data_buffer.add_property_range(
+                                            edge_triple.element_type.to_string(),
+                                            edge_triple.id.to_string(),
                                         );
                                     }
                                 }
-                                (None, Some(property), Some(domain)) => {
-                                    if triple.id == owl::THING.into() {
-                                        trace!("Range is owl:Thing: {}", triple);
-                                        let target_iri =
-                                            property[1..property.len() - 1].to_string() + "_s";
-                                        let node =
-                                            self.create_node(target_iri, owl::THING.into(), None);
-                                        match node {
-                                            Ok(node) => {
-                                                self.insert_node(
-                                                    data_buffer,
-                                                    &node,
-                                                    ElementType::Owl(OwlType::Node(OwlNode::Thing)),
-                                                );
-                                                let triple = Triple {
-                                                    id: node.id.clone(),
-                                                    element_type: triple.element_type.clone(),
-                                                    target: Some(triple.target.clone().unwrap()),
-                                                };
-                                                let edge = self.insert_edge(
-                                                    data_buffer,
-                                                    &triple,
-                                                    ElementType::Owl(OwlType::Edge(
-                                                        OwlEdge::ObjectProperty,
-                                                    )),
-                                                    data_buffer
-                                                        .label_buffer
-                                                        .get(&property)
-                                                        .cloned(),
-                                                );
-                                                if let Some(edge) = edge {
-                                                    trace!("Range edge succeed");
-                                                    data_buffer
-                                                        .add_property_edge(property.clone(), edge);
-                                                    data_buffer.add_property_domain(
-                                                        property.clone(),
-                                                        domain,
-                                                    );
-                                                    data_buffer.add_property_range(
-                                                        property.clone(),
-                                                        node.id.to_string(),
-                                                    );
-                                                }
-                                            }
-                                            Err(e) => {
-                                                error!("Error creating node: {}", e);
-                                            }
-                                        }
-                                    } else {
-                                        trace!(
-                                            "Adding unknown buffer: target: {}, triple: {}",
-                                            target.to_string(),
-                                            triple
-                                        );
-                                        self.add_to_unknown_buffer(
-                                            data_buffer,
-                                            target.to_string(),
-                                            triple,
-                                        );
-                                    }
-                                }
-                                (Some(_), None, Some(_)) => {
-                                    trace!(
-                                        "Adding unknown buffer: element type: {}, triple: {}",
-                                        triple.element_type.to_string(),
-                                        triple
-                                    );
-                                    self.add_to_unknown_buffer(
-                                        data_buffer,
-                                        triple.element_type.to_string(),
-                                        triple,
-                                    );
-                                }
-                                _ => {
-                                    trace!("Adding unknown buffer: triple: {}", triple);
-                                    self.add_to_unknown_buffer(
-                                        data_buffer,
-                                        triple.id.to_string(),
-                                        triple,
-                                    );
+                                None => {
+                                    error!("Error creating edge: ");
                                 }
                             }
                         }
@@ -1117,14 +1123,14 @@ impl GraphDisplayDataSolutionSerializer {
         match resolved {
             Some(s) => match data_buffer.node_characteristics.get_mut(&s) {
                 Some(char) => {
-                    for (k, v) in data_buffer.resolved_edge_map.iter() {
+                    for (k, v) in data_buffer.property_edge_map.iter() {
                         info!("{} -> {}", k, v);
                     }
                     info!("Inserting characteristic: {} -> {}", s, arg);
                     char.push(arg);
                 }
                 None => {
-                    for (k, v) in data_buffer.resolved_edge_map.iter() {
+                    for (k, v) in data_buffer.property_edge_map.iter() {
                         info!("{} -> {}", k, v);
                     }
                     info!("Inserting characteristic: {} -> {}", s, arg);
