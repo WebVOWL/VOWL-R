@@ -594,7 +594,10 @@ impl GraphDisplayDataSolutionSerializer {
                         &triple,
                         ElementType::Rdfs(RdfsType::Node(RdfsNode::Class)),
                     ),
+
+                    //TODO: OWL1
                     // rdfs::COMMENT => {}
+
                     // rdfs::CONTAINER => {}
                     // rdfs::CONTAINER_MEMBERSHIP_PROPERTY => {}
                     rdfs::DATATYPE => {
@@ -611,6 +614,7 @@ impl GraphDisplayDataSolutionSerializer {
 
                     //TODO: OWL1
                     // rdfs::IS_DEFINED_BY => {}
+
                     // rdfs::LABEL => {}
                     rdfs::LITERAL => {
                         self.insert_node(
@@ -631,6 +635,8 @@ impl GraphDisplayDataSolutionSerializer {
                             ElementType::Rdfs(RdfsType::Node(RdfsNode::Resource)),
                         );
                     }
+
+                    //TODO: OWL1
                     // rdfs::SEE_ALSO => {}
                     rdfs::SUB_CLASS_OF => {
                         self.insert_edge(
@@ -640,25 +646,39 @@ impl GraphDisplayDataSolutionSerializer {
                             None,
                         );
                     }
-                    // rdfs::SUB_PROPERTY_OF => {},
+                    //TODO: OWL1
+                    //rdfs::SUB_PROPERTY_OF => {},
 
                     // ----------- OWL 2 ----------- //
 
+                    //TODO: OWL1
                     // owl::ALL_DIFFERENT => {},
+
                     // owl::ALL_DISJOINT_CLASSES => {},
                     // owl::ALL_DISJOINT_PROPERTIES => {},
+
+                    //TODO: OWL1
                     // owl::ALL_VALUES_FROM => {}
+
                     // owl::ANNOTATED_PROPERTY => {},
                     // owl::ANNOTATED_SOURCE => {},
                     // owl::ANNOTATED_TARGET => {},
                     // owl::ANNOTATION => {},
+
+                    //TODO: OWL1
                     // owl::ANNOTATION_PROPERTY => {},
+
                     // owl::ASSERTION_PROPERTY => {},
+
+                    //TODO: OWL1
                     // owl::ASYMMETRIC_PROPERTY => {},
+
                     // owl::AXIOM => {},
                     // owl::BACKWARD_COMPATIBLE_WITH => {},
                     // owl::BOTTOM_DATA_PROPERTY => {},
                     // owl::BOTTOM_OBJECT_PROPERTY => {},
+
+                    //TODO: OWL1
                     // owl::CARDINALITY => {}
                     owl::CLASS => self.insert_node(
                         data_buffer,
@@ -677,7 +697,9 @@ impl GraphDisplayDataSolutionSerializer {
                             }
                         }
                     }
-                    // TODO owl::DATATYPE_COMPLEMENT_OF => {}
+
+                    //TODO: OWL1
+                    //owl::DATATYPE_COMPLEMENT_OF => {}
                     owl::DATATYPE_PROPERTY => {
                         self.insert_edge(
                             data_buffer,
@@ -686,7 +708,10 @@ impl GraphDisplayDataSolutionSerializer {
                             None,
                         );
                     }
+
+                    //TODO: OWL1 (deprecated in OWL2, replaced by rdfs:datatype)
                     // owl::DATA_RANGE => {}
+
                     // owl::DEPRECATED => {}
                     owl::DEPRECATED_CLASS => self.insert_node(
                         data_buffer,
@@ -701,6 +726,8 @@ impl GraphDisplayDataSolutionSerializer {
                             None,
                         );
                     }
+
+                    //TODO: OWL1
                     // owl::DIFFERENT_FROM => {}
                     owl::DISJOINT_UNION_OF => {
                         self.insert_edge(data_buffer, &triple, ElementType::NoDraw, None);
@@ -722,6 +749,8 @@ impl GraphDisplayDataSolutionSerializer {
                             None,
                         );
                     }
+
+                    //TODO: OWL1
                     // owl::DISTINCT_MEMBERS => {}
                     owl::EQUIVALENT_CLASS => {
                         match &triple.target {
@@ -821,10 +850,16 @@ impl GraphDisplayDataSolutionSerializer {
                         }
                     }
                     // owl::EQUIVALENT_PROPERTY => {}
-                    // TODO owl::FUNCTIONAL_PROPERTY => {}
+
+                    //TODO: OWL1
+                    //owl::FUNCTIONAL_PROPERTY => {}
+
                     // owl::HAS_KEY => {}
                     // owl::HAS_SELF => {}
+
+                    //TODO: OWL1
                     // owl::HAS_VALUE => {}
+
                     // owl::IMPORTS => {}
                     // owl::INCOMPATIBLE_WITH => {}
                     owl::INTERSECTION_OF => {
@@ -838,23 +873,29 @@ impl GraphDisplayDataSolutionSerializer {
                             );
                         }
                     }
-                    // TODO owl::INVERSE_FUNCTIONAL_PROPERTY => {
-                    //     //self.try_insert_characteristic(
-                    //     // data_buffer,
-                    //     // term,
-                    //     // Characteristic::InverseFunctionalProperty)
-                    //     // TODO: Implement
-                    // }
-                    // TODO owl::INVERSE_OF => {}
+                    //TODO: OWL1
+                    // owl::INVERSE_FUNCTIONAL_PROPERTY => {}
+
+                    //TODO: OWL1
+                    // owl::INVERSE_OF => {}
+
+                    //TODO: OWL1
                     // owl::IRREFLEXIVE_PROPERTY => {}
+
+                    //TODO: OWL1
                     // owl::MAX_CARDINALITY => {}
+
                     // owl::MAX_QUALIFIED_CARDINALITY => {}
                     // owl::MEMBERS => {}
+
+                    //TODO: OWL1
                     // owl::MIN_CARDINALITY => {}
                     // owl::MIN_QUALIFIED_CARDINALITY => {}
                     // owl::NAMED_INDIVIDUAL => {}
                     // owl::NEGATIVE_PROPERTY_ASSERTION => {}
-                    // TODO owl::NOTHING => {}
+
+                    //TODO: OWL1
+                    //owl::NOTHING => {}
                     owl::OBJECT_PROPERTY => {
                         let e = ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty));
                         self.add_to_element_buffer(
@@ -879,19 +920,33 @@ impl GraphDisplayDataSolutionSerializer {
                             data_buffer.document_base = Some(base);
                         }
                     }
+
+                    //TODO: OWL1
                     // owl::ONTOLOGY_PROPERTY => {}
+
                     // owl::ON_CLASS => {}
                     // owl::ON_DATARANGE => {}
                     // owl::ON_DATATYPE => {}
                     // owl::ON_PROPERTIES => {}
+
+                    //TODO: OWL1
                     // owl::ON_PROPERTY => {}
+
                     // owl::PRIOR_VERSION => {}
                     // owl::PROPERTY_CHAIN_AXIOM => {}
                     // owl::PROPERTY_DISJOINT_WITH => {}
                     // owl::QUALIFIED_CARDINALITY => {}
+
+                    //TODO: OWL1
                     // owl::REFLEXIVE_PROPERTY => {}
+
+                    //TODO: OWL1
                     // owl::RESTRICTION => {}
+
+                    //TODO: OWL1
                     // owl::SAME_AS => {}
+
+                    //TODO: OWL1
                     // owl::SOME_VALUES_FROM => {}
                     // owl::SOURCE_INDIVIDUAL => {}
                     // owl::SYMMETRIC_PROPERTY => {}
@@ -904,16 +959,9 @@ impl GraphDisplayDataSolutionSerializer {
                     ),
                     // owl::TOP_DATA_PROPERTY => {}
                     // owl::TOP_OBJECT_PROPERTY => {}
-                    // TODO owl::TRANSITIVE_PROPERTY => {
-                    //     match self.insert_edge(data_buffer, &triple, Some(ElementType::NoDraw)) {
-                    //         Some(edge) => {
-                    //             data_buffer
-                    //                 .edge_characteristics
-                    //                 .insert(edge, vec![Characteristic::Transitive.to_string()]);
-                    //         }
-                    //         _ => {}
-                    //     }
-                    // }
+
+                    //TODO: OWL1
+                    //owl::TRANSITIVE_PROPERTY => {}
                     owl::UNION_OF => {
                         let edge =
                             self.insert_edge(data_buffer, &triple, ElementType::NoDraw, None);
