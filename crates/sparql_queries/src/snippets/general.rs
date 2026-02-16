@@ -106,7 +106,7 @@ pub const DOMAIN_RANGES: &str = r#"{
             ?nodeType a ?property .
             ?nodeType rdfs:range ?target .
             FILTER NOT EXISTS { ?nodeType rdfs:domain ?x }
-            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?id)
+            BIND(owl:Thing AS ?id)
         } UNION {
             VALUES ?property {
                 owl:DeprecatedProperty
