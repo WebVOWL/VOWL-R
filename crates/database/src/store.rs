@@ -202,9 +202,9 @@ pub const DEFAULT_QUERY_1: &str = r#"
             # 4. (Optional) Safety Filter
             # Ensure we only expand relevant OWL logic operators, not random RDF lists.
             FILTER(?property IN (
-                owl:intersectionOf, 
-                owl:unionOf, 
-                owl:oneOf, 
+                owl:intersectionOf,
+                owl:unionOf,
+                owl:oneOf,
                 owl:disjointUnionOf
             ))
         }
@@ -229,7 +229,7 @@ pub const DEFAULT_QUERY_1: &str = r#"
         UNION {
             # BRIDGE: Start at the Named Class, jump to the intermediate node
             ?id ?connector ?intermediateNode .
-            FILTER(isIRI(?id)) 
+            FILTER(isIRI(?id))
 
             # Match the logic property (unionOf, etc) on the intermediate node
             ?intermediateNode ?nodeType ?blanknode .
