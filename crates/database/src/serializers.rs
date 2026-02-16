@@ -457,7 +457,10 @@ mod tests {
         };
 
         // Test that they are equal
-        assert_eq!(edge1, edge2, "DisjointWith edges should be equal regardless of subject/object order");
+        assert_eq!(
+            edge1, edge2,
+            "DisjointWith edges should be equal regardless of subject/object order"
+        );
 
         // Test that they hash to the same value by inserting into a HashSet
         let mut edge_set = HashSet::new();
@@ -489,7 +492,10 @@ mod tests {
         };
 
         // Test that they are NOT equal
-        assert_ne!(edge1, edge2, "Non-symmetric edges should NOT be equal when subject/object are swapped");
+        assert_ne!(
+            edge1, edge2,
+            "Non-symmetric edges should NOT be equal when subject/object are swapped"
+        );
 
         // Test that they both appear in the HashSet
         let mut edge_set = HashSet::new();
