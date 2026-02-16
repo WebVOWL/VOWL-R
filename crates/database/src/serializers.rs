@@ -61,20 +61,18 @@ pub struct Edge {
 }
 impl Hash for Edge {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let eq_so = [
-            ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))
-        ];
+        let eq_so = [ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))];
         if eq_so.contains(&self.element_type) {
             // For symmetric relations, AND the string bytes together
             let subject_bytes = self.subject.as_bytes();
             let object_bytes = self.object.as_bytes();
             let min_len = subject_bytes.len().min(object_bytes.len());
-            
+
             let mut combined = Vec::with_capacity(min_len);
             for i in 0..min_len {
                 combined.push(subject_bytes[i] & object_bytes[i]);
             }
-            
+
             combined.hash(state);
             self.element_type.hash(state);
         } else if self.element_type == ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)) {
@@ -255,10 +253,16 @@ impl SerializationDataBuffer {
         self.property_edge_map.insert(property_iri, edge);
     }
     pub fn add_property_domain(&mut self, property_iri: String, domain: String) {
-        self.property_domain_map.entry(property_iri).or_default().insert(domain);
+        self.property_domain_map
+            .entry(property_iri)
+            .or_default()
+            .insert(domain);
     }
     pub fn add_property_range(&mut self, property_iri: String, range: String) {
-        self.property_range_map.entry(property_iri).or_default().insert(range);
+        self.property_range_map
+            .entry(property_iri)
+            .or_default()
+            .insert(range);
     }
 }
 
@@ -305,7 +309,9 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
                         *object_idx,
                     ]);
                     if let Some(characteristics) = characteristics {
-                        display_data.characteristics.insert(display_data.elements.len() - 1, characteristics.join("\n"));
+                        display_data
+                            .characteristics
+                            .insert(display_data.elements.len() - 1, characteristics.join("\n"));
                     }
                 }
                 (Some(_), Some(_), None) => {
