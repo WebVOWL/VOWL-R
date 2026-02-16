@@ -537,7 +537,7 @@ pub fn SearchMenu() -> impl IntoView {
 
     view! {
         <WorkbenchMenuItems title="Search">
-            <div class="flex flex-col gap-2 relative">
+            <div class="flex relative flex-col gap-2">
                 <div class="w-full">
                     <input
                         type="text"
@@ -579,11 +579,11 @@ pub fn SearchMenu() -> impl IntoView {
                                                     }
                                                 }
                                             >
-                                                <div class="flex items-center gap-2">
+                                                <div class="flex gap-2 items-center">
                                                     <img
                                                         src=format!("/node_legends/{}.png", category_name)
-                                                        alt={format!("{} icon", category_name)}
-                                                        class="w-8 h-8 object-contain"
+                                                        alt=format!("{} icon", category_name)
+                                                        class="object-contain w-8 h-8"
                                                     />
                                                     <h4 class="font-semibold text-gray-700">
                                                         {format_node_type_name(&category_name)}

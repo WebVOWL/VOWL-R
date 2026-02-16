@@ -13,16 +13,20 @@ pub fn PauseButton() -> impl IntoView {
             let _ = EVENT_DISPATCHER.rend_write_chan.send(RenderEvent::Resumed);
             paused.set(false);
         } else {
-            let _  =EVENT_DISPATCHER.rend_write_chan.send(RenderEvent::Paused);
+            let _ = EVENT_DISPATCHER.rend_write_chan.send(RenderEvent::Paused);
             paused.set(true);
         }
     };
 
     view! {
         <button
-            class="w-[35px] h-[35px] bg-white flex items-center justify-center text-black border border-black cursor-pointer hover:bg-[#dd9900] transition-colors"
+            class="flex justify-center items-center text-black bg-white border border-black transition-colors cursor-pointer w-[35px] h-[35px] hover:bg-[#dd9900]"
             title=move || {
-                if paused.get() { "Resume the graph simulation" } else { "Pause the graph simulation" }
+                if paused.get() {
+                    "Resume the graph simulation"
+                } else {
+                    "Pause the graph simulation"
+                }
             }
             on:click=toggle_pause
         >
@@ -41,7 +45,7 @@ pub fn PauseButton() -> impl IntoView {
 pub fn ResetButton() -> impl IntoView {
     view! {
         <button
-            class="w-[35px] h-[35px] bg-white flex items-center justify-center text-black border border-black cursor-pointer hover:bg-[#dd9900] transition-colors"
+            class="flex justify-center items-center text-black bg-white border border-black transition-colors cursor-pointer w-[35px] h-[35px] hover:bg-[#dd9900]"
             title="Reset the graph position"
         >
             <Icon icon=icondata::AiReloadOutlined />
@@ -53,11 +57,12 @@ pub fn ResetButton() -> impl IntoView {
 pub fn ZoomInButton() -> impl IntoView {
     view! {
         <button
-            class="w-[35px] h-[35px] bg-white flex items-center justify-center text-black border border-black cursor-pointer hover:bg-[#dd9900] transition-colors"
+            class="flex justify-center items-center text-black bg-white border border-black transition-colors cursor-pointer w-[35px] h-[35px] hover:bg-[#dd9900]"
             title="Zoom in on the graph"
             on:click=move |_| {
-                let _ =EVENT_DISPATCHER
-                    .rend_write_chan.send(RenderEvent::Zoomed(20.0));
+                let _ = EVENT_DISPATCHER
+                    .rend_write_chan
+                    .send(RenderEvent::Zoomed(20.0));
             }
         >
             <Icon icon=icondata::AiZoomInOutlined />
@@ -69,11 +74,12 @@ pub fn ZoomInButton() -> impl IntoView {
 pub fn ZoomOutButton() -> impl IntoView {
     view! {
         <button
-            class="w-[35px] h-[35px] bg-white flex items-center justify-center text-black border border-black cursor-pointer hover:bg-[#dd9900] transition-colors"
+            class="flex justify-center items-center text-black bg-white border border-black transition-colors cursor-pointer w-[35px] h-[35px] hover:bg-[#dd9900]"
             title="Zoom out on the graph"
             on:click=move |_| {
-               let _ = EVENT_DISPATCHER
-                    .rend_write_chan.send(RenderEvent::Zoomed(-20.0));
+                let _ = EVENT_DISPATCHER
+                    .rend_write_chan
+                    .send(RenderEvent::Zoomed(-20.0));
             }
         >
             <Icon icon=icondata::AiZoomOutOutlined />
@@ -85,11 +91,12 @@ pub fn ZoomOutButton() -> impl IntoView {
 pub fn CenterGraphButton() -> impl IntoView {
     view! {
         <button
-            class="w-[35px] h-[35px] bg-white flex items-center justify-center text-black border border-black cursor-pointer hover:bg-[#dd9900] transition-colors"
+            class="flex justify-center items-center text-black bg-white border border-black transition-colors cursor-pointer w-[35px] h-[35px] hover:bg-[#dd9900]"
             title="Center the graph"
             on:click=move |_| {
-               let _ = EVENT_DISPATCHER
-                    .rend_write_chan.send(RenderEvent::CenterGraph);
+                let _ = EVENT_DISPATCHER
+                    .rend_write_chan
+                    .send(RenderEvent::CenterGraph);
             }
         >
             <Icon icon=icondata::MdiImageFilterCenterFocus />
@@ -101,7 +108,7 @@ pub fn CenterGraphButton() -> impl IntoView {
 pub fn GraphInteractionButtons(#[prop(into)] is_sidebar_open: RwSignal<bool>) -> impl IntoView {
     view! {
         <div
-            class="absolute bottom-[1%] flex gap-1 transition-[right] duration-500 ease-in-out"
+            class="flex absolute gap-1 duration-500 ease-in-out bottom-[1%] transition-[right]"
             class=("right-[23%]", move || is_sidebar_open.get())
             class=("right-[1%]", move || !is_sidebar_open.get())
         >

@@ -29,9 +29,10 @@ pub mod prelude {
         LABEL,
     ];
 
+    // PERF: this could maybe be a thread_local instead?
     /// The default query contains all classes and properties supported by VOWL-R.
     pub static DEFAULT_QUERY: LazyLock<String> = LazyLock::new(|| {
-        let snippets = vec![
+        let snippets = [
             snippets_from_enum::<OwlNode>(),
             snippets_from_enum::<OwlEdge>(),
             snippets_from_enum::<RdfEdge>(),

@@ -13,7 +13,7 @@ pub async fn export_owl(resource_type: String) -> Result<ByteStream<ServerFnErro
     Ok(ByteStream::new(stream.map(|chunk| {
         chunk
             .map_err(|e| ServerFnError::new(e.to_string()))
-            .map(|bytes| bytes::Bytes::from(bytes))
+            .map(bytes::Bytes::from)
     })))
 }
 
@@ -40,7 +40,7 @@ pub fn ExportButton(
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 pub fn download_ontology(resource_type: &str, progress_message: RwSignal<String>) {
     let resource = resource_type.to_string();
     let (mime_type, download_name) = download_metadata(resource_type);
@@ -118,7 +118,7 @@ pub fn download_ontology(resource_type: &str, progress_message: RwSignal<String>
     );
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
 fn download_metadata(resource_type: &str) -> (&'static str, String) {
     let normalized = resource_type.to_ascii_uppercase();
     let extension = match normalized.as_str() {
@@ -162,7 +162,7 @@ pub fn ExportMenu() -> impl IntoView {
                     icon=icondata::BiExportRegular
                     on_click=Callback::new({
                         let progress_message = progress_message;
-                        move |_| download_ontology("OWL", progress_message)
+                        move |()| download_ontology("OWL", progress_message)
                     })
                 />
                 <ExportButton
@@ -170,7 +170,7 @@ pub fn ExportMenu() -> impl IntoView {
                     icon=icondata::BiExportRegular
                     on_click=Callback::new({
                         let progress_message = progress_message;
-                        move |_| download_ontology("RDF", progress_message)
+                        move |()| download_ontology("RDF", progress_message)
                     })
                 />
                 <ExportButton
@@ -178,7 +178,7 @@ pub fn ExportMenu() -> impl IntoView {
                     icon=icondata::BiExportRegular
                     on_click=Callback::new({
                         let progress_message = progress_message;
-                        move |_| download_ontology("TTL", progress_message)
+                        move |()| download_ontology("TTL", progress_message)
                     })
                 />
                 <ExportButton
@@ -186,7 +186,7 @@ pub fn ExportMenu() -> impl IntoView {
                     icon=icondata::BiExportRegular
                     on_click=Callback::new({
                         let progress_message = progress_message;
-                        move |_| download_ontology("NTriples", progress_message)
+                        move |()| download_ontology("NTriples", progress_message)
                     })
                 />
                 <ExportButton
@@ -194,7 +194,7 @@ pub fn ExportMenu() -> impl IntoView {
                     icon=icondata::BiExportRegular
                     on_click=Callback::new({
                         let progress_message = progress_message;
-                        move |_| download_ontology("NQuads", progress_message)
+                        move |()| download_ontology("NQuads", progress_message)
                     })
                 />
                 <ExportButton
@@ -202,7 +202,7 @@ pub fn ExportMenu() -> impl IntoView {
                     icon=icondata::BiExportRegular
                     on_click=Callback::new({
                         let progress_message = progress_message;
-                        move |_| download_ontology("OFN", progress_message)
+                        move |()| download_ontology("OFN", progress_message)
                     })
                 />
                 <ExportButton
@@ -210,7 +210,7 @@ pub fn ExportMenu() -> impl IntoView {
                     icon=icondata::BiExportRegular
                     on_click=Callback::new({
                         let progress_message = progress_message;
-                        move |_| download_ontology("OWX", progress_message)
+                        move |()| download_ontology("OWX", progress_message)
                     })
                 />
 

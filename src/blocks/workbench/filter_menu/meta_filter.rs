@@ -1,6 +1,6 @@
 use grapher::prelude::ElementType;
 
-pub fn filter<T>(elements: Vec<ElementType>, filters: Vec<T>) -> Vec<ElementType>
+pub fn filter<T>(elements: Vec<ElementType>, filters: &[T]) -> Vec<ElementType>
 where
     T: Fn(ElementType) -> bool,
 {

@@ -8,7 +8,7 @@ use leptos_use::on_click_outside;
 /// any parent element higher in the DOM tree to position `children` relative to it.
 #[component]
 pub fn ListElement(
-    #[prop(into)] title: String,
+    #[prop(into)] title: Signal<String>,
     #[prop(optional, into)] icon: MaybeProp<icondata::Icon>,
     children: ChildrenFn,
 ) -> impl IntoView {
@@ -24,12 +24,15 @@ pub fn ListElement(
                 class="flex gap-2 items-center py-2 px-4 text-gray-500 rounded-lg hover:text-gray-700 hover:bg-gray-100"
             >
                 <MaybeShowIcon icon=icon></MaybeShowIcon>
-                <span class="text-sm font-medium">{title}</span>
+                <span class="text-sm font-medium">{move || title.get()}</span>
             </a>
-            <Show when=move || *show_element.read() fallback=|| () >
-              <div node_ref=target class="absolute top-0 m-4 left-full w-fit max-h-[80vh] min-h-[80vh] overflow-y-scroll bg-white border-gray-100">
-                  {children()}
-              </div>
+            <Show when=move || *show_element.read() fallback=|| ()>
+                <div
+                    node_ref=target
+                    class="overflow-y-scroll absolute top-0 left-full m-4 bg-white border-gray-100 w-fit max-h-[80vh] min-h-[80vh]"
+                >
+                    {children()}
+                </div>
             </Show>
         </li>
     }

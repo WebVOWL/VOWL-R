@@ -8,11 +8,11 @@ mod special_operators;
 
 use super::{GraphDataContext, WorkbenchMenuItems};
 use crate::components::user_input::file_upload::handle_internal_sparql;
-use grapher::prelude::{Characteristic, ElementType, GraphDisplayData};
 use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
+use grapher::prelude::{ElementType, GraphDisplayData};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use log::{debug, error};
+use log::error;
 use std::collections::HashMap;
 use vowlr_sparql_queries::prelude::QueryAssembler;
 
@@ -32,7 +32,7 @@ fn update_graph(query: String, graph_data: RwSignal<GraphDisplayData>) {
                     .rend_write_chan
                     .send(RenderEvent::LoadGraph(new_graph_data));
             }
-            Err(e) => error!("{}", e),
+            Err(e) => error!("{e}"),
         }
     });
 }
@@ -150,12 +150,8 @@ pub fn FilterMenu() -> impl IntoView {
                 name="OWL Classes"
                 is_open=open_owl
                 items=filter(
-                    element_counts
-                        .get()
-                        .into_keys()
-                        .into_iter()
-                        .collect::<Vec<_>>(),
-                    vec![is_owl_class],
+                    element_counts.get().into_keys().collect::<Vec<_>>(),
+                    &[is_owl_class],
                 )
                 checks=element_checks
                 counts=element_counts
@@ -167,12 +163,8 @@ pub fn FilterMenu() -> impl IntoView {
                 name="RDF"
                 is_open=open_rdf
                 items=filter(
-                    element_counts
-                        .get()
-                        .into_keys()
-                        .into_iter()
-                        .collect::<Vec<_>>(),
-                    vec![is_rdf_class],
+                    element_counts.get().into_keys().collect::<Vec<_>>(),
+                    &[is_rdf_class],
                 )
                 checks=element_checks
                 counts=element_counts
@@ -184,12 +176,8 @@ pub fn FilterMenu() -> impl IntoView {
                 name="Set Operators"
                 is_open=open_set_operations
                 items=filter(
-                    element_counts
-                        .get()
-                        .into_keys()
-                        .into_iter()
-                        .collect::<Vec<_>>(),
-                    vec![is_set_operator],
+                    element_counts.get().into_keys().collect::<Vec<_>>(),
+                    &[is_set_operator],
                 )
                 checks=element_checks
                 counts=element_counts
@@ -201,12 +189,8 @@ pub fn FilterMenu() -> impl IntoView {
                 name="Properties"
                 is_open=open_properties
                 items=filter(
-                    element_counts
-                        .get()
-                        .into_keys()
-                        .into_iter()
-                        .collect::<Vec<_>>(),
-                    vec![is_property],
+                    element_counts.get().into_keys().collect::<Vec<_>>(),
+                    &[is_property],
                 )
                 checks=element_checks
                 counts=element_counts

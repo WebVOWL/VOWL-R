@@ -2,7 +2,7 @@ use crate::components::buttons::graph_interaction_buttons::GraphInteractionButto
 use leptos::prelude::*;
 
 #[component]
-pub fn Accordion(#[prop(into)] title: String, children: Children) -> impl IntoView {
+pub fn Accordion(#[prop(into)] title: &'static str, children: Children) -> impl IntoView {
     let (is_open, set_is_open) = signal(false);
 
     view! {
@@ -11,7 +11,7 @@ pub fn Accordion(#[prop(into)] title: String, children: Children) -> impl IntoVi
                 class="flex justify-between items-center py-3 px-4 w-full font-medium text-left text-gray-700 transition-colors hover:bg-gray-50"
                 on:click=move |_| set_is_open.update(|v| *v = !*v)
             >
-                <span>{title.clone()}</span>
+                <span>{title}</span>
                 <span
                     class="text-gray-500 transition-transform"
                     class=("rotate-180", move || is_open.get())
@@ -39,7 +39,7 @@ pub fn Accordion(#[prop(into)] title: String, children: Children) -> impl IntoVi
 pub fn OntologyIri() -> impl IntoView {
     let ontologyiri = RwSignal::new("http://xmlns.com/foaf/0.1/".to_string());
     view! {
-        <p class="flex items-center justify-center gap-2 py-2 text-sm my-2 text-gray-500">
+        <p class="flex gap-2 justify-center items-center py-2 my-2 text-sm text-gray-500">
             <a
                 href=move || ontologyiri.get()
                 target="_blank"
@@ -55,7 +55,7 @@ pub fn OntologyIri() -> impl IntoView {
 pub fn Version() -> impl IntoView {
     let ontologyversion = RwSignal::new("0.99".to_string());
     view! {
-        <p class="flex items-center justify-center gap-2 py-2 text-sm my-2 text-gray-500">
+        <p class="flex gap-2 justify-center items-center py-2 my-2 text-sm text-gray-500">
             "Version: "{move || ontologyversion.get()}
         </p>
     }
@@ -65,7 +65,7 @@ pub fn Version() -> impl IntoView {
 pub fn Author() -> impl IntoView {
     let ontologyauthors = RwSignal::new("Alice, Bob, Charlie".to_string());
     view! {
-        <p class="flex items-center justify-center gap-2 py-2 text-sm my-2 text-gray-500">
+        <p class="flex gap-2 justify-center items-center py-2 my-2 text-sm text-gray-500">
             Author(s): {move || ontologyauthors.get()}
         </p>
     }
@@ -79,9 +79,9 @@ pub fn Language() -> impl IntoView {
         "french".to_string(),
     ]);
     view! {
-        <p class="flex items-center justify-center gap-2 py-2 text-sm my-2 text-gray-500">
+        <p class="flex gap-2 justify-center items-center py-2 my-2 text-sm text-gray-500">
             "Language(s):"
-            <select class="py-1 px-2 text-sm rounded-md border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-500 w-[100px] h-[30px]">
+            <select class="py-1 px-2 text-sm text-gray-500 rounded-md border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none w-[100px] h-[30px]">
                 {move || {
                     ontologylanguages
                         .get()
@@ -130,7 +130,7 @@ pub fn RightSidebar() -> impl IntoView {
     view! {
         <div data-sidebar-open=move || is_open.get().to_string()>
             <button
-                class="fixed top-[5%] w-6 h-6 bg-white flex justify-center items-center border border-black cursor-pointer z-[3] transition-[right] duration-500 hover:bg-[#dd9900]"
+                class="flex fixed justify-center items-center w-6 h-6 bg-white border border-black duration-500 cursor-pointer top-[5%] z-[3] transition-[right] hover:bg-[#dd9900]"
                 class=("right-[22%]", move || is_open.get())
                 class=("right-0", move || !is_open.get())
                 on:click=move |_| {
@@ -140,16 +140,19 @@ pub fn RightSidebar() -> impl IntoView {
                 {move || if is_open.get() { ">" } else { "<" }}
             </button>
             <div
-                class="fixed top-0 right-0 h-screen bg-white overflow-y-auto overflow-x-hidden transition-[width] duration-500 text-gray-500"
+                class="overflow-y-auto overflow-x-hidden fixed top-0 right-0 h-screen text-gray-500 bg-white duration-500 transition-[width]"
                 class=("w-[22%]", move || is_open.get())
                 class=("w-0", move || !is_open.get())
             >
                 <div
                     class="transition-opacity duration-500"
                     class=("opacity-100", move || is_open.get())
-                    class=("opacity-0 pointer-events-none", move || !is_open.get())
+                    class=(
+                        "opacity-0 pointer-events-none",
+                        move || !is_open.get(),
+                    )
                 >
-                    <p class="text-[1.5em] font-thin text-center py-4 text-gray-500">
+                    <p class="py-4 font-thin text-center text-gray-500 text-[1.5em]">
                         "Friend of a Friend (FOAF) vocabulary"
                     </p>
                     <OntologyIri />

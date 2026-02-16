@@ -1,3 +1,4 @@
+#[cfg(feature = "server")]
 use futures::StreamExt;
 use gloo_timers::callback::Interval;
 use grapher::prelude::GraphDisplayData;
@@ -86,34 +87,32 @@ pub async fn ontology_progress(filename: String) -> Result<TextStream, ServerFnE
 )]
 pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), ServerFnError> {
     let mut session = VOWLRStore::default();
-    let mut data = data.into_inner().unwrap();
+    #[expect(
+        clippy::expect_used,
+        reason = "MultipartData::into_inner always returns Some on the server-side"
+    )]
+    let mut data = data.into_inner().expect("data must be server-side");
     let mut count = 0;
     let mut dtype = DataType::UNKNOWN;
     while let Ok(Some(mut field)) = data.next_field().await {
         let name = field.file_name().unwrap_or_default().to_string();
 
-        if !name.is_empty() {
-            info!("Receiving file '{}'", name);
-            progress::reset(&name);
-            debug!("Resetting progress");
-
-            session
-                .start_upload(&name)
-                .await
-                .map_err(|e| ServerFnError::new(e.to_string()))?;
-
-            dtype = Path::new(&name).into();
-        } else {
+        if name.is_empty() {
             return Err(ServerFnError::new("Received empty file string"));
         }
+
+        info!("Receiving file '{name}'");
+        progress::reset(&name);
+        debug!("Resetting progress");
+
+        session.start_upload(&name).await?;
+
+        dtype = Path::new(&name).into();
 
         while let Ok(Some(chunk)) = field.chunk().await {
             let len = chunk.len();
             count += len;
-            session
-                .upload_chunk(&chunk)
-                .await
-                .map_err(|e| ServerFnError::new(e.to_string()))?;
+            session.upload_chunk(&chunk).await?;
             progress::add_chunk(&name, len).await;
         }
 
@@ -198,7 +197,7 @@ pub async fn handle_sparql(
         .await
         .map_err(|e| ServerFnError::new(format!("Error querying SPARQL endpoint: {e}")))?;
 
-    let progress_key = format!("sparql-{}", endpoint);
+    let progress_key = format!("sparql-{endpoint}");
     progress::reset(&progress_key);
     session
         .start_upload(&progress_key)
@@ -234,17 +233,23 @@ pub async fn handle_sparql(
 }
 
 #[server (input = Rkyv, output = Rkyv)]
-pub async fn handle_internal_sparql(query: String) -> Result<GraphDisplayData, ServerFnError> {
+pub async fn handle_internal_sparql(
+    query: String,
+) -> Result<GraphDisplayData, ServerFnError<String>> {
     let vowlr = VOWLRStore::default();
 
     let mut data_buffer = GraphDisplayData::new();
     let solution_serializer = GraphDisplayDataSolutionSerializer::new();
-    let query_stream = vowlr.session.query(query.as_str()).await.unwrap();
+    let query_stream = vowlr
+        .session
+        .query(query.as_str())
+        .await
+        .map_err(|e| ServerFnError::ServerError(format!("SPARQL query failed: {e}")))?;
     if let QueryResults::Solutions(solutions) = query_stream {
         solution_serializer
             .serialize_nodes_stream(&mut data_buffer, solutions)
             .await
-            .unwrap();
+            .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
     } else {
         return Err(ServerFnError::ServerError(
             "Query stream is not a solutions stream".to_string(),
@@ -262,6 +267,7 @@ pub struct UploadProgress {
     pub interval_handle: Rc<RefCell<Option<Interval>>>,
 }
 impl UploadProgress {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             filename: RwSignal::new("Select File".to_string()),
@@ -273,18 +279,19 @@ impl UploadProgress {
         }
     }
 
-    fn track_progress<F>(&self, key: String, total_size: Option<usize>, dispatch: F)
+    #[expect(unused, reason = "not yet implemented")]
+    fn track_progress<F>(&self, key: &str, total_size: Option<usize>, dispatch: F)
     where
         F: FnOnce() + 'static,
     {
-        self.filename.set(key.clone());
+        self.filename.set(key.to_string());
         self.upload_progress.set(0);
         self.parsing_status.set(String::new());
         self.parsing_done.set(false);
 
-        let progress = self.upload_progress.clone();
-        let status = self.parsing_status.clone();
-        let done = self.parsing_done.clone();
+        let progress = self.upload_progress;
+        let status = self.parsing_status;
+        let done = self.parsing_done;
         let interval_handle = Rc::clone(&self.interval_handle);
 
         spawn_local(async move {
@@ -341,46 +348,63 @@ impl UploadProgress {
         });
     }
 
-    pub fn upload_files<F>(&self, file_list: FileList, dispatch: F)
+    pub fn upload_files<F>(&self, file_list: &FileList, dispatch: F)
     where
         F: FnOnce(FormData) + 'static,
     {
         let len = file_list.length();
-        let form = FormData::new().unwrap();
+        #[expect(clippy::expect_used, reason = "this should never fail")]
+        let form = FormData::new().expect("creating formdata should succeed (see https://developer.mozilla.org/en-US/docs/Web/API/FormData/append)");
         info!("Preparing filelist with {len} files");
 
         // let mut total_size = 0;
         if let Some(file) = file_list.item(0) {
             self.filename.set(file.name());
+
+            // TODO: handle file sizes > usize::MAX
+            #[expect(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_sign_loss, reason = "file size cannot be negative")]
             self.file_size.set(file.size() as usize);
         }
 
         for i in 0..len {
             if let Some(file) = file_list.item(i) {
-                form.append_with_blob("file_to_upload", &file).unwrap();
+                #[expect(
+                    clippy::expect_used,
+                    reason = "this should never fail"
+                )]
+                form.append_with_blob("file_to_upload", &file)
+                    .expect("appending to formdata should succeed (see https://developer.mozilla.org/en-US/docs/Web/API/FormData/append)");
             }
         }
 
         let fname = self.filename.get_untracked();
-        self.track_progress(fname, Some(self.file_size.get()), move || dispatch(form));
+        self.track_progress(&fname, Some(self.file_size.get()), move || dispatch(form));
     }
 
-    pub fn upload_url<F>(&self, url: String, dispatch: F)
+    pub fn upload_url<F>(&self, url: &str, dispatch: F)
     where
         F: FnOnce(String) + 'static,
     {
-        self.track_progress(url.clone(), None, move || dispatch(url));
+        let url_string = url.to_string();
+        self.track_progress(url, None, move || dispatch(url_string));
     }
 
-    pub fn upload_sparql<F>(&self, endpoint: String, query: String, dispatch: F)
+    pub fn upload_sparql<F>(&self, endpoint: &str, query: &str, dispatch: F)
     where
         F: FnOnce((String, String, Option<String>)) + 'static,
     {
-        let key = format!("sparql-{}", endpoint);
-        let ep = endpoint.clone();
-        let q = query.clone();
+        let key = format!("sparql-{endpoint}");
+        let ep = endpoint.to_string();
+        let q = query.to_string();
         let fmt = Some("json".to_string());
-        self.track_progress(key, None, move || dispatch((ep, q, fmt)));
+        self.track_progress(&key, None, move || dispatch((ep, q, fmt)));
+    }
+}
+
+impl Default for UploadProgress {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -390,6 +414,7 @@ pub struct FileUpload {
     pub mode: RwSignal<String>,
     pub local_action: Action<FormData, Result<(DataType, usize), ServerFnError>>,
     pub remote_action: Action<String, Result<(DataType, usize), ServerFnError>>,
+    #[expect(clippy::type_complexity)]
     pub sparql_action:
         Action<(String, String, Option<String>), Result<(DataType, usize), ServerFnError>>,
     pub tracker: Rc<UploadProgress>,
@@ -434,5 +459,11 @@ impl FileUpload {
             "sparql" => self.sparql_action.value().get(),
             _ => None,
         }
+    }
+}
+
+impl Default for FileUpload {
+    fn default() -> Self {
+        Self::new()
     }
 }

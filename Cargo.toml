@@ -324,3 +324,15 @@
         #
         # Optional. Defaults to "/api". Env: SERVER_FN_PREFIX
         server-fn-prefix="/api"
+
+[lints.clippy]
+    expect_used={level="deny"}
+    missing_panics_doc={level="allow"}
+    nursery={level="deny", priority=-1}
+    pedantic={level="deny", priority=-1}
+    too_many_lines={level="allow"}
+    unwrap_used={level="deny"}
+    # Triggers false positives on components,
+    # See https://github.com/leptos-rs/leptos/issues/3172
+    # This should have been fixed around 0.8.3 but it seems not to be?
+    must_use_candidate={level="allow"}

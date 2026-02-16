@@ -1,14 +1,18 @@
+use super::error_log::ErrorLogContext;
 use super::{GraphDataContext, WorkbenchMenuItems};
-use crate::components::{icon::Icon, user_input::file_upload::*};
+use crate::components::{
+    icon::Icon,
+    user_input::file_upload::{FileUpload, handle_internal_sparql},
+};
 use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use log::{error, info};
+use log::info;
 use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 use web_sys::HtmlInputElement;
 
 #[component]
-fn SelectStaticInput() -> impl IntoView {
+pub fn SelectStaticInput() -> impl IntoView {
     let selected_ontology = RwSignal::new("Friend of a Friend (FOAF) vocabulary".to_string());
 
     let ontologies = move || {
@@ -48,17 +52,18 @@ fn SelectStaticInput() -> impl IntoView {
 }
 
 #[component]
-fn UploadInput() -> impl IntoView {
+pub fn UploadInput() -> impl IntoView {
     let GraphDataContext {
         graph_data,
         total_graph_data,
     } = expect_context::<GraphDataContext>();
+    let error_log = expect_context::<ErrorLogContext>();
     let upload = FileUpload::new();
     let local_loading_done = upload.local_action.value();
     let remote_loading_done = upload.remote_action.value();
-    let upload_progress = upload.tracker.upload_progress.clone();
-    let parsing_status = upload.tracker.parsing_status.clone();
-    let parsing_done = upload.tracker.parsing_done.clone();
+    let upload_progress = upload.tracker.upload_progress;
+    let parsing_status = upload.tracker.parsing_status;
+    let parsing_done = upload.tracker.parsing_done;
     let tracker_url = upload.tracker.clone();
     let tracker_file = upload.tracker.clone();
 
@@ -75,10 +80,16 @@ fn UploadInput() -> impl IntoView {
                                 .rend_write_chan
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
-                        Err(e) => error!("{}", e),
+                        Err(e) => {
+                            let err_msg = format!("Error processing file: {e}");
+                            error_log.errors.update(|errors| errors.push(err_msg));
+                        }
                     }
                 }),
-                Err(e) => error!("{}", e),
+                Err(e) => {
+                    let err_msg = format!("Error loading file: {e}");
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
             }
         }
     });
@@ -96,10 +107,16 @@ fn UploadInput() -> impl IntoView {
                                 .rend_write_chan
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
-                        Err(e) => error!("{}", e),
+                        Err(e) => {
+                            let err_msg = format!("Error processing URL: {e}");
+                            error_log.errors.update(|errors| errors.push(err_msg));
+                        }
                     }
                 }),
-                Err(e) => error!("{}", e),
+                Err(e) => {
+                    let err_msg = format!("Error loading from URL: {e}");
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
             }
         }
     });
@@ -115,7 +132,7 @@ fn UploadInput() -> impl IntoView {
                     let url = target.value();
                     tracker_url
                         .upload_url(
-                            url.clone(),
+                            &url,
                             move |u| {
                                 upload.remote_action.dispatch(u);
                                 upload.mode.set("remote".to_string());
@@ -139,7 +156,7 @@ fn UploadInput() -> impl IntoView {
                         if let Some(files) = input.files() {
                             tracker_file
                                 .upload_files(
-                                    files,
+                                    &files,
                                     move |form| {
                                         info!("Uploading files");
                                         upload.local_action.dispatch_local(form);
@@ -179,29 +196,29 @@ fn UploadInput() -> impl IntoView {
                                     <div class="mt-1 text-sm font-bold text-center">
                                         "Upload done"
                                     </div>
-                                    {if !done {
-                                        view! {
-                                            <div class="mt-1 text-sm text-center">{parsing}</div>
-                                        }
-                                            .into_any()
-                                    } else {
+                                    {if done {
                                         view! {
                                             <div class="mt-1 text-sm font-bold text-center">
                                                 "Parsing done"
                                             </div>
                                         }
                                             .into_any()
+                                    } else {
+                                        view! {
+                                            <div class="mt-1 text-sm text-center">{parsing}</div>
+                                        }
+                                            .into_any()
                                     }}
                                 }
                                     .into_any()
                             } else {
-                                view! { <></> }.into_any()
+                                ().into_any()
                             }}
                         </div>
                     }
                         .into_any()
                 } else {
-                    view! { <></> }.into_any()
+                    ().into_any()
                 }
             }}
         </div>
@@ -209,26 +226,32 @@ fn UploadInput() -> impl IntoView {
 }
 
 #[component]
-fn FetchData() -> impl IntoView {
+pub fn FetchData() -> impl IntoView {
+    let error_log = expect_context::<ErrorLogContext>();
+
+    let handle_reload = move || {
+        spawn_local(async move {
+            let output_result = handle_internal_sparql(DEFAULT_QUERY.to_string()).await;
+            match output_result {
+                Ok(graph_data) => {
+                    let _ = EVENT_DISPATCHER
+                        .rend_write_chan
+                        .send(RenderEvent::LoadGraph(graph_data));
+                }
+                Err(e) => {
+                    let err_msg = format!("Error reloading data: {e}");
+                    error_log.errors.update(|errors| errors.push(err_msg));
+                }
+            }
+        });
+    };
+
     view! {
         <div class="flex flex-col gap-2">
             <button
                 class="flex relative justify-center items-center p-1 mt-1 text-xs bg-gray-200 rounded text-[#000000]"
                 on:click=move |_| {
-                    spawn_local(async {
-                        let output_result = handle_internal_sparql(
-                                DEFAULT_QUERY.to_string(),
-                            )
-                            .await;
-                        match output_result {
-                            Ok(graph_data) => {
-                                let _ = EVENT_DISPATCHER
-                                    .rend_write_chan
-                                    .send(RenderEvent::LoadGraph(graph_data));
-                            }
-                            Err(e) => error!("{}", e),
-                        }
-                    })
+                    handle_reload();
                 }
             >
                 <Icon class="pr-0.5" icon=icondata::AiReloadOutlined />
@@ -239,11 +262,11 @@ fn FetchData() -> impl IntoView {
 }
 
 #[component]
-fn Sparql() -> impl IntoView {
+pub fn Sparql() -> impl IntoView {
     let upload = FileUpload::new();
-    let upload_progress = upload.tracker.upload_progress.clone();
-    let parsing_status = upload.tracker.parsing_status.clone();
-    let parsing_done = upload.tracker.parsing_done.clone();
+    let upload_progress = upload.tracker.upload_progress;
+    let parsing_status = upload.tracker.parsing_status;
+    let parsing_done = upload.tracker.parsing_done;
     let tracker_sparql = upload.tracker.clone();
 
     let endpoint_signal = RwSignal::new(String::new());
@@ -251,21 +274,21 @@ fn Sparql() -> impl IntoView {
 
     let textarea_ref = NodeRef::<leptos::html::Textarea>::new();
 
-    let handle_input = move |_| {
+    let handle_input = move |()| {
         if let Some(el) = textarea_ref.get() {
             el.style("height: auto");
 
             let scroll = el.scroll_height();
             let new_height = scroll - 16;
 
-            el.style(("height", format!("{}px", new_height)));
+            el.style(("height", format!("{new_height}px")));
         }
     };
 
     let run_sparql = move || {
         tracker_sparql.upload_sparql(
-            endpoint_signal.get(),
-            query_signal.get(),
+            &endpoint_signal.get(),
+            &query_signal.get(),
             move |(ep, q, fmt)| {
                 upload.sparql_action.dispatch((ep, q, fmt));
                 upload.mode.set("sparql".to_string());
@@ -332,29 +355,29 @@ fn Sparql() -> impl IntoView {
                                         <div class="mt-1 text-sm font-bold text-center">
                                             "Upload done"
                                         </div>
-                                        {if !done {
-                                            view! {
-                                                <div class="mt-1 text-sm text-center">{parsing}</div>
-                                            }
-                                                .into_any()
-                                        } else {
+                                        {if done {
                                             view! {
                                                 <div class="mt-1 text-sm font-bold text-center">
                                                     "Parsing done"
                                                 </div>
                                             }
                                                 .into_any()
+                                        } else {
+                                            view! {
+                                                <div class="mt-1 text-sm text-center">{parsing}</div>
+                                            }
+                                                .into_any()
                                         }}
                                     }
                                         .into_any()
                                 } else {
-                                    view! { <></> }.into_any()
+                                    ().into_any()
                                 }}
                             </div>
                         }
                             .into_any()
                     } else {
-                        view! { <></> }.into_any()
+                        ().into_any()
                     }
                 }}
             </div>

@@ -24,7 +24,7 @@ pub struct Triple {
 impl Display for Triple {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Triple{{ ")?;
-        write!(f, "{} - ", self.id.to_string())?;
+        write!(f, "{} - ", self.id)?;
         write!(f, "{} - ", self.element_type)?;
         write!(
             f,
@@ -199,12 +199,18 @@ impl SerializationDataBuffer {
     }
 }
 
-impl Into<GraphDisplayData> for SerializationDataBuffer {
-    fn into(mut self) -> GraphDisplayData {
+impl Default for SerializationDataBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<SerializationDataBuffer> for GraphDisplayData {
+    fn from(mut val: SerializationDataBuffer) -> Self {
         let mut display_data = GraphDisplayData::new();
         let mut iricache: HashMap<Term, usize> = HashMap::new();
-        for (iri, element) in self.node_element_buffer.into_iter() {
-            let label = self.label_buffer.remove(&iri);
+        for (iri, element) in val.node_element_buffer.into_iter() {
+            let label = val.label_buffer.remove(&iri);
             match label {
                 Some(label) => {
                     display_data.labels.push(label);
@@ -220,10 +226,10 @@ impl Into<GraphDisplayData> for SerializationDataBuffer {
             }
         }
 
-        for edge in self.edge_buffer.iter() {
+        for edge in val.edge_buffer.iter() {
             let subject_idx = iricache.get(&edge.subject);
             let object_idx = iricache.get(&edge.object);
-            let maybe_label = self.edge_label_buffer.remove(&edge);
+            let maybe_label = val.edge_label_buffer.remove(edge);
 
             match (subject_idx, object_idx, maybe_label) {
                 (Some(subject_idx), Some(object_idx), Some(label)) => {
@@ -247,7 +253,7 @@ impl Into<GraphDisplayData> for SerializationDataBuffer {
             }
         }
 
-        for (iri, mut characteristics) in self.node_characteristics.into_iter() {
+        for (iri, mut characteristics) in val.node_characteristics.into_iter() {
             let idx = iricache.get(&iri);
             match idx {
                 Some(idx) => {
