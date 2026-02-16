@@ -206,14 +206,7 @@ pub struct SerializationDataBuffer {
     ///
     /// Used to remap when nodes are merges.
     edges_include_map: HashMap<String, HashSet<Edge>>,
-    /// Stores the triple of resolved edge IRIs.
-    /// And edge without an edge IRI is not represented in this map.
-    ///
-    /// Used to determine of a property is missing both domain and range.
-    ///
-    /// - Key = Edge IRI
-    /// - Value = Triple of edge IRI.
-    resolved_edge_map: HashMap<String, Triple>,
+
     /// Stores indices of element instances.
     ///
     /// Used in cases where multiple elements should refer to a particular instance.
@@ -288,7 +281,6 @@ impl SerializationDataBuffer {
             edge_element_buffer: HashMap::new(),
             edge_redirection: HashMap::new(),
             edges_include_map: HashMap::new(),
-            resolved_edge_map: HashMap::new(),
             global_element_mappings: HashMap::new(),
             label_buffer: HashMap::new(),
             edge_label_buffer: HashMap::new(),
@@ -354,7 +346,7 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
             let subject_idx = iricache.get(&edge.subject);
             let object_idx = iricache.get(&edge.object);
             let maybe_label = val.edge_label_buffer.remove(edge);
-            let characteristics = val.edge_characteristics.remove(&edge);
+            let characteristics = val.edge_characteristics.remove(edge);
 
             match (subject_idx, object_idx, maybe_label) {
                 (Some(subject_idx), Some(object_idx), Some(label)) => {
@@ -430,7 +422,6 @@ impl Display for SerializationDataBuffer {
             }
             writeln!(f, "\t\t}}")?;
         }
-        writeln!(f, "\tresolved_edge_map: {:#?}", self.resolved_edge_map)?;
         writeln!(f, "\tglobal_element_mappings:")?;
         for (element, index) in self.global_element_mappings.iter() {
             writeln!(f, "\t\t{} : {}", element, index)?;
