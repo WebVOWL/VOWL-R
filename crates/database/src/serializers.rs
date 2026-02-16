@@ -8,6 +8,8 @@ use grapher::prelude::{ElementType, GraphDisplayData, OwlEdge, OwlType};
 use log::error;
 use oxrdf::Term;
 
+use crate::SYMMETRIC_EDGE_TYPES;
+
 pub mod frontend;
 pub mod util;
 
@@ -48,7 +50,7 @@ impl Triple {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Edge {
     /// The subject IRI
     subject: Term,
@@ -59,21 +61,37 @@ pub struct Edge {
     /// The property IRI
     property: Option<Term>,
 }
-impl Hash for Edge {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+
+impl PartialEq for Edge {
+    fn eq(&self, other: &Self) -> bool {
+        // Element type and property must always match
+        if self.element_type != other.element_type || self.property != other.property {
+            return false;
+        }
+
+        // For symmetric relations, treat (A, B) and (B, A) as equal
         let eq_so = [ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))];
         if eq_so.contains(&self.element_type) {
-            // For symmetric relations, AND the string bytes together
-            let subject_bytes = self.subject.as_bytes();
-            let object_bytes = self.object.as_bytes();
-            let min_len = subject_bytes.len().min(object_bytes.len());
+            (self.subject == other.subject && self.object == other.object)
+                || (self.subject == other.object && self.object == other.subject)
+        } else {
+            self.subject == other.subject && self.object == other.object
+        }
+    }
+}
 
-            let mut combined = Vec::with_capacity(min_len);
-            for i in 0..min_len {
-                combined.push(subject_bytes[i] & object_bytes[i]);
-            }
+impl Hash for Edge {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        if SYMMETRIC_EDGE_TYPES.contains(&self.element_type) {
+            // For symmetric relations, hash the sorted pair
+            let (first, second) = if self.subject <= self.object {
+                (&self.subject, &self.object)
+            } else {
+                (&self.object, &self.subject)
+            };
 
-            combined.hash(state);
+            first.hash(state);
+            second.hash(state);
             self.element_type.hash(state);
         } else if self.element_type == ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)) {
             self.subject.hash(state);
@@ -413,5 +431,75 @@ impl Display for SerializationDataBuffer {
             }
         }
         writeln!(f, "}}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_disjoint_with_edge_symmetry() {
+        // Create two edges with swapped subject and object
+        let edge1 = Edge {
+            subject: "_:x".to_string(),
+            element_type: ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)),
+            object: "_:y".to_string(),
+            property: None,
+        };
+
+        let edge2 = Edge {
+            subject: "_:y".to_string(),
+            element_type: ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)),
+            object: "_:x".to_string(),
+            property: None,
+        };
+
+        // Test that they are equal
+        assert_eq!(edge1, edge2, "DisjointWith edges should be equal regardless of subject/object order");
+
+        // Test that they hash to the same value by inserting into a HashSet
+        let mut edge_set = HashSet::new();
+        edge_set.insert(edge1.clone());
+        edge_set.insert(edge2.clone());
+
+        assert_eq!(
+            edge_set.len(),
+            1,
+            "HashSet should only contain one edge when both are DisjointWith with swapped subject/object"
+        );
+    }
+
+    #[test]
+    fn test_non_symmetric_edge_distinction() {
+        // Create two edges with swapped subject and object for a non-symmetric relation
+        let edge1 = Edge {
+            subject: "_:x".to_string(),
+            element_type: ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+            object: "_:y".to_string(),
+            property: Some("prop1".to_string()),
+        };
+
+        let edge2 = Edge {
+            subject: "_:y".to_string(),
+            element_type: ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+            object: "_:x".to_string(),
+            property: Some("prop1".to_string()),
+        };
+
+        // Test that they are NOT equal
+        assert_ne!(edge1, edge2, "Non-symmetric edges should NOT be equal when subject/object are swapped");
+
+        // Test that they both appear in the HashSet
+        let mut edge_set = HashSet::new();
+        edge_set.insert(edge1.clone());
+        edge_set.insert(edge2.clone());
+
+        assert_eq!(
+            edge_set.len(),
+            2,
+            "HashSet should contain both edges when they are non-symmetric"
+        );
     }
 }
