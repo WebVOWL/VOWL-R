@@ -20,7 +20,7 @@ use std::{
 };
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use vowlr_util::datatypes::DataType;
+use vowlr_util::prelude::DataType;
 
 pub enum ParserInput {
     File(Vec<u8>),
