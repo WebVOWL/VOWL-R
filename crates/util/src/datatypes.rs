@@ -3,6 +3,9 @@ use std::path::Path;
 use rkyv::{Archive, Deserialize as RDeserialize, Serialize as RSerialize};
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+use rdf_fusion::io::{RdfFormat, JsonLdProfileSet};
+
 /// Supported content types.
 #[repr(C)]
 #[derive(Archive, RDeserialize, RSerialize, Deserialize, Serialize, Debug, Clone)]
@@ -47,6 +50,22 @@ impl DataType {
             Self::UNKNOWN => "application/octet-stream",
         }
     }
+
+    pub fn format_from_resource_type(&self) -> Option<RdfFormat> {
+    match self {
+        DataType::RDF => Some(RdfFormat::RdfXml),
+        DataType::TTL => Some(RdfFormat::Turtle),
+        DataType::NTriples => Some(RdfFormat::NTriples),
+        DataType::NQuads => Some(RdfFormat::NQuads),
+        DataType::TriG => Some(RdfFormat::TriG),
+        DataType::JsonLd => Some(RdfFormat::JsonLd {
+            profile: JsonLdProfileSet::default(),
+        }),
+        DataType::N3 => Some(RdfFormat::N3),
+        DataType::OWL => Some(RdfFormat::RdfXml),
+        _ => None,
+    }
+}
 }
 
 impl From<&Path> for DataType {

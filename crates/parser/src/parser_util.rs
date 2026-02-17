@@ -47,36 +47,36 @@ pub struct PreparedParser {
     pub input: ParserInput,
 }
 
-pub fn path_type(path: &Path) -> Option<DataType> {
-    match path.extension().and_then(|s| s.to_str()) {
-        Some("ofn") => Some(DataType::OFN),
-        Some("owx") => Some(DataType::OWX),
-        Some("rdf") => Some(DataType::RDF),
-        Some("owl") => Some(DataType::OWL),
-        Some("ttl") => Some(DataType::TTL),
-        Some("nt") => Some(DataType::NTriples),
-        Some("nq") => Some(DataType::NQuads),
-        Some("trig") => Some(DataType::TriG),
-        Some("jsonld") => Some(DataType::JsonLd),
-        Some("n3") => Some(DataType::N3),
-        _ => None,
-    }
-}
-pub fn format_from_resource_type(resource_type: &DataType) -> Option<RdfFormat> {
-    match resource_type {
-        DataType::RDF => Some(RdfFormat::RdfXml),
-        DataType::TTL => Some(RdfFormat::Turtle),
-        DataType::NTriples => Some(RdfFormat::NTriples),
-        DataType::NQuads => Some(RdfFormat::NQuads),
-        DataType::TriG => Some(RdfFormat::TriG),
-        DataType::JsonLd => Some(RdfFormat::JsonLd {
-            profile: JsonLdProfileSet::default(),
-        }),
-        DataType::N3 => Some(RdfFormat::N3),
-        DataType::OWL => Some(RdfFormat::RdfXml),
-        _ => None,
-    }
-}
+// pub fn path_type(path: &Path) -> Option<DataType> {
+//     match path.extension().and_then(|s| s.to_str()) {
+//         Some("ofn") => Some(DataType::OFN),
+//         Some("owx") => Some(DataType::OWX),
+//         Some("rdf") => Some(DataType::RDF),
+//         Some("owl") => Some(DataType::OWL),
+//         Some("ttl") => Some(DataType::TTL),
+//         Some("nt") => Some(DataType::NTriples),
+//         Some("nq") => Some(DataType::NQuads),
+//         Some("trig") => Some(DataType::TriG),
+//         Some("jsonld") => Some(DataType::JsonLd),
+//         Some("n3") => Some(DataType::N3),
+//         _ => None,
+//     }
+// }
+// pub fn format_from_resource_type(resource_type: &DataType) -> Option<RdfFormat> {
+//     match resource_type {
+//         DataType::RDF => Some(RdfFormat::RdfXml),
+//         DataType::TTL => Some(RdfFormat::Turtle),
+//         DataType::NTriples => Some(RdfFormat::NTriples),
+//         DataType::NQuads => Some(RdfFormat::NQuads),
+//         DataType::TriG => Some(RdfFormat::TriG),
+//         DataType::JsonLd => Some(RdfFormat::JsonLd {
+//             profile: JsonLdProfileSet::default(),
+//         }),
+//         DataType::N3 => Some(RdfFormat::N3),
+//         DataType::OWL => Some(RdfFormat::RdfXml),
+//         _ => None,
+//     }
+// }
 pub async fn parse_stream_to(
     mut stream: QuadStream,
     output_type: DataType,
@@ -86,7 +86,7 @@ pub async fn parse_stream_to(
             let (tx, rx) = mpsc::unbounded_channel();
             let mut buf = Vec::new();
             let mut serializer =
-                RdfSerializer::from_format(format_from_resource_type(&DataType::OWL).ok_or(
+                RdfSerializer::from_format((&DataType::OWL).format_from_resource_type().ok_or(
                     VOWLRStoreErrorKind::InvalidInput(format!(
                         "Unsupported output type: {:?}",
                         output_type
@@ -142,7 +142,7 @@ pub async fn parse_stream_to(
                 let mut writer = ChannelWriter { sender: tx.clone() };
                 let result = async {
                     let mut serializer =
-                        RdfSerializer::from_format(format_from_resource_type(&output_type).ok_or(
+                        RdfSerializer::from_format((&output_type).format_from_resource_type().ok_or(
                             VOWLRStoreErrorKind::InvalidInput(format!(
                                 "Unsupported output type: {:?}",
                                 output_type
@@ -174,9 +174,9 @@ pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, 
         //.with_default_graph(NamedNode::new(format!("file:://{}", path_str)).unwrap());
         if lenient { parser.lenient() } else { parser }
     };
-    let t_pat: Option<DataType> = path_type(path);
+    let t_pat= DataType::from(path);
     let prepared = match t_pat {
-        Some(DataType::OFN) => {
+        DataType::OFN => {
             let file = File::open(path)?;
             let mut reader = BufReader::new(file);
 
@@ -213,7 +213,7 @@ pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, 
                 input: ParserInput::Buffer(Cursor::new(buf)),
             })
         }
-        Some(DataType::OWX) => {
+        DataType::OWX => {
             let file = File::open(path)?;
             let mut reader = BufReader::new(file);
 
@@ -252,7 +252,7 @@ pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, 
                 input: ParserInput::Buffer(Cursor::new(buf)),
             })
         }
-        Some(DataType::OWL) => {
+        DataType::OWL => {
             info!("Parsing OWL input...");
             let start_time = Instant::now();
 
@@ -291,35 +291,35 @@ pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, 
                 input: ParserInput::Buffer(Cursor::new(buf)),
             })
         }
-        Some(DataType::TTL) => {
+        DataType::TTL => {
             let input = ParserInput::from_path(path)?;
             Ok(PreparedParser {
                 parser: make_parser(RdfFormat::Turtle),
                 input,
             })
         }
-        Some(DataType::NTriples) => {
+        DataType::NTriples => {
             let input = ParserInput::from_path(path)?;
             Ok(PreparedParser {
                 parser: make_parser(RdfFormat::NTriples),
                 input,
             })
         }
-        Some(DataType::NQuads) => {
+        DataType::NQuads => {
             let input = ParserInput::from_path(path)?;
             Ok(PreparedParser {
                 parser: make_parser(RdfFormat::NQuads),
                 input,
             })
         }
-        Some(DataType::TriG) => {
+        DataType::TriG => {
             let input = ParserInput::from_path(path)?;
             Ok(PreparedParser {
                 parser: make_parser(RdfFormat::TriG),
                 input,
             })
         }
-        Some(DataType::JsonLd) => {
+        DataType::JsonLd => {
             let input = ParserInput::from_path(path)?;
             Ok(PreparedParser {
                 parser: make_parser(RdfFormat::JsonLd {
@@ -328,7 +328,7 @@ pub fn parser_from_format(path: &Path, lenient: bool) -> Result<PreparedParser, 
                 input,
             })
         }
-        Some(DataType::N3) => {
+        DataType::N3 => {
             let input = ParserInput::from_path(path)?;
             Ok(PreparedParser {
                 parser: make_parser(RdfFormat::N3),
