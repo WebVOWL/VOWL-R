@@ -99,49 +99,50 @@
 
             # 6. Safety: Remove nil to avoid phantom edges
             # FILTER(?label != rdf:nil)
-        }
-        UNION {
-            ?nodeType a ?property
-            ?nodeType rdfs:range ?id
-            ?nodeType rdfs:domain ?target
-            FILTER(?property IN (
+        } UNION {
+            VALUES ?property {
+                owl:DeprecatedProperty  
+                owl:DatatypeProperty
                 owl:ObjectProperty
-            )) 
-        }
-        UNION {
-            ?nodeType a ?property
-            ?nodeType rdfs:range ?id
-            ?nodeType rdfs:domain ?target
-            FILTER(?property IN (
-                owl:ObjectProperty
-            )) 
-        }
-        UNION {
-            VALUES ?char {
-                owl:ObjectProperty
+                rdf:Property
             }
-            ?nodeType a ?char
-            ?nodeType rdfs:range ?id
-            FILTER NOT EXISTS(?nodeType rdfs:domain ?id)
-            BIND(?target AS owl:Thing)
-        }
-        UNION {
-            VALUES ?char {
+            ?nodeType a ?property .
+            ?nodeType rdfs:range ?target .
+            ?nodeType rdfs:domain ?id .
+        } UNION {
+            VALUES ?property {
                 owl:DeprecatedProperty
                 owl:DatatypeProperty
                 owl:ObjectProperty
                 rdf:Property
             }
-            ?nodeType a ?char
-            ?nodeType rdfs:domain ?id
-            FILTER NOT EXISTS(?nodeType rdfs:range ?id)
-            BIND(?target AS owl:Thing)
-        }
-        UNION
-        {
-            # 3. Identify datatypes
-            ?id rdfs:Datatype ?target
-            BIND(rdfs:Datatype AS ?nodeType)
+            ?nodeType a ?property .
+            ?nodeType rdfs:range ?target .
+            FILTER NOT EXISTS { ?nodeType rdfs:domain ?x }
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?id)
+        } UNION {
+            VALUES ?property {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
+            }
+            ?nodeType a ?property .
+            ?nodeType rdfs:domain ?id .
+            FILTER NOT EXISTS { ?nodeType rdfs:range ?x }
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?target)
+        } UNION {
+            VALUES ?property {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
+            }
+            ?nodeType a ?property .
+            FILTER NOT EXISTS { ?nodeType rdfs:range ?x }
+            FILTER NOT EXISTS { ?nodeType rdfs:domain ?x }
+            BIND(owl:Thing AS ?id)
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?target)
         }
         UNION
         {
@@ -174,7 +175,7 @@
         UNION
         {
             # Identify OWL datatype properties
-            ?id owl:DatatypeProperty ?target
+            ?id a owl:DatatypeProperty 
             BIND(owl:DatatypeProperty AS ?nodeType)
         }
         UNION
