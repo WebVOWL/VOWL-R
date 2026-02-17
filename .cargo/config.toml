@@ -40,7 +40,7 @@
 #
 # "-Zpre-link-args"
 # Add extra object file(s) very early in the link stage (usually first).
-# This allows overriding the default memory allocator with mimalloc when compiling a static binary. 
+# This allows overriding the default memory allocator with mimalloc when compiling a static binary.
 # https://users.rust-lang.org/t/why-isnt-zpre-link-args-stabilized-yet/130162
 # https://github.com/rust-lang/rust/issues/57837
 
@@ -59,7 +59,7 @@
         "-Clinker-plugin-lto",
         "-Clink-arg=-fuse-ld=mold",
         "-Clink-arg=-flto",
-        "-Zpre-link-args=link_libs/mimalloc-secure.o",
+        "-Zpre-link-args=link_libs/mimalloc.o",
     ]
 
 
