@@ -9,7 +9,7 @@ use vowlr_parser::{
     errors::VOWLRStoreError,
     parser_util::{parse_stream_to, parser_from_format},
 };
-use vowlr_util::datatypes::DataType;
+use vowlr_util::prelude::DataType;
 
 static GLOBAL_STORE: std::sync::OnceLock<Store> = std::sync::OnceLock::new();
 

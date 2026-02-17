@@ -3,11 +3,13 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use grapher::prelude::{ElementType, GraphDisplayData};
+use grapher::prelude::ElementType;
+use grapher::prelude::GraphDisplayData;
 use log::error;
 use oxrdf::Term;
 
 pub mod frontend;
+pub mod util;
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
 pub struct Triple {
@@ -49,11 +51,11 @@ impl Triple {
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
 pub struct Edge {
     /// The subject IRI
-    subject: String,
+    subject: Term,
     /// The element type
     element_type: ElementType,
     /// The object IRI
-    object: String,
+    object: Term,
 }
 impl Display for Edge {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -66,35 +68,6 @@ impl Display for Edge {
     }
 }
 
-/// Stores the domains and ranges of an edge while it's partially resolved.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct EdgeDirections {
-    /// The domain (or source) of an edge.
-    domains: HashSet<Triple>,
-    /// The range (or target) of an edge.
-    ranges: HashSet<Triple>,
-}
-
-impl EdgeDirections {
-    pub fn new() -> Self {
-        Self {
-            domains: HashSet::new(),
-            ranges: HashSet::new(),
-        }
-    }
-}
-
-impl Default for EdgeDirections {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub enum EdgeDirectionHint {
-    Domain,
-    Range,
-}
-
 pub struct SerializationDataBuffer {
     /// Stores all resolved node elements.
     ///
@@ -104,7 +77,7 @@ pub struct SerializationDataBuffer {
     ///
     /// - Key = The subject IRI of a triple.
     /// - Value = The ElementType of `Key`.
-    node_element_buffer: HashMap<String, ElementType>,
+    node_element_buffer: HashMap<Term, ElementType>,
     /// Stores all resolved edge elements.
     ///
     /// These elements may mutate during serialization
@@ -113,7 +86,7 @@ pub struct SerializationDataBuffer {
     ///
     /// - Key = The subject IRI of a triple.
     /// - Value = The ElementType of `Key`.
-    edge_element_buffer: HashMap<String, ElementType>,
+    edge_element_buffer: HashMap<Term, ElementType>,
     /// Keeps track of edges that should point to a node different
     /// from their definition.
     ///
@@ -151,11 +124,11 @@ pub struct SerializationDataBuffer {
     ///     ex:Mother owl:intersectionOf ex:blanknode2
     /// ```
     /// In this case, `blanknode1` is effectively omitted from serialization.
-    edge_redirection: HashMap<String, String>,
+    edge_redirection: HashMap<Term, Term>,
     /// Maps from element IRI to a set of the edges that include it.
     ///
     /// Used to remap when nodes are merges.
-    edges_include_map: HashMap<String, HashSet<Edge>>,
+    edges_include_map: HashMap<Term, HashSet<Edge>>,
     /// Stores the triple of resolved edge IRIs.
     /// And edge without an edge IRI is not represented in this map.
     ///
@@ -163,7 +136,7 @@ pub struct SerializationDataBuffer {
     ///
     /// - Key = Edge IRI
     /// - Value = Triple of edge IRI.
-    resolved_edge_map: HashMap<String, Triple>,
+    resolved_edge_map: HashMap<Term, Triple>,
     /// Stores indices of element instances.
     ///
     /// Used in cases where multiple elements should refer to a particular instance.
@@ -173,7 +146,7 @@ pub struct SerializationDataBuffer {
     ///
     /// - Key = The IRI the label belongs to.
     /// - Value = The label.
-    label_buffer: HashMap<String, String>,
+    label_buffer: HashMap<Term, String>,
     /// Stores labels of edges.
     ///
     /// - Key = The edge.
@@ -184,23 +157,13 @@ pub struct SerializationDataBuffer {
     /// Maps from edge to its characteristic.
     edge_characteristics: HashMap<Edge, Vec<String>>,
     /// Maps from node iri to its characteristics.
-    node_characteristics: HashMap<String, Vec<String>>,
-    /// Stores partially resolved edges.
-    ///
-    /// In cases where the edge IRI and its type are known,
-    /// but not the source and target it points to.
-    ///
-    /// This usually happens with domain/range queries.
-    ///
-    /// - Key = The edge IRI.
-    /// - Value = A collection of sources and targets of the edge.
-    unknown_edge_buffer: HashMap<String, EdgeDirections>,
+    node_characteristics: HashMap<Term, Vec<String>>,
     /// Stores unresolved triples.
     ///
     /// - Key = The unresolved IRI of the triple
     ///   can be either the subject, object or both (in this case, subject is used)
     /// - Value = The unresolved triples.
-    unknown_buffer: HashMap<String, HashSet<Triple>>,
+    unknown_buffer: HashMap<Term, HashSet<Triple>>,
     /// Stores triples that are impossible to serialize.
     ///
     /// This could be caused by various reasons, such as
@@ -227,7 +190,6 @@ impl SerializationDataBuffer {
             label_buffer: HashMap::new(),
             edge_label_buffer: HashMap::new(),
             edge_buffer: HashSet::new(),
-            unknown_edge_buffer: HashMap::new(),
             unknown_buffer: HashMap::new(),
             failed_buffer: Vec::new(),
             document_base: None,
@@ -246,7 +208,7 @@ impl Default for SerializationDataBuffer {
 impl From<SerializationDataBuffer> for GraphDisplayData {
     fn from(mut val: SerializationDataBuffer) -> Self {
         let mut display_data = GraphDisplayData::new();
-        let mut iricache: HashMap<String, usize> = HashMap::new();
+        let mut iricache: HashMap<Term, usize> = HashMap::new();
         for (iri, element) in val.node_element_buffer.into_iter() {
             let label = val.label_buffer.remove(&iri);
             match label {
@@ -353,11 +315,6 @@ impl Display for SerializationDataBuffer {
         }
         writeln!(f, "\tedge_characteristics: {:?}", self.edge_characteristics)?;
         writeln!(f, "\tnode_characteristics: {:?}", self.node_characteristics)?;
-        writeln!(f, "\tunknown_edge_buffer:")?;
-        for (iri, directions) in self.unknown_edge_buffer.iter() {
-            writeln!(f, "\t\t{} : domains : {:#?}", iri, directions.domains)?;
-            writeln!(f, "\t\t{} : ranges : {:#?}", iri, directions.ranges)?;
-        }
         writeln!(f, "\tunknown_buffer:")?;
         for (iri, triples) in self.unknown_buffer.iter() {
             write!(f, "\t\t{} : ", iri)?;

@@ -5,7 +5,6 @@
 //! - the client/wasm side (via `vowlr`)
 
 mod assembly;
-mod element_type_injection;
 mod snippets;
 
 /// Exports all the core types of the library.
