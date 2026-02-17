@@ -8,7 +8,7 @@ use grapher::prelude::{ElementType, GraphDisplayData, OwlEdge, OwlType};
 use log::error;
 use oxrdf::Term;
 
-use crate::SYMMETRIC_EDGE_TYPES;
+use crate::{PROPERTY_EDGE_TYPES, SYMMETRIC_EDGE_TYPES};
 
 pub mod frontend;
 pub mod util;
@@ -93,7 +93,7 @@ impl Hash for Edge {
             first.hash(state);
             second.hash(state);
             self.element_type.hash(state);
-        } else if self.element_type == ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)) {
+        } else if PROPERTY_EDGE_TYPES.contains(&self.element_type) {
             self.subject.hash(state);
             self.element_type.hash(state);
             self.object.hash(state);
