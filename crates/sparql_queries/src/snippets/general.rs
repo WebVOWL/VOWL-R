@@ -71,20 +71,7 @@ pub const LABEL: &str = r#"{
             )
             }"#;
 
-/// Find the domain and range of any property.
-pub const DOMAIN_AND_RANGE: &str = r#"{
-            {
-                # Domain
-                ?id rdfs:domain ?target
-                BIND(rdfs:domain AS ?nodeType)
-            }
-            UNION
-            {
-                # Range
-                ?id rdfs:range ?target
-                BIND(rdfs:range AS ?nodeType)
-            }
-            }"#;
+/// Find the domain and range of any property, and restructure so they appear as singular triples
 pub const DOMAIN_RANGES: &str = r#"{
         {
             VALUES ?property {
