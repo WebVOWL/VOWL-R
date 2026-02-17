@@ -16,12 +16,11 @@ use grapher::prelude::{
     RdfsType,
 };
 use log::{debug, error, info, trace, warn};
-use oxrdf::{IriParseError, NamedNode, NamedNodeRef, vocab::rdf};
+use oxrdf::{IriParseError, NamedNode, vocab::{rdf, rdfs}};
 use rdf_fusion::{
     execution::results::QuerySolutionStream,
     model::{
-        BlankNode, Term,
-        vocab::{rdf, rdfs},
+        Term
     },
 };
 use vowlr_parser::errors::VOWLRStoreError;
@@ -228,7 +227,7 @@ impl GraphDisplayDataSolutionSerializer {
             );
         } else {
             trace!("Adding to element buffer: {}: {}", triple.id, element_type);
-            element_buffer.insert(triple.id, element_type);
+            element_buffer.insert(triple.id.clone(), element_type);
         }
     }
 
@@ -327,7 +326,7 @@ impl GraphDisplayDataSolutionSerializer {
                     ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty)),
                 ];
                 let property = if should_hash_property.contains(&new_type) {
-                    Some(triple.element_type.to_string())
+                    Some(triple.element_type.clone())
                 } else {
                     None
                 };
@@ -935,9 +934,9 @@ impl GraphDisplayDataSolutionSerializer {
                         Some(target) => {
                             let (node_triple, edge_triple): (Option<Vec<Triple>>, Option<Triple>) =
                                 match (
-                                    self.resolve(data_buffer, triple.id),
-                                    self.resolve(data_buffer, triple.element_type),
-                                    self.resolve(data_buffer, target),
+                                    self.resolve(data_buffer, triple.id.clone()),
+                                    self.resolve(data_buffer, triple.element_type.clone()),
+                                    self.resolve(data_buffer, target.clone()),
                                 ) {
                                     (Some(domain), Some(property), Some(range)) => {
                                         trace!(
@@ -948,8 +947,7 @@ impl GraphDisplayDataSolutionSerializer {
                                     }
                                     (Some(domain), Some(property), None) => {
                                         let node = if target == owl::THING.into() {
-                                            let target_iri =
-                                                domain[1..domain.len() - 1].to_string() + "_thing";
+                                            let target_iri = trim_tag_circumfix(format!("{}_thing", domain).as_str());
                                             let node = self.create_node(
                                                 target_iri.clone(),
                                                 owl::THING.into(),
@@ -957,9 +955,7 @@ impl GraphDisplayDataSolutionSerializer {
                                             );
                                             node.ok()
                                         } else if target == rdfs::LITERAL.into() {
-                                            let target_iri = property[1..property.len() - 1]
-                                                .to_string()
-                                                + "_literal";
+                                            let target_iri = trim_tag_circumfix(format!("{}_literal", property).as_str());
                                             let node = self.create_node(
                                                 target_iri.clone(),
                                                 rdfs::LITERAL.into(),
@@ -994,8 +990,7 @@ impl GraphDisplayDataSolutionSerializer {
                                     }
                                     (None, Some(_), Some(range)) => {
                                         let node = if target == owl::THING.into() {
-                                            let target_iri =
-                                                range[1..range.len() - 1].to_string() + "_thing";
+                                            let target_iri = trim_tag_circumfix(format!("{}_thing", range).as_str());
                                             let node = self.create_node(
                                                 target_iri.clone(),
                                                 owl::THING.into(),
@@ -1003,9 +998,7 @@ impl GraphDisplayDataSolutionSerializer {
                                             );
                                             node.ok()
                                         } else if target == rdfs::LITERAL.into() {
-                                            let target_iri = range[1..range.len() - 1]
-                                                .to_string()
-                                                + "_literal";
+                                            let target_iri = trim_tag_circumfix(format!("{}_literal", range).as_str());
                                             let node = self.create_node(
                                                 target_iri.clone(),
                                                 rdfs::LITERAL.into(),
@@ -1099,7 +1092,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         );
                                         self.add_to_unknown_buffer(
                                             data_buffer,
-                                            triple.element_type,
+                                            triple.element_type.clone(),
                                             triple,
                                         );
                                         (None, None)
@@ -1108,7 +1101,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         trace!("Adding unknown buffer: triple: {}", triple);
                                         self.add_to_unknown_buffer(
                                             data_buffer,
-                                            triple.id,
+                                            triple.id.clone(),
                                             triple,
                                         );
                                         (None, None)
@@ -1185,7 +1178,7 @@ impl GraphDisplayDataSolutionSerializer {
         triple: Triple,
         arg: String,
     ) {
-        let resolved = self.resolve(data_buffer, triple.id);
+        let resolved = self.resolve(data_buffer, triple.id.clone());
         match resolved {
             Some(s) => match data_buffer.node_characteristics.get_mut(&s) {
                 Some(char) => {
@@ -1205,7 +1198,7 @@ impl GraphDisplayDataSolutionSerializer {
             },
             None => {
                 info!("Adding characteristic to unknown buffer: {}", triple);
-                self.add_to_unknown_buffer(data_buffer, triple.id, triple);
+                self.add_to_unknown_buffer(data_buffer, triple.id.clone(), triple);
             }
         }
     }
