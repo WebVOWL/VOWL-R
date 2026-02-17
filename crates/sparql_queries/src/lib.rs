@@ -38,7 +38,6 @@ pub mod prelude {
             snippets_from_enum::<RdfEdge>(),
             snippets_from_enum::<RdfsNode>(),
             snippets_from_enum::<RdfsEdge>(),
-            snippets_from_enum::<Characteristic>(),
             GENERAL_SNIPPETS.into(),
         ]
         .concat();

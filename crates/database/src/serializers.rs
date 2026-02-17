@@ -84,7 +84,7 @@ impl Hash for Edge {
     fn hash<H: Hasher>(&self, state: &mut H) {
         if SYMMETRIC_EDGE_TYPES.contains(&self.element_type) {
             // For symmetric relations, hash the sorted pair
-            let (first, second) = if self.subject <= self.object {
+            let (first, second) = if self.subject.to_string() <= self.object.to_string() {
                 (&self.subject, &self.object)
             } else {
                 (&self.object, &self.subject)
@@ -428,21 +428,24 @@ impl Display for SerializationDataBuffer {
 mod tests {
     use super::*;
     use std::collections::HashSet;
+    use oxrdf::NamedNode;
 
     #[test]
     fn test_disjoint_with_edge_symmetry() {
         // Create two edges with swapped subject and object
+        let x = Term::NamedNode(NamedNode::new("_:x").unwrap());
+        let y = Term::NamedNode(NamedNode::new("_:y").unwrap());
         let edge1 = Edge {
-            subject: "_:x".to_string(),
+            subject: x.clone(),
             element_type: ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)),
-            object: "_:y".to_string(),
+            object: y.clone(),
             property: None,
         };
 
         let edge2 = Edge {
-            subject: "_:y".to_string(),
+            subject: y.clone(),
             element_type: ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)),
-            object: "_:x".to_string(),
+            object: x.clone(),
             property: None,
         };
 
@@ -467,18 +470,21 @@ mod tests {
     #[test]
     fn test_non_symmetric_edge_distinction() {
         // Create two edges with swapped subject and object for a non-symmetric relation
+        let x = Term::NamedNode(NamedNode::new("_:x").unwrap());
+        let y = Term::NamedNode(NamedNode::new("_:y").unwrap());
+        let prop1 = Term::NamedNode(NamedNode::new("prop1").unwrap());
         let edge1 = Edge {
-            subject: "_:x".to_string(),
+            subject: x.clone(),
             element_type: ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
-            object: "_:y".to_string(),
-            property: Some("prop1".to_string()),
+            object: y.clone(),
+            property: Some(prop1.clone()),
         };
 
         let edge2 = Edge {
-            subject: "_:y".to_string(),
+            subject: y.clone(),
             element_type: ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
-            object: "_:x".to_string(),
-            property: Some("prop1".to_string()),
+            object: x.clone(),
+            property: Some(prop1.clone()),
         };
 
         // Test that they are NOT equal
