@@ -18,7 +18,7 @@ mkdir out
 
 # Create mimalloc build files with the following settings
 cmake -Bout -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang \
-    -DMI_SECURE=ON \
+    -DMI_SECURE=OFF \
     -DMI_BUILD_OBJECT=ON \
     -DMI_BUILD_TESTS=OFF \
     -DMI_DEBUG_FULL=OFF \
