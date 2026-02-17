@@ -427,6 +427,7 @@ impl Display for SerializationDataBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oxrdf::NamedNode;
     use std::collections::HashSet;
     use oxrdf::NamedNode;
 
