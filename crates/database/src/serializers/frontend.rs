@@ -946,8 +946,9 @@ impl GraphDisplayDataSolutionSerializer {
                                     (Some(domain), Some(property), None) => {
                                         trace!("Missing range: {}", triple);
                                         let node = if target == owl::THING.into() {
-                                            let target_iri = trim_tag_circumfix(
-                                                domain.to_string().as_str()) + "_thing";
+                                            let target_iri =
+                                                trim_tag_circumfix(domain.to_string().as_str())
+                                                    + "_thing";
                                             info!("Creating thing node: {}", target_iri);
                                             let node = self.create_node(
                                                 target_iri.clone(),
@@ -956,9 +957,9 @@ impl GraphDisplayDataSolutionSerializer {
                                             );
                                             node.ok()
                                         } else if target == rdfs::LITERAL.into() {
-                                            let target_iri = trim_tag_circumfix(
-                                                property.to_string().as_str(),
-                                            ) + "_literal";
+                                            let target_iri =
+                                                trim_tag_circumfix(property.to_string().as_str())
+                                                    + "_literal";
                                             info!("Creating literal node: {}", target_iri);
                                             let node = self.create_node(
                                                 target_iri.clone(),
@@ -995,8 +996,9 @@ impl GraphDisplayDataSolutionSerializer {
                                     (None, Some(_), Some(range)) => {
                                         trace!("Missing domain: {}", triple);
                                         let node = if triple.id == owl::THING.into() {
-                                            let target_iri = trim_tag_circumfix(
-                                                range.to_string().as_str()) + "_thing";
+                                            let target_iri =
+                                                trim_tag_circumfix(range.to_string().as_str())
+                                                    + "_thing";
                                             info!("Creating thing node: {}", target_iri);
                                             let node = self.create_node(
                                                 target_iri.clone(),
@@ -1149,7 +1151,10 @@ impl GraphDisplayDataSolutionSerializer {
                             match edge_triple {
                                 Some(edge_triple) => {
                                     // unwrap safe, edge_triple will always be Some if property can be resolved.
-                                    let property = data_buffer.edge_element_buffer.get(&edge_triple.element_type).unwrap();
+                                    let property = data_buffer
+                                        .edge_element_buffer
+                                        .get(&edge_triple.element_type)
+                                        .unwrap();
                                     let edge = self.insert_edge(
                                         data_buffer,
                                         &edge_triple,
