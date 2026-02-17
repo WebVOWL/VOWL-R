@@ -427,14 +427,14 @@ impl Display for SerializationDataBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oxrdf::NamedNode;
+    use oxrdf::{BlankNode, NamedNode};
     use std::collections::HashSet;
 
     #[test]
     fn test_disjoint_with_edge_symmetry() {
         // Create two edges with swapped subject and object
-        let x = Term::NamedNode(NamedNode::new("_:x").unwrap());
-        let y = Term::NamedNode(NamedNode::new("_:y").unwrap());
+        let x = Term::BlankNode(BlankNode::new("_:x").unwrap());
+        let y = Term::BlankNode(BlankNode::new("_:y").unwrap());
         let edge1 = Edge {
             subject: x.clone(),
             element_type: ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)),
@@ -470,9 +470,9 @@ mod tests {
     #[test]
     fn test_non_symmetric_edge_distinction() {
         // Create two edges with swapped subject and object for a non-symmetric relation
-        let x = Term::NamedNode(NamedNode::new("_:x").unwrap());
-        let y = Term::NamedNode(NamedNode::new("_:y").unwrap());
-        let prop1 = Term::NamedNode(NamedNode::new("prop1").unwrap());
+        let x = Term::BlankNode(BlankNode::new("_:x").unwrap());
+        let y = Term::BlankNode(BlankNode::new("_:y").unwrap());
+        let prop1 = Term::NamedNode(NamedNode::new("http://example.com/prop1").unwrap());
         let edge1 = Edge {
             subject: x.clone(),
             element_type: ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
