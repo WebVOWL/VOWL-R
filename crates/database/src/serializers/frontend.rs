@@ -935,9 +935,9 @@ impl GraphDisplayDataSolutionSerializer {
                         match triple.target.clone() {
                             Some(target) => {
                                 match (
-                                    self.resolve(data_buffer, triple.id.to_string()),
-                                    self.resolve(data_buffer, triple.element_type.to_string()),
-                                    self.resolve(data_buffer, target.to_string()),
+                                    self.resolve(data_buffer, triple.id),
+                                    self.resolve(data_buffer, triple.element_type),
+                                    self.resolve(data_buffer, target),
                                 ) {
                                     (Some(domain), Some(property), Some(range)) => {
                                         trace!(
@@ -985,7 +985,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                 );
                                                 self.add_to_unknown_buffer(
                                                     data_buffer,
-                                                    target.to_string(),
+                                                    target,
                                                     triple,
                                                 );
                                                 (None, None)
@@ -1030,7 +1030,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                 );
                                                 self.add_to_unknown_buffer(
                                                     data_buffer,
-                                                    target.to_string(),
+                                                    target,
                                                     triple,
                                                 );
                                                 (None, None)
@@ -1105,7 +1105,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         );
                                         self.add_to_unknown_buffer(
                                             data_buffer,
-                                            triple.element_type.to_string(),
+                                            triple.element_type,
                                             triple,
                                         );
                                         (None, None)
@@ -1114,7 +1114,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         trace!("Adding unknown buffer: triple: {}", triple);
                                         self.add_to_unknown_buffer(
                                             data_buffer,
-                                            triple.id.to_string(),
+                                            triple.id,
                                             triple,
                                         );
                                         (None, None)
@@ -1151,7 +1151,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
                                         data_buffer
                                             .label_buffer
-                                            .get(&edge_triple.element_type.to_string())
+                                            .get(&edge_triple.element_type)
                                             .cloned(),
                                     );
                                     if let Some(edge) = edge {
@@ -1193,7 +1193,7 @@ impl GraphDisplayDataSolutionSerializer {
         triple: Triple,
         arg: String,
     ) {
-        let resolved = self.resolve(data_buffer, triple.id.to_string());
+        let resolved = self.resolve(data_buffer, triple.id);
         match resolved {
             Some(s) => match data_buffer.node_characteristics.get_mut(&s) {
                 Some(char) => {
@@ -1213,7 +1213,7 @@ impl GraphDisplayDataSolutionSerializer {
             },
             None => {
                 info!("Adding characteristic to unknown buffer: {}", triple);
-                self.add_to_unknown_buffer(data_buffer, triple.id.to_string(), triple);
+                self.add_to_unknown_buffer(data_buffer, triple.id, triple);
             }
         }
     }
