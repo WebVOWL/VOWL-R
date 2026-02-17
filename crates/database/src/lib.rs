@@ -14,8 +14,8 @@ pub mod prelude {
 pub const SYMMETRIC_EDGE_TYPES: [ElementType; 1] =
     [ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))];
 
-pub const PROPERTY_EDGE_TYPES: [ElementType; 7] =
-    [ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+pub const PROPERTY_EDGE_TYPES: [ElementType; 7] = [
+    ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
     ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty)),
     ElementType::Owl(OwlType::Edge(OwlEdge::DeprecatedProperty)),
     ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty)),
