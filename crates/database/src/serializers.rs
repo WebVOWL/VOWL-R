@@ -429,7 +429,6 @@ mod tests {
     use super::*;
     use oxrdf::NamedNode;
     use std::collections::HashSet;
-    use oxrdf::NamedNode;
 
     #[test]
     fn test_disjoint_with_edge_symmetry() {
