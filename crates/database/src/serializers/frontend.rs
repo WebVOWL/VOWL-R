@@ -634,7 +634,13 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::ASSERTION_PROPERTY => {},
 
                     //TODO: OWL1
-                    // owl::ASYMMETRIC_PROPERTY => {},
+                    owl::ASYMMETRIC_PROPERTY => {
+                        self.insert_characteristic(
+                            data_buffer,
+                            triple,
+                            "asymmetric".to_string(),
+                        );
+                    }
 
                     // owl::AXIOM => {},
                     // owl::BACKWARD_COMPATIBLE_WITH => {},
@@ -806,7 +812,13 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::EQUIVALENT_PROPERTY => {}
 
                     //TODO: OWL1
-                    //owl::FUNCTIONAL_PROPERTY => {}
+                    owl::FUNCTIONAL_PROPERTY => {
+                        self.insert_characteristic(
+                            data_buffer,
+                            triple,
+                            "functional".to_string(),
+                        );
+                    }
 
                     // owl::HAS_KEY => {}
                     // owl::HAS_SELF => {}
@@ -831,11 +843,17 @@ impl GraphDisplayDataSolutionSerializer {
                         self.insert_characteristic(
                             data_buffer,
                             triple,
-                            "InverseFunctionalProperty".to_string(),
+                            "inverse functional".to_string(),
                         );
                     }
                     // TODO owl::INVERSE_OF => {}
-                    // owl::IRREFLEXIVE_PROPERTY => {}
+                    owl::IRREFLEXIVE_PROPERTY => {
+                        self.insert_characteristic(
+                            data_buffer,
+                            triple,
+                            "irreflexive".to_string(),
+                        );
+                    }
 
                     //TODO: OWL1
                     // owl::MAX_CARDINALITY => {}
@@ -890,7 +908,13 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::QUALIFIED_CARDINALITY => {}
 
                     //TODO: OWL1
-                    // owl::REFLEXIVE_PROPERTY => {}
+                    owl::REFLEXIVE_PROPERTY => {
+                        self.insert_characteristic(
+                            data_buffer,
+                            triple,
+                            "reflexive".to_string(),
+                        );
+                    }
 
                     //TODO: OWL1
                     // owl::RESTRICTION => {}
@@ -901,7 +925,13 @@ impl GraphDisplayDataSolutionSerializer {
                     //TODO: OWL1
                     // owl::SOME_VALUES_FROM => {}
                     // owl::SOURCE_INDIVIDUAL => {}
-                    // owl::SYMMETRIC_PROPERTY => {}
+                    owl::SYMMETRIC_PROPERTY => {
+                        self.insert_characteristic(
+                            data_buffer,
+                            triple,
+                            "symmetric".to_string(),
+                        );
+                    }
                     // owl::TARGET_INDIVIDUAL => {}
                     // owl::TARGET_VALUE => {}
                     owl::THING => self.insert_node(
@@ -913,7 +943,13 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::TOP_OBJECT_PROPERTY => {}
 
                     //TODO: OWL1
-                    //owl::TRANSITIVE_PROPERTY => {}
+                    owl::TRANSITIVE_PROPERTY => {
+                        self.insert_characteristic(
+                            data_buffer,
+                            triple,
+                            "transitive".to_string(),
+                        );
+                    }
                     owl::UNION_OF => {
                         let edge =
                             self.insert_edge(data_buffer, &triple, ElementType::NoDraw, None);
@@ -1168,20 +1204,19 @@ impl GraphDisplayDataSolutionSerializer {
                                     );
                                     if let Some(edge) = edge {
                                         data_buffer.add_property_edge(
-                                            edge_triple.element_type.to_string(),
+                                            edge_triple.element_type.clone(),
                                             edge,
                                         );
                                         data_buffer.add_property_domain(
-                                            edge_triple.element_type.to_string(),
+                                            edge_triple.element_type.clone(),
                                             edge_triple
                                                 .target
                                                 .clone()
                                                 .expect("target should be a string")
-                                                .to_string(),
                                         );
                                         data_buffer.add_property_range(
-                                            edge_triple.element_type.to_string(),
-                                            edge_triple.id.to_string(),
+                                            edge_triple.element_type,
+                                            edge_triple.id,
                                         );
                                     }
                                 }
@@ -1220,7 +1255,15 @@ impl GraphDisplayDataSolutionSerializer {
                         info!("{} -> {}", k, v);
                     }
                     info!("Inserting characteristic: {} -> {}", s, arg);
-                    //data_buffer.edge_characteristics.insert(s, vec![arg]);
+                    let e = data_buffer.property_edge_map.get(&s);
+                    match e {
+                        Some(e) => {
+                            data_buffer.edge_characteristics.insert(e.clone(), vec![arg]);
+                        }
+                        None => {
+                            self.add_to_unknown_buffer(data_buffer, s, triple);
+                        }
+                    }
                 }
             },
             None => {
