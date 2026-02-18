@@ -188,17 +188,17 @@ pub struct SerializationDataBuffer {
     ///
     /// - Key = The property IRI.
     /// - Value = The edges of the property.
-    property_edge_map: HashMap<String, Edge>,
+    property_edge_map: HashMap<Term, Edge>,
     /// Stores the domains of a property.
     ///
     /// - Key = The property IRI.
     /// - Value = The domains of the property.
-    property_domain_map: HashMap<String, HashSet<String>>,
+    property_domain_map: HashMap<Term, HashSet<Term>>,
     /// Stores the ranges of a property.
     ///
     /// - Key = The property IRI.
     /// - Value = The ranges of the property.
-    property_range_map: HashMap<String, HashSet<String>>,
+    property_range_map: HashMap<Term, HashSet<Term>>,
     /// Stores labels of subject/object.
     ///
     /// - Key = The IRI the label belongs to.
@@ -258,16 +258,16 @@ impl SerializationDataBuffer {
     }
 }
 impl SerializationDataBuffer {
-    pub fn add_property_edge(&mut self, property_iri: String, edge: Edge) {
-        self.property_edge_map.insert(property_iri, edge);
+    pub fn add_property_edge(&mut self, property: Term, edge: Edge) {
+        self.property_edge_map.insert(property, edge);
     }
-    pub fn add_property_domain(&mut self, property_iri: String, domain: String) {
+    pub fn add_property_domain(&mut self, property_iri: Term, domain: Term) {
         self.property_domain_map
             .entry(property_iri)
             .or_default()
             .insert(domain);
     }
-    pub fn add_property_range(&mut self, property_iri: String, range: String) {
+    pub fn add_property_range(&mut self, property_iri: Term, range: Term) {
         self.property_range_map
             .entry(property_iri)
             .or_default()
