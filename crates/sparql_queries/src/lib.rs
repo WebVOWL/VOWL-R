@@ -9,7 +9,7 @@ mod snippets;
 
 /// Exports all the core types of the library.
 pub mod prelude {
-    use grapher::prelude::{OwlEdge, OwlNode, RdfEdge, RdfsEdge, RdfsNode};
+    use grapher::prelude::{Characteristic, OwlEdge, OwlNode, RdfEdge, RdfsEdge, RdfsNode};
     use std::sync::LazyLock;
 
     use crate::assembly::DEFAULT_PREFIXES;
@@ -38,6 +38,7 @@ pub mod prelude {
             snippets_from_enum::<RdfEdge>(),
             snippets_from_enum::<RdfsNode>(),
             snippets_from_enum::<RdfsEdge>(),
+            snippets_from_enum::<Characteristic>(),
             GENERAL_SNIPPETS.into(),
         ]
         .concat();

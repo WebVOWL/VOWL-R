@@ -1,6 +1,6 @@
 use grapher::prelude::Characteristic;
 
-use crate::element_type_injection::SparqlSnippet;
+use crate::snippets::SparqlSnippet;
 
 impl SparqlSnippet for Characteristic {
     fn snippet(self) -> &'static str {
