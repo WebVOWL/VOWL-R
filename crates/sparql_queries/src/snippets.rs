@@ -1,3 +1,4 @@
+pub mod characteristic;
 pub mod element_type;
 pub mod general;
 pub mod generic;
@@ -5,7 +6,6 @@ pub mod owl;
 pub mod rdf;
 pub mod rdfs;
 pub mod void;
-pub mod characteristic;
 
 use grapher::prelude::strum::IntoEnumIterator;
 
