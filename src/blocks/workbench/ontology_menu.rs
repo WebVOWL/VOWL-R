@@ -66,6 +66,7 @@ pub fn UploadInput() -> impl IntoView {
     let parsing_done = upload.tracker.parsing_done;
     let tracker_url = upload.tracker.clone();
     let tracker_file = upload.tracker.clone();
+    let file_name = upload.tracker.filename;
 
     Effect::new(move || {
         if let Some(value) = local_loading_done.get() {
@@ -172,7 +173,11 @@ pub fn UploadInput() -> impl IntoView {
                     for="file-upload"
                     class="block p-1 w-full bg-gray-200 rounded border-b-0"
                 >
-                    "Select ontology file(s)"
+                    {move || if file_name.get().is_empty() {
+                        "Select ontology file".to_string()
+                    } else {
+                        file_name.get()
+                    }}
                 </label>
             </div>
             {move || {
