@@ -270,7 +270,7 @@ impl UploadProgress {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            filename: RwSignal::new("Select File".to_string()),
+            filename: RwSignal::new(String::new()),
             file_size: RwSignal::new(0),
             upload_progress: RwSignal::new(0),
             parsing_status: RwSignal::new(String::new()),
