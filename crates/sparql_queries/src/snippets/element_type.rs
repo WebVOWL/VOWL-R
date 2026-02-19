@@ -1,4 +1,4 @@
-use grapher::prelude::{ElementType, GenericEdge, GenericType, OwlType, RdfType, RdfsType};
+use grapher::prelude::{ElementType, GenericType, OwlType, RdfType, RdfsType};
 
 use crate::snippets::SparqlSnippet;
 
