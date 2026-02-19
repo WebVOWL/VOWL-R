@@ -10,7 +10,7 @@ use leptos_use::on_click_outside;
 pub fn ListElement(
     #[prop(into)] title: Signal<String>,
     #[prop(optional, into)] icon: MaybeProp<icondata::Icon>,
-    children: ChildrenFn,
+    children: Children,
 ) -> impl IntoView {
     let show_element = RwSignal::new(false);
     let target = NodeRef::<Div>::new();
@@ -30,7 +30,7 @@ pub fn ListElement(
                     node_ref=target
                     class="overflow-y-scroll absolute top-0 left-full m-4 bg-white border-gray-100 w-fit max-h-[80vh] min-h-[80vh]"
                     style=move || {
-                        if !show_element.get() { "display: none" } else { "" }
+                        if show_element.get() { "" } else { "display: none" }
                     }
                 >
                     {children()}

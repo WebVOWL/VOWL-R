@@ -23,7 +23,7 @@ where
         }>
             {move || {
                 let mut sorted_items = items.get();
-                sorted_items.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+                sorted_items.sort_by_key(ToString::to_string);
                 sorted_items
                     .into_iter()
                     .map(|item| {
