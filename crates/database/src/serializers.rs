@@ -1,12 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
+    hash::{Hash, Hasher},
 };
 
-use grapher::prelude::ElementType;
-use grapher::prelude::GraphDisplayData;
+use grapher::prelude::{ElementType, GraphDisplayData, OwlEdge, OwlType};
 use log::error;
 use oxrdf::Term;
+
+use crate::{PROPERTY_EDGE_TYPES, SYMMETRIC_EDGE_TYPES};
 
 pub mod frontend;
 pub mod util;
@@ -48,7 +50,7 @@ impl Triple {
     }
 }
 
-#[derive(Debug, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Edge {
     /// The subject IRI
     subject: Term,
@@ -56,7 +58,54 @@ pub struct Edge {
     element_type: ElementType,
     /// The object IRI
     object: Term,
+    /// The property IRI
+    property: Option<Term>,
 }
+
+impl PartialEq for Edge {
+    fn eq(&self, other: &Self) -> bool {
+        // Element type and property must always match
+        if self.element_type != other.element_type || self.property != other.property {
+            return false;
+        }
+
+        // For symmetric relations, treat (A, B) and (B, A) as equal
+        let eq_so = [ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))];
+        if eq_so.contains(&self.element_type) {
+            (self.subject == other.subject && self.object == other.object)
+                || (self.subject == other.object && self.object == other.subject)
+        } else {
+            self.subject == other.subject && self.object == other.object
+        }
+    }
+}
+
+impl Hash for Edge {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        if SYMMETRIC_EDGE_TYPES.contains(&self.element_type) {
+            // For symmetric relations, hash the sorted pair
+            let (first, second) = if self.subject.to_string() <= self.object.to_string() {
+                (&self.subject, &self.object)
+            } else {
+                (&self.object, &self.subject)
+            };
+
+            first.hash(state);
+            second.hash(state);
+            self.element_type.hash(state);
+        } else if PROPERTY_EDGE_TYPES.contains(&self.element_type) {
+            self.subject.hash(state);
+            self.element_type.hash(state);
+            self.object.hash(state);
+            self.property.hash(state);
+        } else {
+            self.subject.hash(state);
+            self.element_type.hash(state);
+            self.object.hash(state);
+        }
+    }
+}
+
 impl Display for Edge {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -129,19 +178,27 @@ pub struct SerializationDataBuffer {
     ///
     /// Used to remap when nodes are merges.
     edges_include_map: HashMap<Term, HashSet<Edge>>,
-    /// Stores the triple of resolved edge IRIs.
-    /// And edge without an edge IRI is not represented in this map.
-    ///
-    /// Used to determine of a property is missing both domain and range.
-    ///
-    /// - Key = Edge IRI
-    /// - Value = Triple of edge IRI.
-    resolved_edge_map: HashMap<Term, Triple>,
     /// Stores indices of element instances.
     ///
     /// Used in cases where multiple elements should refer to a particular instance.
     /// E.g. multiple properties referring to the same instance of owl:Thing.
     global_element_mappings: HashMap<ElementType, usize>,
+
+    /// Stores the edges of a property.
+    ///
+    /// - Key = The property IRI.
+    /// - Value = The edges of the property.
+    property_edge_map: HashMap<String, Edge>,
+    /// Stores the domains of a property.
+    ///
+    /// - Key = The property IRI.
+    /// - Value = The domains of the property.
+    property_domain_map: HashMap<String, HashSet<String>>,
+    /// Stores the ranges of a property.
+    ///
+    /// - Key = The property IRI.
+    /// - Value = The ranges of the property.
+    property_range_map: HashMap<String, HashSet<String>>,
     /// Stores labels of subject/object.
     ///
     /// - Key = The IRI the label belongs to.
@@ -185,17 +242,36 @@ impl SerializationDataBuffer {
             edge_element_buffer: HashMap::new(),
             edge_redirection: HashMap::new(),
             edges_include_map: HashMap::new(),
-            resolved_edge_map: HashMap::new(),
             global_element_mappings: HashMap::new(),
             label_buffer: HashMap::new(),
             edge_label_buffer: HashMap::new(),
             edge_buffer: HashSet::new(),
+            property_edge_map: HashMap::new(),
+            property_domain_map: HashMap::new(),
+            property_range_map: HashMap::new(),
             unknown_buffer: HashMap::new(),
             failed_buffer: Vec::new(),
             document_base: None,
             edge_characteristics: HashMap::new(),
             node_characteristics: HashMap::new(),
         }
+    }
+}
+impl SerializationDataBuffer {
+    pub fn add_property_edge(&mut self, property_iri: String, edge: Edge) {
+        self.property_edge_map.insert(property_iri, edge);
+    }
+    pub fn add_property_domain(&mut self, property_iri: String, domain: String) {
+        self.property_domain_map
+            .entry(property_iri)
+            .or_default()
+            .insert(domain);
+    }
+    pub fn add_property_range(&mut self, property_iri: String, range: String) {
+        self.property_range_map
+            .entry(property_iri)
+            .or_default()
+            .insert(range);
     }
 }
 
@@ -230,6 +306,7 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
             let subject_idx = iricache.get(&edge.subject);
             let object_idx = iricache.get(&edge.object);
             let maybe_label = val.edge_label_buffer.remove(edge);
+            let characteristics = val.edge_characteristics.remove(edge);
 
             match (subject_idx, object_idx, maybe_label) {
                 (Some(subject_idx), Some(object_idx), Some(label)) => {
@@ -240,6 +317,11 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
                         display_data.elements.len() - 1,
                         *object_idx,
                     ]);
+                    if let Some(characteristics) = characteristics {
+                        display_data
+                            .characteristics
+                            .insert(display_data.elements.len() - 1, characteristics.join("\n"));
+                    }
                 }
                 (Some(_), Some(_), None) => {
                     error!("Label in edge not found in iricache: {}", edge.subject);
@@ -300,7 +382,6 @@ impl Display for SerializationDataBuffer {
             }
             writeln!(f, "\t\t}}")?;
         }
-        writeln!(f, "\tresolved_edge_map: {:#?}", self.resolved_edge_map)?;
         writeln!(f, "\tglobal_element_mappings:")?;
         for (element, index) in self.global_element_mappings.iter() {
             writeln!(f, "\t\t{} : {}", element, index)?;
@@ -340,5 +421,87 @@ impl Display for SerializationDataBuffer {
             }
         }
         writeln!(f, "}}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use oxrdf::{BlankNode, NamedNode};
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_disjoint_with_edge_symmetry() {
+        // Create two edges with swapped subject and object
+        let x = Term::BlankNode(BlankNode::new("_:x").unwrap());
+        let y = Term::BlankNode(BlankNode::new("_:y").unwrap());
+        let edge1 = Edge {
+            subject: x.clone(),
+            element_type: ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)),
+            object: y.clone(),
+            property: None,
+        };
+
+        let edge2 = Edge {
+            subject: y.clone(),
+            element_type: ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith)),
+            object: x.clone(),
+            property: None,
+        };
+
+        // Test that they are equal
+        assert_eq!(
+            edge1, edge2,
+            "DisjointWith edges should be equal regardless of subject/object order"
+        );
+
+        // Test that they hash to the same value by inserting into a HashSet
+        let mut edge_set = HashSet::new();
+        edge_set.insert(edge1.clone());
+        edge_set.insert(edge2.clone());
+
+        assert_eq!(
+            edge_set.len(),
+            1,
+            "HashSet should only contain one edge when both are DisjointWith with swapped subject/object"
+        );
+    }
+
+    #[test]
+    fn test_non_symmetric_edge_distinction() {
+        // Create two edges with swapped subject and object for a non-symmetric relation
+        let x = Term::BlankNode(BlankNode::new("_:x").unwrap());
+        let y = Term::BlankNode(BlankNode::new("_:y").unwrap());
+        let prop1 = Term::NamedNode(NamedNode::new("http://example.com/prop1").unwrap());
+        let edge1 = Edge {
+            subject: x.clone(),
+            element_type: ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+            object: y.clone(),
+            property: Some(prop1.clone()),
+        };
+
+        let edge2 = Edge {
+            subject: y.clone(),
+            element_type: ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+            object: x.clone(),
+            property: Some(prop1.clone()),
+        };
+
+        // Test that they are NOT equal
+        assert_ne!(
+            edge1, edge2,
+            "Non-symmetric edges should NOT be equal when subject/object are swapped"
+        );
+
+        // Test that they both appear in the HashSet
+        let mut edge_set = HashSet::new();
+        edge_set.insert(edge1.clone());
+        edge_set.insert(edge2.clone());
+
+        assert_eq!(
+            edge_set.len(),
+            2,
+            "HashSet should contain both edges when they are non-symmetric"
+        );
     }
 }

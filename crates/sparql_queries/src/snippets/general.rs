@@ -71,17 +71,52 @@ pub const LABEL: &str = r#"{
             )
             }"#;
 
-/// Find the domain and range of any property.
-pub const DOMAIN_AND_RANGE: &str = r#"{
-            {
-                # Domain
-                ?id rdfs:domain ?target
-                BIND(rdfs:domain AS ?nodeType)
+/// Find the domain and range of any property, and restructure so they appear as singular triples
+pub const DOMAIN_RANGES: &str = r#"{
+        {
+            VALUES ?property {
+                owl:DeprecatedProperty  
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
             }
-            UNION
-            {
-                # Range
-                ?id rdfs:range ?target
-                BIND(rdfs:range AS ?nodeType)
+            ?nodeType a ?property .
+            ?nodeType rdfs:range ?target .
+            ?nodeType rdfs:domain ?id .
+        } UNION {
+            VALUES ?property {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
             }
-            }"#;
+            ?nodeType a ?property .
+            ?nodeType rdfs:range ?target .
+            FILTER NOT EXISTS { ?nodeType rdfs:domain ?x }
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?id)
+        } UNION {
+            VALUES ?property {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
+            }
+            ?nodeType a ?property .
+            ?nodeType rdfs:domain ?id .
+            FILTER NOT EXISTS { ?nodeType rdfs:range ?x }
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?target)
+        } UNION {
+            VALUES ?property {
+                owl:DeprecatedProperty
+                owl:DatatypeProperty
+                owl:ObjectProperty
+                rdf:Property
+            }
+            ?nodeType a ?property .
+            FILTER NOT EXISTS { ?nodeType rdfs:range ?x }
+            FILTER NOT EXISTS { ?nodeType rdfs:domain ?x }
+            BIND(owl:Thing AS ?id)
+            BIND(IF(?property = owl:DatatypeProperty, rdfs:Literal, owl:Thing) AS ?target)
+        }
+        
+        }"#;

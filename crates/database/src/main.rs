@@ -1,4 +1,5 @@
 use env_logger::Env;
+use futures::StreamExt;
 use grapher::prelude::GraphDisplayData;
 use log::info;
 use rdf_fusion::{execution::results::QueryResults, store::Store};
@@ -23,6 +24,29 @@ pub async fn main() {
         .await
         .expect("Error inserting file");
     info!("Loaded {} quads", vowlr.session.len().await.unwrap());
+
+    let all_stream = vowlr
+        .session
+        .query("SELECT * WHERE { ?s ?p ?o }")
+        .await
+        .unwrap();
+    if let QueryResults::Solutions(mut solutions) = all_stream {
+        while let Some(solution) = solutions.next().await {
+            let solution = solution.unwrap();
+            let Some(s) = solution.get("s") else {
+                continue;
+            };
+            let Some(p) = solution.get("p") else {
+                continue;
+            };
+            let Some(o) = solution.get("o") else {
+                continue;
+            };
+            info!("{} - {} - {}", s, p, o);
+        }
+    } else {
+        panic!("Query stream is not a solutions stream");
+    }
 
     let mut data_buffer = GraphDisplayData::new();
     let solution_serializer = GraphDisplayDataSolutionSerializer::new();

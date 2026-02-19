@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # set -u tells the shell to treat expanding an unset parameter an error, which helps to catch e.g. typos in variable names.
-# set -e tells the shell to exit if a command exits with an error (except if the exit value is tested in some other way). 
+# set -e tells the shell to exit if a command exits with an error (except if the exit value is tested in some other way).
 #   That can be used in some cases to abort the script on error, without explicitly testing the status of each and every command.
 set -eu
 
@@ -18,7 +18,7 @@ mkdir out
 
 # Create mimalloc build files with the following settings
 cmake -Bout -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang \
-    -DMI_SECURE=ON \
+    -DMI_SECURE=OFF \
     -DMI_BUILD_OBJECT=ON \
     -DMI_BUILD_TESTS=OFF \
     -DMI_DEBUG_FULL=OFF \
@@ -35,4 +35,4 @@ cd ..
 mkdir -p link_libs
 
 # Create a copy of mimalloc. Used to prelink mimalloc in .cargo/config.toml
-cp -f mimalloc-$MIMALLOC_VERSION/out/mimalloc-secure.o link_libs/mimalloc-secure.o
+cp -f mimalloc-$MIMALLOC_VERSION/out/mimalloc.o link_libs/mimalloc.o
