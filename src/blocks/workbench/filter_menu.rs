@@ -127,18 +127,25 @@ pub fn FilterMenu() -> impl IntoView {
                 <button
                     class="text-sm text-blue-600 hover:text-blue-800"
                     on:click=move |_| {
-                        let c = element_checks.get();
+                        let counts = element_counts.get();
                         element_checks
                             .update(|map| {
-                                let target = !c.values().all(|&v| v);
-                                for (_, v) in map.iter_mut() {
-                                    *v = target;
+                                let all_enabled = counts
+                                    .keys()
+                                    .all(|k| *map.get(k).unwrap_or(&true));
+                                let target = !all_enabled;
+                                for k in counts.keys() {
+                                    map.insert(*k, target);
                                 }
                             });
                     }
                 >
                     {move || {
-                        let all_elem = element_checks.get().values().all(|&v| v);
+                        let counts = element_counts.get();
+                        let map = element_checks.get();
+                        let all_elem = counts
+                            .keys()
+                            .all(|k| *map.get(k).unwrap_or(&true));
                         if all_elem { "Disable All" } else { "Enable All" }
                     }}
                 </button>
@@ -149,10 +156,10 @@ pub fn FilterMenu() -> impl IntoView {
         >
                 name="OWL Classes"
                 is_open=open_owl
-                items=filter(
+                items=Signal::derive(move || filter(
                     element_counts.get().into_keys().collect::<Vec<_>>(),
                     &[is_owl_class],
-                )
+                ))
                 checks=element_checks
                 counts=element_counts
             />
@@ -162,10 +169,10 @@ pub fn FilterMenu() -> impl IntoView {
         >
                 name="RDF"
                 is_open=open_rdf
-                items=filter(
+                items=Signal::derive(move || filter(
                     element_counts.get().into_keys().collect::<Vec<_>>(),
                     &[is_rdf_class],
-                )
+                ))
                 checks=element_checks
                 counts=element_counts
             />
@@ -175,10 +182,10 @@ pub fn FilterMenu() -> impl IntoView {
         >
                 name="Set Operators"
                 is_open=open_set_operations
-                items=filter(
+                items=Signal::derive(move || filter(
                     element_counts.get().into_keys().collect::<Vec<_>>(),
                     &[is_set_operator],
-                )
+                ))
                 checks=element_checks
                 counts=element_counts
             />
@@ -188,10 +195,10 @@ pub fn FilterMenu() -> impl IntoView {
         >
                 name="Properties"
                 is_open=open_properties
-                items=filter(
+                items=Signal::derive(move || filter(
                     element_counts.get().into_keys().collect::<Vec<_>>(),
                     &[is_property],
-                )
+                ))
                 checks=element_checks
                 counts=element_counts
             />
