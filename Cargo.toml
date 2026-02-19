@@ -45,6 +45,7 @@
             "webgl",
         ], git="https://github.com/WebVOWL/WasmGrapher", branch="master"}
         horned-owl={git="https://github.com/phillord/horned-owl", rev="c4f7835ecae70b5e7281dc23b9b7fc6daa497f1d"}
+        leptos={version="0.8.8", features=["nightly", "multipart", "rkyv"]}
         log="0.4"
         rdf-fusion="0.1.0"
         rkyv="0.8.12"
@@ -69,7 +70,7 @@
     gloo-timers="0.2"
     grapher={workspace=true}
     http={version="1.3.1", optional=true}
-    leptos={version="0.8.8", features=["nightly", "multipart", "rkyv"]}
+    leptos={workspace=true}
     leptos_actix={version="0.8.5", optional=true}
     leptos_meta={version="0.8.5"}
     leptos_router={version="0.8.6", features=["nightly"]}
@@ -326,13 +327,13 @@
         server-fn-prefix="/api"
 
 [lints.clippy]
-pedantic = { level = "deny", priority = -1 }
-nursery = { level = "deny", priority = -1 }
-unwrap_used = { level = "deny" }
-expect_used = { level = "deny" }
-too_many_lines = { level = "allow" }
-missing_panics_doc = { level = "allow" }
-# Triggers false positives on components,
-# See https://github.com/leptos-rs/leptos/issues/3172
-# This should have been fixed around 0.8.3 but it seems not to be?
-must_use_candidate = { level = "allow" }
+    expect_used={level="deny"}
+    missing_panics_doc={level="allow"}
+    nursery={level="deny", priority=-1}
+    pedantic={level="deny", priority=-1}
+    too_many_lines={level="allow"}
+    unwrap_used={level="deny"}
+    # Triggers false positives on components,
+    # See https://github.com/leptos-rs/leptos/issues/3172
+    # This should have been fixed around 0.8.3 but it seems not to be?
+    must_use_candidate={level="allow"}
