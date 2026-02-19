@@ -16,13 +16,11 @@ use grapher::prelude::{
     RdfsType,
 };
 use log::{debug, error, info, trace, warn};
-use rdf_fusion::{
-    execution::results::QuerySolutionStream,
-    model::{
-        BlankNode, Term,
-        vocab::{rdf, rdfs},
-    },
+use oxrdf::{
+    IriParseError, NamedNode,
+    vocab::{rdf, rdfs},
 };
+use rdf_fusion::{execution::results::QuerySolutionStream, model::Term};
 use vowlr_parser::errors::VOWLRStoreError;
 
 pub struct GraphDisplayDataSolutionSerializer {
@@ -163,7 +161,7 @@ impl GraphDisplayDataSolutionSerializer {
                     },
                     Err(e) => {
                         // Do not make a 'warn!'. A parse error is allowed to happen (e.g. on blank nodes).
-                        debug!("Failed to parse iri '{}':\n{:?}", iri, e);
+                        trace!("Failed to parse iri '{}':\n{:?}", iri, e);
                     }
                 }
             }
@@ -203,7 +201,7 @@ impl GraphDisplayDataSolutionSerializer {
         let resolved_object = match &triple.target {
             Some(target) => self.resolve(data_buffer, target.clone()),
             None => {
-                warn!("Cannot resolve object of triple:\n {}", triple);
+                warn!("No object in triple:\n {}", triple);
                 None
             }
         };
@@ -226,9 +224,11 @@ impl GraphDisplayDataSolutionSerializer {
                 element_type, triple.id, element
             );
         } else {
+            trace!("Adding to element buffer: {}: {}", triple.id, element_type);
             element_buffer.insert(triple.id.clone(), element_type);
         }
     }
+
     /// Add an IRI to the unresolved, unknown buffer.
     fn add_to_unknown_buffer(
         &self,
@@ -236,6 +236,7 @@ impl GraphDisplayDataSolutionSerializer {
         element_iri: Term,
         triple: Triple,
     ) {
+        trace!("Adding to unknown buffer: {}: {}", element_iri, triple);
         if let Some(id_unknowns) = data_buffer.unknown_buffer.get_mut(&element_iri) {
             id_unknowns.insert(triple);
         } else {
@@ -314,14 +315,29 @@ impl GraphDisplayDataSolutionSerializer {
             } else {
                 edge_type
             };
-
         match self.resolve_so(data_buffer, triple) {
             (Some(sub_iri), Some(obj_iri)) => {
+                let should_hash_property = [
+                    ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+                    ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty)),
+                    ElementType::Owl(OwlType::Edge(OwlEdge::DeprecatedProperty)),
+                    ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty)),
+                ];
+                let property = if should_hash_property.contains(&new_type) {
+                    Some(triple.element_type.clone())
+                } else {
+                    None
+                };
                 let edge = Edge {
                     subject: sub_iri.clone(),
                     element_type: new_type,
                     object: obj_iri.clone(),
+                    property,
                 };
+                trace!(
+                    "Inserting edge: {} -> {} -> {}",
+                    edge.subject, edge.element_type, edge.object
+                );
                 data_buffer.edge_buffer.insert(edge.clone());
                 self.insert_edge_include(data_buffer, &sub_iri, edge.clone());
                 self.insert_edge_include(data_buffer, &obj_iri, edge.clone());
@@ -337,11 +353,13 @@ impl GraphDisplayDataSolutionSerializer {
             }
             (Some(_), None) => {
                 if let Some(obj_iri) = &triple.target {
+                    warn!("Cannot resolve object of triple:\n {}", triple);
                     // resolve_so already warns about unresolved object. No need to repeat it here.
                     self.add_to_unknown_buffer(data_buffer, obj_iri.clone(), triple.clone());
                 }
             }
             _ => {
+                warn!("Cannot resolve subject and object of triple:\n {}", triple);
                 self.add_to_unknown_buffer(data_buffer, triple.id.clone(), triple.clone());
             }
         }
@@ -441,28 +459,31 @@ impl GraphDisplayDataSolutionSerializer {
         }
     }
 
+    fn create_node(
+        &self,
+        id: String,
+        node_type: NamedNode,
+        object_iri: Option<String>,
+    ) -> Result<Triple, IriParseError> {
+        let subject = NamedNode::new(id)?;
+        let object = match object_iri {
+            Some(iri) => {
+                let obj = NamedNode::new(iri)?;
+                Some(Term::NamedNode(obj))
+            }
+            None => None,
+        };
+
+        let t = Triple::new(Term::NamedNode(subject), Term::NamedNode(node_type), object);
+        debug!("Created new triple: {}", t);
+        Ok(t)
+    }
+
     fn check_all_unknowns(&self, data_buffer: &mut SerializationDataBuffer) {
-        info!("Second pass: Resolving all possible unknowns");
+        info!("Third pass: Resolving all possible unknowns");
 
-        let unknown_nodes = take(&mut data_buffer.unknown_buffer);
-        for (term, triples) in unknown_nodes {
-            if !data_buffer.label_buffer.contains_key(&term) {
-                self.extract_label(data_buffer, None, &term);
-            }
-
-            if self.is_external(data_buffer, &term) {
-                // dummy triple, only subject matters.
-                let external_triple = Triple::new(
-                    term,
-                    Term::BlankNode(BlankNode::new("_:external_class").unwrap()),
-                    None,
-                );
-                self.insert_node(
-                    data_buffer,
-                    &external_triple,
-                    ElementType::Owl(OwlType::Node(OwlNode::ExternalClass)),
-                );
-            }
+        let unknowns = take(&mut data_buffer.unknown_buffer);
+        for (_, triples) in unknowns {
             for triple in triples {
                 self.write_node_triple(data_buffer, triple);
             }
@@ -546,12 +567,13 @@ impl GraphDisplayDataSolutionSerializer {
                             ElementType::Rdfs(RdfsType::Node(RdfsNode::Datatype)),
                         );
                     }
+                    rdfs::DOMAIN => {
+                        error!(
+                            "sparql query should not have rdfs:domain triples: {}",
+                            triple
+                        );
+                    }
 
-                    // NOTE: Domain is handled in the SPARQL query.
-                    // Thus, we don't need to match it here.
-                    // rdfs::DOMAIN => {}
-
-                    //TODO: OWL1
                     // rdfs::IS_DEFINED_BY => {}
 
                     // rdfs::LABEL => {}
@@ -563,10 +585,12 @@ impl GraphDisplayDataSolutionSerializer {
                         );
                     }
                     // rdfs::MEMBER => {}
-
-                    // NOTE: Range is handled in the SPARQL query.
-                    // Thus, we don't need to match it here.
-                    // rdfs::RANGE => {}
+                    rdfs::RANGE => {
+                        error!(
+                            "sparql query should not have rdfs:range triples: {}",
+                            triple
+                        );
+                    }
                     rdfs::RESOURCE => {
                         self.insert_node(
                             data_buffer,
@@ -640,11 +664,11 @@ impl GraphDisplayDataSolutionSerializer {
                     //TODO: OWL1
                     //owl::DATATYPE_COMPLEMENT_OF => {}
                     owl::DATATYPE_PROPERTY => {
-                        self.insert_edge(
-                            data_buffer,
+                        let e = ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty));
+                        self.add_to_element_buffer(
+                            &mut data_buffer.edge_element_buffer,
                             &triple,
-                            ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty)),
-                            None,
+                            e,
                         );
                     }
 
@@ -803,13 +827,14 @@ impl GraphDisplayDataSolutionSerializer {
                             );
                         }
                     }
-                    //TODO: OWL1
-                    // owl::INVERSE_FUNCTIONAL_PROPERTY => {}
-
-                    //TODO: OWL1
-                    // owl::INVERSE_OF => {}
-
-                    //TODO: OWL1
+                    owl::INVERSE_FUNCTIONAL_PROPERTY => {
+                        self.insert_characteristic(
+                            data_buffer,
+                            triple,
+                            "InverseFunctionalProperty".to_string(),
+                        );
+                    }
+                    // TODO owl::INVERSE_OF => {}
                     // owl::IRREFLEXIVE_PROPERTY => {}
 
                     //TODO: OWL1
@@ -903,11 +928,304 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::VERSION_INFO => {}
                     // owl::VERSION_IRI => {}
                     // owl::WITH_RESTRICTIONS => {}
-                    _ => {
-                        // Visualization of this element is not supported
-                        warn!("Visualization of term '{}' is not supported", uri);
-                    }
+                    _ => match triple.target.clone() {
+                        Some(target) => {
+                            let (node_triple, edge_triple): (Option<Vec<Triple>>, Option<Triple>) =
+                                match (
+                                    self.resolve(data_buffer, triple.id.clone()),
+                                    self.resolve(data_buffer, triple.element_type.clone()),
+                                    self.resolve(data_buffer, target.clone()),
+                                ) {
+                                    (Some(domain), Some(property), Some(range)) => {
+                                        trace!(
+                                            "Resolving object property: range: {}, property: {}, domain: {}",
+                                            range, property, domain
+                                        );
+                                        (None, Some(triple))
+                                    }
+                                    (Some(domain), Some(property), None) => {
+                                        trace!("Missing range: {}", triple);
+                                        let node = if target == owl::THING.into() {
+                                            let target_iri =
+                                                trim_tag_circumfix(domain.to_string().as_str())
+                                                    + "_thing";
+                                            info!("Creating thing node: {}", target_iri);
+                                            let node = self.create_node(
+                                                target_iri.clone(),
+                                                owl::THING.into(),
+                                                None,
+                                            );
+                                            node.ok()
+                                        } else if target == rdfs::LITERAL.into() {
+                                            let target_iri =
+                                                trim_tag_circumfix(property.to_string().as_str())
+                                                    + "_literal";
+                                            info!("Creating literal node: {}", target_iri);
+                                            let node = self.create_node(
+                                                target_iri.clone(),
+                                                rdfs::LITERAL.into(),
+                                                None,
+                                            );
+                                            node.ok()
+                                        } else {
+                                            None
+                                        };
+                                        match node {
+                                            Some(node) => (
+                                                Some(vec![node.clone()]),
+                                                Some(Triple {
+                                                    id: triple.id,
+                                                    element_type: triple.element_type,
+                                                    target: Some(node.id),
+                                                }),
+                                            ),
+                                            None => {
+                                                trace!(
+                                                    "Adding unknown buffer: target: {}, triple: {}",
+                                                    target, triple
+                                                );
+                                                self.add_to_unknown_buffer(
+                                                    data_buffer,
+                                                    target,
+                                                    triple,
+                                                );
+                                                (None, None)
+                                            }
+                                        }
+                                    }
+                                    (None, Some(_), Some(range)) => {
+                                        trace!("Missing domain: {}", triple);
+                                        let node = if triple.id == owl::THING.into() {
+                                            let target_iri =
+                                                trim_tag_circumfix(range.to_string().as_str())
+                                                    + "_thing";
+                                            info!("Creating thing node: {}", target_iri);
+                                            let node = self.create_node(
+                                                target_iri.clone(),
+                                                owl::THING.into(),
+                                                None,
+                                            );
+                                            node.ok()
+                                        } else if triple.id == rdfs::LITERAL.into() {
+                                            let target_iri =
+                                                trim_tag_circumfix(range.to_string().as_str())
+                                                    + "_literal";
+                                            let node = self.create_node(
+                                                target_iri.clone(),
+                                                rdfs::LITERAL.into(),
+                                                None,
+                                            );
+                                            node.ok()
+                                        } else {
+                                            None
+                                        };
+                                        match node {
+                                            Some(node) => (
+                                                Some(vec![node.clone()]),
+                                                Some(Triple {
+                                                    id: node.id,
+                                                    element_type: triple.element_type,
+                                                    target: triple.target,
+                                                }),
+                                            ),
+                                            None => {
+                                                trace!(
+                                                    "Adding unknown buffer: target: {}, triple: {}",
+                                                    target, triple
+                                                );
+                                                self.add_to_unknown_buffer(
+                                                    data_buffer,
+                                                    target,
+                                                    triple,
+                                                );
+                                                (None, None)
+                                            }
+                                        }
+                                    }
+                                    (None, Some(property), None) => {
+                                        trace!("Missing domain and range: {}", triple);
+                                        if triple.element_type == owl::DATATYPE_PROPERTY.into() {
+                                            let local_literal = NamedNode::new(
+                                                property.to_string() + "_locallitral",
+                                            )
+                                            .unwrap();
+                                            let literal_triple = self.create_node(
+                                                local_literal.to_string(),
+                                                rdfs::LITERAL.into(),
+                                                None,
+                                            );
+                                            info!("Creating literal node: {}", local_literal);
+                                            let local_thing = NamedNode::new(
+                                                property.to_string() + "_localthing",
+                                            )
+                                            .unwrap();
+                                            let thing_triple = self.create_node(
+                                                local_thing.to_string(),
+                                                owl::THING.into(),
+                                                None,
+                                            );
+                                            info!("Creating thing node: {}", local_thing);
+                                            match (literal_triple, thing_triple) {
+                                                (Ok(literal), Ok(thing)) => (
+                                                    Some(vec![literal.clone(), thing.clone()]),
+                                                    Some(Triple {
+                                                        id: thing.id.clone(),
+                                                        element_type: triple.element_type,
+                                                        target: Some(literal.id),
+                                                    }),
+                                                ),
+                                                (_, _) => (None, None),
+                                            }
+                                        } else if triple.element_type == owl::OBJECT_PROPERTY.into()
+                                        {
+                                            let global_thing =
+                                                NamedNode::new(owl::THING.to_string() + "_thing")
+                                                    .unwrap();
+                                            let node_triple = self.create_node(
+                                                global_thing.to_string(),
+                                                global_thing,
+                                                None,
+                                            );
+                                            match node_triple {
+                                                Ok(node) => (
+                                                    Some(vec![node.clone()]),
+                                                    Some(Triple {
+                                                        id: node.id.clone(),
+                                                        element_type: triple.element_type,
+                                                        target: Some(node.id),
+                                                    }),
+                                                ),
+                                                Err(e) => {
+                                                    error!("Error creating node: {}", e);
+                                                    (None, None)
+                                                }
+                                            }
+                                        } else {
+                                            (None, None)
+                                        }
+                                    }
+
+                                    (Some(_), None, Some(_)) => {
+                                        trace!(
+                                            "Adding unknown buffer: element type: {}, triple: {}",
+                                            triple.element_type, triple
+                                        );
+                                        self.add_to_unknown_buffer(
+                                            data_buffer,
+                                            triple.element_type.clone(),
+                                            triple,
+                                        );
+                                        (None, None)
+                                    }
+                                    _ => {
+                                        trace!("Adding unknown buffer: triple: {}", triple);
+                                        self.add_to_unknown_buffer(
+                                            data_buffer,
+                                            triple.id.clone(),
+                                            triple,
+                                        );
+                                        (None, None)
+                                    }
+                                };
+                            match node_triple {
+                                Some(node_triples) => {
+                                    for node_triple in node_triples {
+                                        if node_triple.element_type == owl::THING.into() {
+                                            self.insert_node(
+                                                data_buffer,
+                                                &node_triple,
+                                                ElementType::Owl(OwlType::Node(OwlNode::Thing)),
+                                            );
+                                        } else if node_triple.element_type == rdfs::LITERAL.into() {
+                                            self.insert_node(
+                                                data_buffer,
+                                                &node_triple,
+                                                ElementType::Rdfs(RdfsType::Node(
+                                                    RdfsNode::Literal,
+                                                )),
+                                            );
+                                        }
+                                    }
+                                }
+                                None => error!("Error creating node {:?}", node_triple),
+                            }
+
+                            match edge_triple {
+                                Some(edge_triple) => {
+                                    // unwrap safe, edge_triple will always be Some if property can be resolved.
+                                    let property = data_buffer
+                                        .edge_element_buffer
+                                        .get(&edge_triple.element_type)
+                                        .unwrap();
+                                    let edge = self.insert_edge(
+                                        data_buffer,
+                                        &edge_triple,
+                                        *property,
+                                        data_buffer
+                                            .label_buffer
+                                            .get(&edge_triple.element_type)
+                                            .cloned(),
+                                    );
+                                    if let Some(edge) = edge {
+                                        data_buffer.add_property_edge(
+                                            edge_triple.element_type.to_string(),
+                                            edge,
+                                        );
+                                        data_buffer.add_property_domain(
+                                            edge_triple.element_type.to_string(),
+                                            edge_triple
+                                                .target
+                                                .clone()
+                                                .expect("target should be a string")
+                                                .to_string(),
+                                        );
+                                        data_buffer.add_property_range(
+                                            edge_triple.element_type.to_string(),
+                                            edge_triple.id.to_string(),
+                                        );
+                                    }
+                                }
+                                None => {
+                                    error!("Error creating edge: ");
+                                }
+                            }
+                        }
+                        None => {
+                            error!("object property triples should have a target: {}", triple);
+                        }
+                    },
                 };
+            }
+        }
+    }
+
+    fn insert_characteristic(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        triple: Triple,
+        arg: String,
+    ) {
+        let resolved = self.resolve(data_buffer, triple.id.clone());
+        match resolved {
+            Some(s) => match data_buffer.node_characteristics.get_mut(&s) {
+                Some(char) => {
+                    for (k, v) in data_buffer.property_edge_map.iter() {
+                        info!("{} -> {}", k, v);
+                    }
+                    info!("Inserting characteristic: {} -> {}", s, arg);
+                    char.push(arg);
+                }
+                None => {
+                    for (k, v) in data_buffer.property_edge_map.iter() {
+                        info!("{} -> {}", k, v);
+                    }
+                    info!("Inserting characteristic: {} -> {}", s, arg);
+                    //data_buffer.edge_characteristics.insert(s, vec![arg]);
+                }
+            },
+            None => {
+                info!("Adding characteristic to unknown buffer: {}", triple);
+                self.add_to_unknown_buffer(data_buffer, triple.id.clone(), triple);
             }
         }
     }
@@ -1072,7 +1390,8 @@ mod test {
         assert!(data_buffer.edge_buffer.contains(&Edge {
             subject: example_warden1,
             element_type: ElementType::NoDraw,
-            object: example_guardian.clone()
+            object: example_guardian.clone(),
+            property: None
         }));
         assert!(data_buffer.edge_redirection.contains_key(&example_warden));
         assert_eq!(

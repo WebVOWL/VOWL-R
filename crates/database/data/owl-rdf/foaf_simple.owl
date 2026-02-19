@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Created by Paolo Ciccarese http://www.paolociccarese.info on October 12th, 2010 -->
+
+<!DOCTYPE rdf:RDF [
+    <!-- Other namespaces -->
+    <!ENTITY xsd  "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdf  "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY owl  "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY dct  "http://purl.org/dc/terms/" >
+    <!ENTITY ns   "http://www.w3.org/2003/06/sw-vocab-status/ns">
+    <!ENTITY sw-vocab-status "http://www.w3.org/2003/06/sw-vocab-status/">
+    
+    <!-- Main namespace -->
+    <!ENTITY foaf "http://xmlns.com/foaf/0.1/">
+    
+    <!-- Files -->
+    <!ENTITY previousfile "http://swan.mindinformatics.org/ontologies/1.2/foaf-essential.owl">
+	<!ENTITY local "file:////Users/paolociccarese/Workspaces/ExternalProjects/SwanOntology/foaf-essential.owl">
+  	<!ENTITY path "http://purl.org/spar/foaf">
+  	<!ENTITY file "&path;">  
+]>
+<rdf:RDF xml:base="&foaf;"
+         xmlns:dct="&dct;"
+         xmlns:owl="&owl;"
+         xmlns:rdf="&rdf;"
+         xmlns:rdfs="&rdfs;"
+         xmlns:sw-vocab-status="&sw-vocab-status;">
+
+  	<owl:Ontology rdf:about="&foaf;">
+  		<rdf:type rdf:resource="&owl;Ontology"/>
+  		<rdfs:label rdf:datatype="&xsd;string">FOAF Essential v. 2.0</rdfs:label>
+        <owl:versionInfo rdf:datatype="&xsd;string">2.0</owl:versionInfo>
+        <owl:priorVersion rdf:resource="&previousfile;"/>
+        
+        <dct:language>en</dct:language>
+        <dct:title xml:lang="en">FOAF Essential ontology</dct:title>
+        <dct:creator rdf:resource="http://www.hcklab.org/foaf.rdf#me" /> 
+        <dct:contributor rdf:datatype="&xsd;string">Paolo Ciccarese</dct:contributor>
+        <dct:contributor rdf:datatype="&xsd;string">Alan Ruttenberg</dct:contributor>
+        <dct:publisher rdf:datatype="&xsd;string">Mindinformatics, Massachusetts General Hospital</dct:publisher>
+        <dct:date rdf:datatype="&xsd;string">October 12, 2010</dct:date>
+        <dct:format rdf:datatype="&xsd;string">rdf/xml</dct:format>
+  	</owl:Ontology>
+  
+
+  
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+  	<owl:Class rdf:about="Agent" rdfs:label="(foaf) Agent">
+    	<sw-vocab-status:nsterm_status rdf:datatype="&xsd;string">unstable</sw-vocab-status:nsterm_status>
+    	<rdfs:comment rdf:datatype="&xsd;string">An agent (eg. person, group, software or physical artifact).</rdfs:comment>
+    	<rdfs:isDefinedBy rdf:resource="&foaf;"/>
+    	<owl:disjointWith rdf:resource="Document"/>
+    	<owl:disjointWith rdf:resource="Project"/>
+    	<owl:disjointWith rdf:resource="OnlineAccount"/>
+  	</owl:Class>
+
+    <owl:Class rdf:about="Project" rdfs:label="(foaf) Project">
+    	<sw-vocab-status:nsterm_status rdf:datatype="&xsd;string">unstable</sw-vocab-status:nsterm_status>
+    	<rdfs:comment rdf:datatype="&xsd;string">A project (a collective endeavour of some kind).</rdfs:comment>
+    	<rdfs:isDefinedBy rdf:resource="&foaf;"/>
+    	<owl:disjointWith rdf:resource="Document"/>
+    	<owl:disjointWith rdf:resource="Agent"/>
+  	</owl:Class>
+
+  	<owl:Class rdf:about="Document" rdfs:label="(foaf) Document">
+    	<sw-vocab-status:nsterm_status rdf:datatype="&xsd;string">testing</sw-vocab-status:nsterm_status>
+    	<rdfs:comment rdf:datatype="&xsd;string">A document.</rdfs:comment>
+    	<rdfs:isDefinedBy rdf:resource="&foaf;"/>
+    	<owl:disjointWith rdf:resource="Agent"/>
+    	<owl:disjointWith rdf:resource="Project"/>
+  	</owl:Class>
+
+
+  	<owl:Class rdf:about="Person" rdfs:label="(foaf) Person">
+    	<sw-vocab-status:nsterm_status rdf:datatype="&xsd;string">stable</sw-vocab-status:nsterm_status>
+    	<rdfs:comment rdf:datatype="&xsd;string">A person.</rdfs:comment>
+    	<rdfs:isDefinedBy rdf:resource="&foaf;"/>
+    	<rdfs:subClassOf rdf:resource="Agent"/>
+  	</owl:Class>
+
+  	<owl:DatatypeProperty rdf:about="myersBriggs">
+    	<rdfs:domain rdf:resource="Person"/>
+  	</owl:DatatypeProperty>
+
+  	<owl:DatatypeProperty rdf:about="name">
+    	<rdfs:domain>
+    	    <owl:Class>
+	    		<owl:unionOf rdf:parseType="Collection">
+	    			<rdfs:Class rdf:about="Agent"/>
+	    			<rdfs:Class rdf:about="Project"/>
+	    			<rdfs:Class rdf:about="Document"/>
+	    		</owl:unionOf>
+    		</owl:Class>
+    	</rdfs:domain>
+  	</owl:DatatypeProperty>
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+  <owl:ObjectProperty rdf:about="currentProject">
+    <rdfs:domain rdf:resource="Person"/>
+        <rdfs:range>
+	    	<owl:Class>
+	  			<owl:complementOf>
+	  				<owl:Class>
+	    				<owl:unionOf rdf:parseType="Collection">
+	    					<owl:Class rdf:about="Agent"/>
+	    					<owl:Class rdf:about="OnlineAccount"/>
+	    				</owl:unionOf>
+	    			</owl:Class>
+	  			</owl:complementOf>
+			</owl:Class>
+    	</rdfs:range>
+  </owl:ObjectProperty>
+
+
+  <owl:ObjectProperty rdf:about="made">
+    <rdfs:domain rdf:resource="Agent"/>
+    <rdfs:range>
+    	<owl:Class>
+  			<owl:complementOf>
+    			<owl:Class rdf:about="Agent"/>
+  			</owl:complementOf>
+		</owl:Class>
+	</rdfs:range>
+    <owl:inverseOf rdf:resource="maker"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="maker">
+    <rdfs:domain rdf:resource="&owl;Thing"/>
+    <rdfs:range rdf:resource="Agent"/>
+    <owl:inverseOf rdf:resource="made"/>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="mbox">
+  	<rdf:type rdf:resource="&owl;InverseFunctionalProperty"/>
+    <rdfs:domain rdf:resource="Agent"/>
+        <rdfs:range>
+	    	<owl:Class>
+	  			<owl:complementOf>
+	  				<owl:Class>
+	    				<owl:unionOf rdf:parseType="Collection">
+	    					<owl:Class rdf:about="Agent"/>
+	    					<owl:Class rdf:about="Project"/>
+	    					<owl:Class rdf:about="Document"/>
+	    				</owl:unionOf>
+	    			</owl:Class>
+	  			</owl:complementOf>
+			</owl:Class>
+    	</rdfs:range>
+  </owl:ObjectProperty>
+  
+</rdf:RDF>
