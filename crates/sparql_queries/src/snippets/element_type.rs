@@ -17,19 +17,3 @@ impl SparqlSnippet for ElementType {
     }
 }
 
-impl SparqlSnippet for GenericType {
-    fn snippet(self) -> &'static str {
-        match self {
-            GenericType::Node(node) => node.snippet(),
-            GenericType::Edge(edge) => edge.snippet(),
-        }
-    }
-}
-
-impl SparqlSnippet for GenericEdge {
-    fn snippet(self) -> &'static str {
-        match self {
-            GenericEdge::Generic => todo!(),
-        }
-    }
-}
