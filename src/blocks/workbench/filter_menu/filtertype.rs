@@ -81,8 +81,7 @@ where
                         }
                     })
                     .collect::<Vec<_>>()
-                }
-            }  
+            }}
         </div>
     }
 }
