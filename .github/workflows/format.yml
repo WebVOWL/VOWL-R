@@ -17,6 +17,5 @@ jobs:
     - uses: actions/checkout@v5
     ## rust cache includes toolchain in key
     - run: rustup toolchain install
-    - uses: Swatinem/rust-cache@v2
     - name: Run rustfmt
       run: cargo fmt --check --all
