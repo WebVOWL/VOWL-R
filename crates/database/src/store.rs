@@ -100,7 +100,7 @@ impl VOWLGrapherStore {
             let graph_iri = self.get_graph_iri(&name);
             query.replace("{GRAPH_IRI}", &graph_iri)
         } else {
-            query.replace("GRAPH <{{GRAPH_IRI}}>", "")
+            query.replace("GRAPH <{GRAPH_IRI}>", "")
         };
 
         let solution_serializer = GraphDisplayDataSolutionSerializer::new();

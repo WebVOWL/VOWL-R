@@ -36,3 +36,9 @@
     vowlgrapher-parser={path="../parser"}
     vowlgrapher-sparql-queries={path="../sparql_queries"}
     vowlgrapher-util={path="../util"}
+    # strum.workspace=true
+
+[dev-dependencies]
+    sovs-parser = { git = "https://github.com/WebVOWL/sovs-parser", version = "0.1.0", features = ["test-suite"] }
+    grapher={workspace=true, features = ["test-utils"]}
+    anyhow = "1.0.102"

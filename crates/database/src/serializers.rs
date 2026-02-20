@@ -248,9 +248,9 @@ pub struct SerializationDataBuffer {
     /// Stores the ranges of a property, keyed by the property's corresponding id.
     property_range_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
     /// Stores labels of terms, keyed by the term's corresponding id.
-    label_buffer: Arc<RwLock<HashMap<usize, String>>>,
+    label_buffer: Arc<RwLock<HashMap<usize, Option<String>>>>,
     /// Stores labels of edges, keyed by the edge it belongs to.
-    edge_label_buffer: Arc<RwLock<HashMap<ArcEdge, String>>>,
+    edge_label_buffer: Arc<RwLock<HashMap<ArcEdge, Option<String>>>>,
     /// Edges in graph, to avoid duplicates
     edge_buffer: Arc<RwLock<HashSet<ArcEdge>>>,
     /// Maps from an edge to its characteristic.
@@ -321,7 +321,7 @@ impl SerializationDataBuffer {
                 ));
             }
             iricache.insert(term_id, display_data.elements.len());
-            display_data.labels.push(label);
+            display_data.labels.push(label.flatten());
             display_data.elements.push(element);
         }
 
@@ -331,7 +331,7 @@ impl SerializationDataBuffer {
         for edge in self.edge_buffer.read()?.iter() {
             let subject_idx = iricache.get(&edge.domain_term_id);
             let object_idx = iricache.get(&edge.range_term_id);
-            let maybe_label = edge_label_buffer.remove(edge);
+            let maybe_label = edge_label_buffer.remove(edge).flatten();
             let characteristics = edge_characteristics.remove(edge);
             let cardinality = edge_cardinality_buffer.remove(edge);
 
@@ -537,7 +537,7 @@ impl Display for SerializationDataBuffer {
                 .term_index
                 .get(term_id)
                 .map_or_else(|e| e.to_string(), |term| term.to_string());
-            writeln!(f, "\t\t{} : {}", term, label)?;
+            writeln!(f, "\t\t{} : {:?}", term, label)?;
         }
         writeln!(f, "\tedge_buffer:")?;
         for edge in self

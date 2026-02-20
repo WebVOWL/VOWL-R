@@ -54,6 +54,7 @@ pub struct GraphDisplayDataSolutionSerializer {
 }
 
 impl GraphDisplayDataSolutionSerializer {
+    /// Create a new [`GraphDisplayDataSolutionSerializer`]
     pub fn new() -> Self {
         Self::default()
     }
@@ -402,7 +403,7 @@ impl GraphDisplayDataSolutionSerializer {
                     data_buffer
                         .label_buffer
                         .write()?
-                        .insert(*term_id, clean_label);
+                        .insert(*term_id, Some(clean_label));
                 } else {
                     debug!("Empty label detected for term '{}'", term);
                 }
@@ -418,7 +419,7 @@ impl GraphDisplayDataSolutionSerializer {
                             data_buffer
                                 .label_buffer
                                 .write()?
-                                .insert(*term_id, frag.to_string());
+                                .insert(*term_id, Some(frag.to_string()));
                         }
                         // Case 2.2: Look for path in iri
                         None => {
@@ -432,7 +433,7 @@ impl GraphDisplayDataSolutionSerializer {
                                     data_buffer
                                         .label_buffer
                                         .write()?
-                                        .insert(*term_id, path.1.to_string());
+                                        .insert(*term_id, Some(path.1.to_string()));
                                 }
                                 None => {
                                     debug!("No path found in iri '{iri}'");
@@ -739,7 +740,7 @@ impl GraphDisplayDataSolutionSerializer {
                 data_buffer
                     .edge_label_buffer
                     .write()?
-                    .insert(edge.clone(), label.unwrap_or(new_type.to_string()));
+                    .insert(edge.clone(), label);
                 return Ok(Some(edge));
             }
             (None, Some(_)) => {
@@ -1216,10 +1217,9 @@ impl GraphDisplayDataSolutionSerializer {
                 .read()?
                 .get(property_term_id)
                 .cloned()
-                .or_else(|| edge_label_buffer.remove(&old_edge))
-                .unwrap_or_else(|| new_element.to_string());
+                .or_else(|| edge_label_buffer.remove(&old_edge));
 
-            edge_label_buffer.insert(new_edge.clone(), label);
+            edge_label_buffer.insert(new_edge.clone(), label.flatten());
         }
 
         {
@@ -1485,13 +1485,14 @@ impl GraphDisplayDataSolutionSerializer {
                 let left_label = left_edge
                     .as_ref()
                     .and_then(|edge| edge_label_buffer.get(edge))
-                    .or_else(|| label_buffer.get(&left_property));
+                    .or_else(|| label_buffer.get(&left_property))
+                    .and_then(Option::as_ref);
 
                 let right_label = right_edge
                     .as_ref()
                     .and_then(|edge| edge_label_buffer.get(edge))
-                    .or_else(|| label_buffer.get(&right_property));
-
+                    .or_else(|| label_buffer.get(&right_property))
+                    .and_then(Option::as_ref);
                 merge_optional_labels(left_label, right_label)
             };
 
@@ -1558,7 +1559,7 @@ impl GraphDisplayDataSolutionSerializer {
                 data_buffer
                     .edge_label_buffer
                     .write()?
-                    .insert(edge.clone(), label.clone());
+                    .insert(edge.clone(), Some(label.clone()));
             }
 
             if !merged_characteristics.is_empty() {
@@ -1589,10 +1590,10 @@ impl GraphDisplayDataSolutionSerializer {
             label_to_append
         );
         let mut label_buffer = data_buffer.label_buffer.write()?;
-        if let Some(label) = label_buffer.get_mut(element_id) {
+        if let Some(Some(label)) = label_buffer.get_mut(element_id) {
             label.push_str(format!("\n{}", label_to_append).as_str());
         } else {
-            label_buffer.insert(*element_id, label_to_append);
+            label_buffer.insert(*element_id, Some(label_to_append));
         }
         Ok(())
     }
@@ -2292,13 +2293,12 @@ impl GraphDisplayDataSolutionSerializer {
                                     upgraded_element,
                                 )?;
 
-                                let maybe_label = {
-                                    data_buffer
-                                        .label_buffer
-                                        .read()?
-                                        .get(&resolved_object_term_id)
-                                        .cloned()
-                                };
+                                let maybe_label = data_buffer
+                                    .label_buffer
+                                    .read()?
+                                    .get(&resolved_object_term_id)
+                                    .cloned()
+                                    .flatten();
                                 if let Some(label) = maybe_label {
                                     self.extend_element_label(
                                         data_buffer,
@@ -3189,7 +3189,7 @@ impl GraphDisplayDataSolutionSerializer {
                                             data_buffer,
                                             edge_triple.clone(),
                                             property,
-                                            label,
+                                            label.flatten(),
                                         )?;
 
                                         if let Some(edge) = maybe_edge {
@@ -3299,7 +3299,7 @@ impl GraphDisplayDataSolutionSerializer {
             data_buffer
                 .label_buffer
                 .write()?
-                .insert(thing_triple.subject_term_id, thing_element.to_string());
+                .insert(thing_triple.subject_term_id, None);
         }
         {
             data_buffer
@@ -3336,7 +3336,7 @@ impl GraphDisplayDataSolutionSerializer {
             data_buffer
                 .label_buffer
                 .write()?
-                .insert(thing_triple.subject_term_id, thing_element.to_string());
+                .insert(thing_triple.subject_term_id, None);
         }
         {
             data_buffer
@@ -3794,10 +3794,10 @@ impl GraphDisplayDataSolutionSerializer {
                 }
 
                 {
-                    data_buffer
-                        .label_buffer
-                        .write()?
-                        .insert(literal_triple.subject_term_id, element_type.to_string());
+                    data_buffer.label_buffer.write()?.insert(
+                        literal_triple.subject_term_id,
+                        Some(element_type.to_string()),
+                    );
                 }
 
                 Ok(literal_triple.subject_term_id)
@@ -3901,7 +3901,7 @@ impl GraphDisplayDataSolutionSerializer {
         data_buffer
             .label_buffer
             .write()?
-            .insert(subject_term_id, literal.value().to_string());
+            .insert(subject_term_id, Some(literal.value().to_string()));
 
         Ok(subject_term_id)
     }
@@ -3924,9 +3924,9 @@ impl GraphDisplayDataSolutionSerializer {
             object_term_id,
             Some(property_term_id),
         )?;
-        {
-            data_buffer.edge_buffer.write()?.insert(edge.clone());
-        }
+
+        data_buffer.edge_buffer.write()?.insert(edge.clone());
+
         self.insert_edge_include(data_buffer, subject_term_id, edge.clone())?;
         self.insert_edge_include(data_buffer, object_term_id, edge.clone())?;
 
@@ -3934,7 +3934,7 @@ impl GraphDisplayDataSolutionSerializer {
             data_buffer
                 .edge_label_buffer
                 .write()?
-                .insert(edge.clone(), label);
+                .insert(edge.clone(), Some(label));
         }
         if let Some(cardinality) = cardinality {
             data_buffer
@@ -4073,6 +4073,7 @@ impl GraphDisplayDataSolutionSerializer {
                         .get(&property_term_id)
                         .and_then(|edge| edge_label_buffer.get(edge).cloned())
                 })
+                .flatten()
                 .unwrap_or_else(|| restriction_edge_type.to_string())
         };
 
@@ -4094,10 +4095,10 @@ impl GraphDisplayDataSolutionSerializer {
                 let filler_term = data_buffer.term_index.get(filler_id)?;
                 match &*filler_term {
                     Term::Literal(literal) => {
-                        data_buffer
-                            .label_buffer
-                            .write()?
-                            .insert(existing_edge.range_term_id, literal.value().to_string());
+                        data_buffer.label_buffer.write()?.insert(
+                            existing_edge.range_term_id,
+                            Some(literal.value().to_string()),
+                        );
                         existing_edge.range_term_id
                     }
                     _ => match self.resolve(data_buffer, *filler_id)? {
@@ -4141,12 +4142,12 @@ impl GraphDisplayDataSolutionSerializer {
                     }
                 }
             };
-            {
-                data_buffer
-                    .edge_label_buffer
-                    .write()?
-                    .insert(edge.clone(), restriction_label);
-            }
+
+            data_buffer
+                .edge_label_buffer
+                .write()?
+                .insert(edge.clone(), Some(restriction_label));
+
             if let Some(cardinality) = &state.cardinality {
                 data_buffer
                     .edge_cardinality_buffer
