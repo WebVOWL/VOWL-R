@@ -1,6 +1,6 @@
 services:
     vowlr:
-        image: ghcr.io/webvowl/webvowl-reimagined:latest
+        image: ghcr.io/webvowl/vowl-r:latest
         container_name: vowl-r
         ports:
             - 8080:8080

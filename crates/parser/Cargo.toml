@@ -6,7 +6,7 @@
     license-file="LICENSE"
     name="vowlr-parser"
     readme="README.md"
-    repository="https://github.com/WebVOWL/WebVOWL-Reimagined"
+    repository="https://github.com/WebVOWL/VOWL-R"
     version="0.1.0"
 
 [lib]
@@ -24,4 +24,4 @@
     vowlr-util={path="../util"}
 
 [dev-dependencies]
-env_logger.workspace = true
+    env_logger.workspace=true

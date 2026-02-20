@@ -9,7 +9,7 @@ pub fn VowlrDesc() -> impl IntoView {
         <div class="flex gap-4">
             <a
                 class="text-2xl transition"
-                href="https://github.com/WebVOWL/WebVOWL-Reimagined"
+                href="https://github.com/WebVOWL/VOWL-R"
             >
                 <Icon icon=icondata::AiGithubFilled />
             </a>
