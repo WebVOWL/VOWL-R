@@ -736,28 +736,11 @@ impl GraphDisplayDataSolutionSerializer {
                     // owl::DISTINCT_MEMBERS => {}
                     owl::EQUIVALENT_CLASS => {
                         let (index_s, index_o) = self.resolve_so(data_buffer, &triple);
-                        // this should work when reintroducing unknown buffer
-                        // TODO: We should rework how unknowns are handled
-                        // especially blank nodes.
-                        // Instead of working directly with the databuffer, we should keep a temporary
-                        // datastructure, which we can mutate while serializing, then converting said
-                        // structure to the databuffer at the end. This will allow us to handle merging/unknowns gracefully.
-                        // this will also allow us to use blanknode mapping (should be renamed), in conjunction with
-                        // iricache to resolve.
-                        // An example:
-                        // Mother : equivalentClass : blanknode1
-                        // blanknode1 : rdf:type : owl:Class
-                        // blanknode1 : owl:intersectionOf : blanknode2
-                        // blanknode2 : collection (which we flatten) : blanknode3
-                        // blanknode3 : owl:intersectionOf : Parent
-                        // blanknode3 : owl:intersectionOf : Warden
-                        // etc.
-                        // - When we first meet blanknode1: add to unknown
-                        //
-                        //
                         match (index_s, index_o) {
                             (Some(index_s), Some(index_o)) => {
                                 self.merge_nodes(data_buffer, &index_o, &index_s);
+
+                                // SAFETY: If index_s is Some it exists in node_element_buffer.
                                 if !data_buffer.node_element_buffer[&index_s]
                                     .eq(&ElementType::Owl(OwlType::Node(OwlNode::AnonymousClass)))
                                 {
@@ -766,11 +749,14 @@ impl GraphDisplayDataSolutionSerializer {
                                         &index_s,
                                         ElementType::Owl(OwlType::Node(OwlNode::EquivalentClass)),
                                     );
-                                    self.extend_element_label(
-                                        data_buffer,
-                                        &index_s,
-                                        data_buffer.label_buffer[&index_o].clone(),
-                                    );
+                                    // AnonymousClass does not have label!
+                                    if let Some(label) = data_buffer.label_buffer.get(&index_o) {
+                                        self.extend_element_label(
+                                            data_buffer,
+                                            &index_s,
+                                            label.clone(),
+                                        );
+                                    }
                                 }
                             }
                             (Some(_), None) => match triple.target.clone() {
