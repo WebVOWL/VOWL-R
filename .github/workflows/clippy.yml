@@ -16,7 +16,11 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     ## rust cache includes toolchain in key
-    - run: rustup toolchain install stable --profile minimal
+    - run: rustup toolchain install
     - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: true
+        cache-workspace-crates: true
+        cache-all-crates: true
     - name: Run Clippy
-      run: cargo clippy --all-targets --all-features --workspace
+      run: cargo clippy --all-targets --all-features --workspace --locked --no-deps
