@@ -1,5 +1,7 @@
+mod stored_ontology;
 use super::error_log::ErrorLogContext;
 use super::{GraphDataContext, WorkbenchMenuItems};
+use crate::components::progress_bar::LoadingCircle;
 use crate::components::{
     icon::Icon,
     user_input::file_upload::{FileUpload, handle_internal_sparql},
@@ -13,16 +15,20 @@ use web_sys::HtmlInputElement;
 
 #[component]
 pub fn SelectStaticInput() -> impl IntoView {
-    let selected_ontology = RwSignal::new("Friend of a Friend (FOAF) vocabulary".to_string());
+    let GraphDataContext {
+        graph_data,
+        total_graph_data,
+    } = expect_context::<GraphDataContext>();
+    let error_log = expect_context::<ErrorLogContext>();
+    let selected_ontology = RwSignal::new(String::new());
+    let loading = RwSignal::new(false);
 
     let ontologies = move || {
         vec![
-            "Friend of a Friend (FOAF) vocabulary".to_string(),
-            "GoodRelations Vocabulary for E-Commerce".to_string(),
-            "Modular and Unified Tagging Ontology (MUTO)".to_string(),
-            "Personas Ontology (PersonasOnto)".to_string(),
-            "SIOC (Semantically-Interlinked Online Communities) Core Ontology".to_string(),
-            "Benchmark Graph for VOWL".to_string(),
+            "Friend of a Friend (FOAF) vocabulary (22 classes)".to_string(),
+            "Clinical Trials Ontology (CTO) (273 classes)".to_string(),
+            "VOWL-R Benchmark Ontology (2.5k nodes)".to_string(),
+            "The Environment Ontology (6.9k classes)".to_string(),
         ]
         .into_iter()
         .map(|ontology| {
@@ -42,11 +48,46 @@ pub fn SelectStaticInput() -> impl IntoView {
                     let target: HtmlInputElement = event_target::<
                         HtmlInputElement,
                     >(&ev);
-                    selected_ontology.set(target.value());
+                    let name = target.value();
+                    if name.is_empty() {
+                        return;
+                    }
+                    selected_ontology.set(name.clone());
+                    loading.set(true);
+                    spawn_local(async move {
+                        match stored_ontology::load_stored_ontology(name).await {
+                            Ok(new_graph_data) => {
+                                graph_data.set(new_graph_data.clone());
+                                total_graph_data.set(new_graph_data.clone());
+                                let _ = EVENT_DISPATCHER
+                                    .rend_write_chan
+                                    .send(RenderEvent::LoadGraph(new_graph_data));
+                            }
+                            Err(e) => {
+                                let err_msg = format!("Error loading stored ontology: {e}");
+                                error_log.errors.update(|errors| errors.push(err_msg));
+                            }
+                        }
+                        loading.set(false);
+                    });
                 }
             >
+                <option value="" disabled=true selected=true>
+                    "Select an ontology"
+                </option>
                 {ontologies()}
             </select>
+            {move || {
+                loading
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="mt-1 text-sm text-center">
+                                <LoadingCircle />
+                            </div>
+                        }
+                    })
+            }}
         </div>
     }
 }
@@ -173,10 +214,12 @@ pub fn UploadInput() -> impl IntoView {
                     for="file-upload"
                     class="block p-1 w-full bg-gray-200 rounded border-b-0"
                 >
-                    {move || if file_name.get().is_empty() {
-                        "Select ontology file".to_string()
-                    } else {
-                        file_name.get()
+                    {move || {
+                        if file_name.get().is_empty() {
+                            "Select ontology file".to_string()
+                        } else {
+                            file_name.get()
+                        }
                     }}
                 </label>
             </div>
