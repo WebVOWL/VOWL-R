@@ -1,3 +1,4 @@
+pub mod characteristic;
 pub mod element_type;
 pub mod general;
 pub mod generic;
