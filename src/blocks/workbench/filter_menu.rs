@@ -80,7 +80,7 @@ pub fn FilterMenu() -> impl IntoView {
     let element_checks = RwSignal::new(HashMap::new());
 
     element_checks.update_untracked(|map| {
-        for elem in element_counts.read().keys() {
+        for elem in element_counts.read_untracked().keys() {
             map.insert(*elem, true);
         }
     });
