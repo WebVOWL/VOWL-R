@@ -8,7 +8,10 @@ use grapher::prelude::{ElementType, GraphDisplayData, OwlEdge, OwlType};
 use log::error;
 use oxrdf::Term;
 
-use crate::{PROPERTY_EDGE_TYPES, SYMMETRIC_EDGE_TYPES};
+use crate::{
+    errors::SerializationError,
+    serializers::util::{PROPERTY_EDGE_TYPES, SYMMETRIC_EDGE_TYPES},
+};
 
 pub mod frontend;
 pub mod util;
@@ -229,7 +232,7 @@ pub struct SerializationDataBuffer {
     /// Each element is a tuple of:
     /// - 0 = The triple (if any).
     /// - 1 = The reason it failed to serialize (or the message if no triple is available).
-    failed_buffer: Vec<(Option<Triple>, String)>,
+    failed_buffer: Vec<SerializationError>,
     /// The base IRI of the document.
     ///
     /// For instance: `http://purl.obolibrary.org/obo/envo.owl`

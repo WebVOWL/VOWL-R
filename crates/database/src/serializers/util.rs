@@ -3,6 +3,19 @@ use std::collections::HashSet;
 use crate::vocab::owl;
 use rdf_fusion::model::vocab::{rdf, rdfs};
 
+pub const SYMMETRIC_EDGE_TYPES: [ElementType; 1] =
+    [ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))];
+
+pub const PROPERTY_EDGE_TYPES: [ElementType; 7] = [
+    ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+    ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty)),
+    ElementType::Owl(OwlType::Edge(OwlEdge::DeprecatedProperty)),
+    ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty)),
+    ElementType::Owl(OwlType::Edge(OwlEdge::ValuesFrom)),
+    ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)),
+    ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty)),
+];
+
 /// Reserved IRIs should not be overridden by e.g. "external class" ElementType.
 pub fn get_reserved_iris() -> HashSet<String> {
     let rdf = vec![rdf::XML_LITERAL];

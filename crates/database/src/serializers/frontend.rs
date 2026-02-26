@@ -6,7 +6,7 @@ use std::{
 
 use super::{Edge, SerializationDataBuffer, Triple};
 use crate::{
-    SerializationError, SerializationErrorExt, ser_err,
+    SerializationError, SerializationErrorKind, /*SerializationErrorExt, ser_err*/
     serializers::util::{get_reserved_iris, trim_tag_circumfix},
     vocab::owl,
 };
