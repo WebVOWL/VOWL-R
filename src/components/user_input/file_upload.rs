@@ -15,7 +15,9 @@ use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "server")]
 use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, QueryResults, VOWLRStore};
-use vowlr_util::prelude::DataType;
+#[cfg(feature = "server")]
+use vowlr_parser::errors::VOWLRStoreError;
+use vowlr_util::prelude::{DataType, VOWLRServerError};
 use web_sys::{FileList, FormData};
 
 #[cfg(feature = "ssr")]
@@ -121,10 +123,7 @@ pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), Serv
         }
     }
 
-    session
-        .complete_upload()
-        .await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    session.complete_upload().await?;
     Ok((dtype, count))
 }
 
@@ -159,10 +158,7 @@ pub async fn handle_remote(url: String) -> Result<(DataType, usize), ServerFnErr
             chunk_result.map_err(|e| ServerFnError::new(format!("Error reading chunk: {e}")))?;
 
         total += chunk.len();
-        session
-            .upload_chunk(&chunk)
-            .await
-            .map_err(|e| ServerFnError::new(e.to_string()))?;
+        session.upload_chunk(&chunk).await?;
         progress::add_chunk(&progress_key, chunk.len()).await;
     }
 
@@ -199,10 +195,7 @@ pub async fn handle_sparql(
 
     let progress_key = format!("sparql-{endpoint}");
     progress::reset(&progress_key);
-    session
-        .start_upload(&progress_key)
-        .await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    session.start_upload(&progress_key).await?;
 
     let mut total = 0;
     let mut stream = resp.bytes_stream();
@@ -219,10 +212,7 @@ pub async fn handle_sparql(
     }
 
     progress::remove(&progress_key);
-    session
-        .complete_upload()
-        .await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    session.complete_upload().await?;
 
     let dtype = if accept_type.contains("xml") {
         DataType::SPARQLXML
@@ -233,9 +223,7 @@ pub async fn handle_sparql(
 }
 
 #[server (input = Rkyv, output = Rkyv)]
-pub async fn handle_internal_sparql(
-    query: String,
-) -> Result<GraphDisplayData, ServerFnError<String>> {
+pub async fn handle_internal_sparql(query: String) -> Result<GraphDisplayData, VOWLRServerError> {
     let vowlr = VOWLRStore::default();
 
     let mut data_buffer = GraphDisplayData::new();
@@ -244,7 +232,7 @@ pub async fn handle_internal_sparql(
         .session
         .query(query.as_str())
         .await
-        .map_err(|e| ServerFnError::ServerError(format!("SPARQL query failed: {e}")))?;
+        .map_err(|e| <VOWLRStoreError as Into<VOWLRServerError>>::into(e.into()))?;
     if let QueryResults::Solutions(solutions) = query_stream {
         solution_serializer
             .serialize_nodes_stream(&mut data_buffer, solutions)
@@ -252,7 +240,8 @@ pub async fn handle_internal_sparql(
     } else {
         return Err(ServerFnError::ServerError(
             "Query stream is not a solutions stream".to_string(),
-        ));
+        )
+        .into());
     }
     Ok(data_buffer)
 }
