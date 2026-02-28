@@ -3,39 +3,6 @@ use oxrdf::{BlankNodeIdParseError, IriParseError};
 use vowlr_parser::errors::VOWLRStoreError;
 use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType};
 
-// pub trait SerializationErrorExt {
-//     fn triple(&self) -> Option<&Triple>;
-// }
-
-// macro_rules! ser_err {
-//     ($variant:ident($triple:expr, $msg:expr)) => {
-//         $crate::SerializationErrorKind::$variant(($triple).map(Box::new), $msg)
-//     };
-// }
-// pub(crate) use ser_err;
-
-// #[derive(Debug)]
-// pub enum SerializationErrorKind {
-//     MissingObject(Option<Box<Triple>>, String),
-//     MissingSubject(Option<Box<Triple>>, String),
-//     SerializationFailed(Option<Box<Triple>>, String),
-//     IriParseError(Option<Box<Triple>>, Box<IriParseError>),
-//     BlankNodeParseError(Option<Box<Triple>>, Box<BlankNodeIdParseError>),
-// }
-// impl SerializationErrorExt for SerializationErrorKind {
-//     fn triple(&self) -> Option<&Triple> {
-//         match &self {
-//             SerializationErrorKind::MissingObject(triple, _)
-//             | SerializationErrorKind::MissingSubject(triple, _)
-//             | SerializationErrorKind::SerializationFailed(triple, _)
-//             | SerializationErrorKind::IriParseError(triple, _)
-//             | SerializationErrorKind::BlankNodeParseError(triple, _) => {
-//                 triple.as_ref().map(|t| &**t)
-//             }
-//         }
-//     }
-// }
-
 #[derive(Debug)]
 pub enum SerializationErrorKind {
     /// An error raised when the object of a triple is required but missing.
@@ -60,39 +27,11 @@ impl std::fmt::Display for SerializationError {
     }
 }
 
-// impl SerializationErrorExt for SerializationError {
-//     fn triple(&self) -> Option<&Triple> {
-//         self.inner.triple()
-//     }
-// }
-
 impl From<SerializationErrorKind> for SerializationError {
     fn from(error: SerializationErrorKind) -> Self {
         SerializationError { inner: error }
     }
 }
-
-// impl From<IriParseError> for SerializationError {
-//     fn from(error: IriParseError) -> Self {
-//         SerializationError {
-//             inner: SerializationErrorKind::IriParseError(None, Box::new(error)),
-//         }
-//     }
-// }
-
-// impl From<SerializationError> for VOWLRStoreError {
-//     fn from(error: SerializationError) -> Self {
-//         VOWLRStoreError::from(error.to_string())
-//     }
-// }
-
-// impl From<BlankNodeIdParseError> for SerializationError {
-//     fn from(error: BlankNodeIdParseError) -> Self {
-//         SerializationError {
-//             inner: SerializationErrorKind::BlankNodeParseError(None, Box::new(error)),
-//         }
-//     }
-// }
 
 impl From<SerializationError> for ErrorRecord {
     fn from(value: SerializationError) -> Self {
