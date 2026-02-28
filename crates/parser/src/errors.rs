@@ -8,7 +8,7 @@ use rdf_fusion::{
     model::{IriParseError, StorageError},
 };
 use tokio::task::JoinError;
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType};
+use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRServerError};
 
 #[derive(Debug)]
 pub enum VOWLRStoreErrorKind {
@@ -160,7 +160,9 @@ impl From<VOWLRStoreError> for ErrorRecord {
             VOWLRStoreErrorKind::HornedError(horned_error) => {
                 (horned_error.to_string(), ErrorType::Parser)
             }
-            VOWLRStoreErrorKind::IOError(error) => (error.to_string(), ErrorType::Generic),
+            VOWLRStoreErrorKind::IOError(error) => {
+                (error.to_string(), ErrorType::InternalServerError)
+            }
             VOWLRStoreErrorKind::IriParseError(iri_parse_error) => {
                 (iri_parse_error.to_string(), ErrorType::Parser)
             }
@@ -171,7 +173,7 @@ impl From<VOWLRStoreError> for ErrorRecord {
                 (query_evaluation_error.to_string(), ErrorType::Database)
             }
             VOWLRStoreErrorKind::JoinError(join_error) => {
-                (join_error.to_string(), ErrorType::Generic)
+                (join_error.to_string(), ErrorType::InternalServerError)
             }
             VOWLRStoreErrorKind::StorageError(storage_error) => {
                 (storage_error.to_string(), ErrorType::Database)
@@ -184,5 +186,12 @@ impl From<VOWLRStoreError> for ErrorRecord {
             #[cfg(debug_assertions)]
             value.location.to_string(),
         )
+    }
+}
+
+impl From<VOWLRStoreError> for VOWLRServerError {
+    fn from(value: VOWLRStoreError) -> Self {
+        let record: ErrorRecord = value.into();
+        record.into()
     }
 }
