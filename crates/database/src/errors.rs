@@ -1,6 +1,5 @@
 use crate::serializers::Triple;
 use oxrdf::{BlankNodeIdParseError, IriParseError};
-use vowlr_parser::errors::VOWLRStoreError;
 use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType};
 
 #[derive(Debug)]
@@ -37,20 +36,20 @@ impl From<SerializationError> for ErrorRecord {
     fn from(value: SerializationError) -> Self {
         let (message, severity) = match value.inner {
             SerializationErrorKind::MissingObject(triple, e) => {
-                (format!("{e}\n{triple}"), ErrorSeverity::Warning)
+                (format!("{e}:\n{triple}"), ErrorSeverity::Warning)
             }
             SerializationErrorKind::MissingSubject(triple, e) => {
-                (format!("{e}\n{triple}"), ErrorSeverity::Warning)
+                (format!("{e}:\n{triple}"), ErrorSeverity::Warning)
             }
             SerializationErrorKind::SerializationFailed(triple, e) => {
-                (format!("{e}\n{triple}"), ErrorSeverity::Critical)
+                (format!("{e}:\n{triple}"), ErrorSeverity::Critical)
             }
-            SerializationErrorKind::IriParseError(triple, iri_parse_error) => (
-                format!("{iri_parse_error}\n{triple}"),
+            SerializationErrorKind::IriParseError(iri, iri_parse_error) => (
+                format!("{iri_parse_error} (IRI: {iri})"),
                 ErrorSeverity::Severe,
             ),
-            SerializationErrorKind::BlankNodeParseError(triple, blank_node_id_parse_error) => (
-                format!("{blank_node_id_parse_error}\n{triple}"),
+            SerializationErrorKind::BlankNodeParseError(id, blank_node_id_parse_error) => (
+                format!("{blank_node_id_parse_error} (ID: {id})"),
                 ErrorSeverity::Severe,
             ),
         };
