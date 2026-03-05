@@ -106,7 +106,7 @@ impl GraphDisplayDataSolutionSerializer {
         debug!("{}", data_buffer);
         if !data_buffer.failed_buffer.is_empty() {
             let total = data_buffer.failed_buffer.len();
-            let err = data_buffer.failed_buffer.into();
+            let err: VOWLRServerError = take(&mut data_buffer.failed_buffer).into();
             error!("Failed to serialize {} triples:\n{}", total, err);
             return Err(err);
         }
