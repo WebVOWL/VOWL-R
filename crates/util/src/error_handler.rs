@@ -6,8 +6,6 @@ use leptos::{
     server_fn::{Decodes, Encodes, codec::RkyvEncoding, error::IntoAppError},
     view,
 };
-
-// use leptos_struct_table::*;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "server")]
@@ -56,15 +54,6 @@ impl ErrorSeverity {
     }
 }
 
-// impl CellValue for ErrorSeverity {
-//     type RenderOptions = ();
-
-//     // #[allow(unused)]
-//     fn render_value(self, _options: Self::RenderOptions) -> impl IntoView {
-//         self.to_string()
-//     }
-// }
-
 #[derive(
     Debug,
     Copy,
@@ -94,30 +83,10 @@ pub enum ErrorType {
     ClientError,
 }
 
-// impl CellValue for ErrorType {
-//     type RenderOptions = ();
-
-//     fn render_value(self, _options: Self::RenderOptions) -> impl IntoView {
-//         self.to_string()
-//     }
-// }
-
 #[derive(
-    Debug,
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    Serialize,
-    Deserialize,
-    // TableRow,
+    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Serialize, Deserialize,
 )]
 #[cfg_attr(feature = "server", derive(Tabled))]
-// #[table(
-//     // sortable,
-//     impl_vec_data_provider,
-//     classes_provider = "TailwindClassesPreset"
-// )]
 /// The fundamental building block of the error handling system.
 ///
 /// It stores the data of a single error event.
