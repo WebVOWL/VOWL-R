@@ -1,5 +1,3 @@
-// use std::ops::Range;
-
 use super::WorkbenchMenuItems;
 use crate::components::table::Table;
 use leptos::prelude::*;
@@ -62,33 +60,8 @@ impl Default for ErrorLogContext {
     }
 }
 
-// impl TableDataProvider<ErrorRecord, usize> for ErrorLogContext {
-//     async fn get_rows(
-//         &self,
-//         range: Range<usize>,
-//     ) -> Result<(Vec<ErrorRecord>, Range<usize>), String> {
-//         let records = self.records.read();
-//         if records.is_empty() {
-//             return Ok((vec![], 0..0));
-//         }
-
-//         let start = range.start.min(records.len() - 1);
-//         let end = range.end.min(records.len());
-
-//         let return_range = start..end;
-
-//         Ok((records[return_range.clone()].to_vec(), return_range))
-//     }
-
-//     async fn row_count(&self) -> Option<usize> {
-//         Some(self.len())
-//     }
-
-//     // fn set_sorting(&mut self, sorting: &std::collections::VecDeque<(usize, ColumnSort)>) {}
-// }
-
-impl From<VOWLRServerError> for ErrorLogContext {
-    fn from(value: VOWLRServerError) -> Self {
+impl From<VOWLRError> for ErrorLogContext {
+    fn from(value: VOWLRError) -> Self {
         Self::new(value.records)
     }
 }
