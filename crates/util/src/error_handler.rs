@@ -124,7 +124,7 @@ impl ErrorRecord {
             error_type,
             message,
             #[cfg(debug_assertions)]
-            location,
+            location: location.unwrap_or("Unknown".to_string()),
         }
     }
 
@@ -201,7 +201,7 @@ impl From<ServerFnError> for ErrorRecord {
             error_type,
             message,
             #[cfg(debug_assertions)]
-            "N/A".to_string(),
+            None,
         )
     }
 }

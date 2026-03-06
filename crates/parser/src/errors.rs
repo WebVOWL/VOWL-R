@@ -184,7 +184,7 @@ impl From<VOWLRStoreError> for ErrorRecord {
             error_type,
             message,
             #[cfg(debug_assertions)]
-            value.location.to_string(),
+            Some(value.location.to_string()),
         )
     }
 }
