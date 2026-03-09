@@ -35,25 +35,6 @@ pub enum ErrorSeverity {
     Unset,
 }
 
-impl ErrorSeverity {
-    // TODO: Work in progress. Pls don't remove format!
-    pub fn description(&self) -> String {
-        match self {
-            Self::Critical => format!(
-                "an unrecoverable error which makes VOWL-R unusable (do not use the output of VOWL-R!)"
-            ),
-            Self::Error => format!(
-                "an error which highly disrupts the user experience (the output of VOWL-R is likely incorrect)"
-            ),
-
-            Self::Warning => format!(
-                "something happened which may reduce the user experience (but can otherwise be ignored)"
-            ),
-            Self::Unset => format!("unknown severity"),
-        }
-    }
-}
-
 #[derive(
     Debug,
     Copy,
