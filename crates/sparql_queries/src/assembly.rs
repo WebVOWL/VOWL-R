@@ -27,7 +27,7 @@ impl QueryAssembler {
         format!(
             r#"
             {}
-            SELECT ?id ?nodeType ?target ?label
+            SELECT DISTINCT ?id ?nodeType ?target ?label
             WHERE {{
                 {}
                 BIND(
