@@ -1,28 +1,42 @@
 use std::{io::Error, panic::Location};
 
 use horned_owl::error::HornedError;
+
 use rdf_fusion::{
     error::LoaderError,
     execution::sparql::error::QueryEvaluationError,
     model::{IriParseError, StorageError},
 };
 use tokio::task::JoinError;
+use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError};
 
 #[derive(Debug)]
 pub enum VOWLRStoreErrorKind {
-    InvalidInput(String),
+    /// The file type is not supported by the server.
+    ///
+    /// Example: server only supports `.owl` and is given `.png`
+    InvalidFileType(String),
+    /// An error raised by Horned-OWL during parsing (of OWL files).
     HornedError(HornedError),
+    /// Generic IO error.
     IOError(std::io::Error),
+    /// An error raised while trying to parse an invalid IRI.
     IriParseError(IriParseError),
+    /// An error raised while loading a file into a Store (database).
     LoaderError(LoaderError),
+    /// A SPARQL evaluation error.
     QueryEvaluationError(QueryEvaluationError),
+    /// A Tokio task failed to execute to completion.
     JoinError(JoinError),
+    /// An error related to (database) storage operations (reads, writes...).
     StorageError(StorageError),
 }
 
 #[derive(Debug)]
 pub struct VOWLRStoreError {
+    /// The contained error type.
     inner: VOWLRStoreErrorKind,
+    /// The error's location in the source code.
     location: &'static Location<'static>,
 }
 
@@ -35,7 +49,7 @@ impl From<String> for VOWLRStoreError {
     #[track_caller]
     fn from(error: String) -> Self {
         VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::InvalidInput(error),
+            inner: VOWLRStoreErrorKind::InvalidFileType(error),
             location: Location::caller(),
         }
     }
@@ -127,7 +141,7 @@ impl std::fmt::Display for VOWLRStoreError {
 impl std::error::Error for VOWLRStoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.inner {
-            VOWLRStoreErrorKind::InvalidInput(_) => None,
+            VOWLRStoreErrorKind::InvalidFileType(_) => None,
             VOWLRStoreErrorKind::HornedError(e) => Some(e),
             VOWLRStoreErrorKind::IOError(e) => Some(e),
             VOWLRStoreErrorKind::IriParseError(e) => Some(e),
@@ -136,5 +150,48 @@ impl std::error::Error for VOWLRStoreError {
             VOWLRStoreErrorKind::JoinError(e) => Some(e),
             VOWLRStoreErrorKind::StorageError(e) => Some(e),
         }
+    }
+}
+
+impl From<VOWLRStoreError> for ErrorRecord {
+    fn from(value: VOWLRStoreError) -> Self {
+        let (message, error_type) = match value.inner {
+            VOWLRStoreErrorKind::InvalidFileType(e) => (e, ErrorType::Parser),
+            VOWLRStoreErrorKind::HornedError(horned_error) => {
+                (horned_error.to_string(), ErrorType::Parser)
+            }
+            VOWLRStoreErrorKind::IOError(error) => {
+                (error.to_string(), ErrorType::InternalServerError)
+            }
+            VOWLRStoreErrorKind::IriParseError(iri_parse_error) => {
+                (iri_parse_error.to_string(), ErrorType::Parser)
+            }
+            VOWLRStoreErrorKind::LoaderError(loader_error) => {
+                (loader_error.to_string(), ErrorType::Database)
+            }
+            VOWLRStoreErrorKind::QueryEvaluationError(query_evaluation_error) => {
+                (query_evaluation_error.to_string(), ErrorType::Database)
+            }
+            VOWLRStoreErrorKind::JoinError(join_error) => {
+                (join_error.to_string(), ErrorType::InternalServerError)
+            }
+            VOWLRStoreErrorKind::StorageError(storage_error) => {
+                (storage_error.to_string(), ErrorType::Database)
+            }
+        };
+        ErrorRecord::new(
+            ErrorSeverity::Critical,
+            error_type,
+            message,
+            #[cfg(debug_assertions)]
+            Some(value.location.to_string()),
+        )
+    }
+}
+
+impl From<VOWLRStoreError> for VOWLRError {
+    fn from(value: VOWLRStoreError) -> Self {
+        let record: ErrorRecord = value.into();
+        record.into()
     }
 }

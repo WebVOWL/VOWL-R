@@ -1,46 +1,103 @@
 use super::WorkbenchMenuItems;
+use crate::components::table::Table;
+use leptos::either::Either;
 use leptos::prelude::*;
+use vowlr_util::prelude::{ErrorRecord, VOWLRError};
 
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct ErrorLogContext {
-    pub errors: RwSignal<Vec<String>>,
+    pub records: RwSignal<Vec<ErrorRecord>>,
+}
+
+impl ErrorLogContext {
+    pub fn new(records: Vec<ErrorRecord>) -> Self {
+        Self {
+            records: RwSignal::new(records),
+        }
+    }
+
+    /// Appends an element to the back of a collection.
+    ///
+    /// # Panics
+    /// Panics if you update the value of the signal of `self` before this function returns.
+    pub fn push(&self, record: ErrorRecord) {
+        self.records.update(|records| records.push(record));
+    }
+
+    /// Extends a collection with the contents of an iterator.
+    ///
+    /// # Panics
+    /// Panics if you update the value of the signal of `self` before this function returns.
+    pub fn extend(&self, records: Vec<ErrorRecord>) {
+        self.records.update(|records_| records_.extend(records));
+    }
+
+    #[expect(unused)]
+    /// Clears the collection, removing all values.
+    ///
+    /// Note that this method has no effect on the allocated capacity of the vector.
+    ///
+    /// # Panics
+    /// Panics if you update the value of the signal of `self` before this function returns.
+    pub fn clear(&self) {
+        // self.records.update(|records| records.clear());
+        self.records.update(std::vec::Vec::clear);
+    }
+
+    /// Returns the number of elements in the collection, also referred to as its 'length'
+    ///
+    /// # Panics
+    /// Panics if you try to access the signal of `self` when it has been disposed.
+    pub fn len(&self) -> usize {
+        self.records.read().len()
+    }
+
+    /// Returns `true` if the vector contains no elements.
+    ///
+    /// # Panics
+    /// Panics if you try to access the signal of `self` when it has been disposed.
+    pub fn is_empty(&self) -> bool {
+        self.records.read().is_empty()
+    }
+}
+
+impl Default for ErrorLogContext {
+    fn default() -> Self {
+        Self {
+            records: RwSignal::new(Vec::new()),
+        }
+    }
+}
+
+impl From<VOWLRError> for ErrorLogContext {
+    fn from(value: VOWLRError) -> Self {
+        Self::new(value.records)
+    }
 }
 
 pub fn ErrorLog() -> impl IntoView {
-    fn unescape_log(s: &str) -> String {
-        s.replace("\\n", "\n").replace("\\t", "\t")
-    }
-
-    let error_log = expect_context::<ErrorLogContext>();
+    let error_context = expect_context::<ErrorLogContext>();
 
     view! {
         {move || {
-            let errors = error_log.errors.get();
-            view! {
-                <div class="overflow-y-auto p-2 mt-2 bg-red-50 rounded border border-red-200 max-h-130">
-                    {if errors.is_empty() {
-                        view! { <p class="text-xs text-gray-600">"No errors"</p> }
-                            .into_any()
-                    } else {
-                        view! {
-                            <ul class="space-y-1 text-xs text-red-700">
-                                {errors
-                                    .into_iter()
-                                    .map(|err| {
-                                        let err = unescape_log(&err);
-                                        view! {
-                                            <li class="font-mono whitespace-pre-wrap">"• " {err}</li>
-                                        }
-                                    })
-                                    .collect_view()}
+            if error_context.is_empty() {
+                Either::Left(
+                    view! {
+                        <p class="font-sans text-xl antialiased font-normal leading-normal text-blue-gray-900">
+                            "No errors"
+                        </p>
+                    },
+                )
+            } else {
+                Either::Right(
 
-                            </ul>
-                        }
-                            .into_any()
-                    }}
-                </div>
+                    view! {
+                        <div class="min-w-250 md:min-w-[80vw]">
+                            <Table items=error_context.records />
+                        </div>
+                    },
+                )
             }
-                .into_any()
         }}
     }
 }

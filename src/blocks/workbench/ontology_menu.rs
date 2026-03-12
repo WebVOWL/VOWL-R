@@ -19,7 +19,7 @@ pub fn SelectStaticInput() -> impl IntoView {
         graph_data,
         total_graph_data,
     } = expect_context::<GraphDataContext>();
-    let error_log = expect_context::<ErrorLogContext>();
+    let error_context = expect_context::<ErrorLogContext>();
     let selected_ontology = RwSignal::new(String::new());
     let loading = RwSignal::new(false);
 
@@ -64,8 +64,7 @@ pub fn SelectStaticInput() -> impl IntoView {
                                     .send(RenderEvent::LoadGraph(new_graph_data));
                             }
                             Err(e) => {
-                                let err_msg = format!("Error loading stored ontology: {e}");
-                                error_log.errors.update(|errors| errors.push(err_msg));
+                                error_context.extend(e.records);
                             }
                         }
                         loading.set(false);
@@ -98,7 +97,7 @@ pub fn UploadInput() -> impl IntoView {
         graph_data,
         total_graph_data,
     } = expect_context::<GraphDataContext>();
-    let error_log = expect_context::<ErrorLogContext>();
+    let error_context = expect_context::<ErrorLogContext>();
     let upload = FileUpload::new();
     let local_loading_done = upload.local_action.value();
     let remote_loading_done = upload.remote_action.value();
@@ -123,14 +122,12 @@ pub fn UploadInput() -> impl IntoView {
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
                         Err(e) => {
-                            let err_msg = format!("Error processing file: {e}");
-                            error_log.errors.update(|errors| errors.push(err_msg));
+                            error_context.extend(e.records);
                         }
                     }
                 }),
                 Err(e) => {
-                    let err_msg = format!("Error loading file: {e}");
-                    error_log.errors.update(|errors| errors.push(err_msg));
+                    error_context.push(e.into());
                 }
             }
         }
@@ -150,14 +147,12 @@ pub fn UploadInput() -> impl IntoView {
                                 .send(RenderEvent::LoadGraph(new_graph_data));
                         }
                         Err(e) => {
-                            let err_msg = format!("Error processing URL: {e}");
-                            error_log.errors.update(|errors| errors.push(err_msg));
+                            error_context.extend(e.records);
                         }
                     }
                 }),
                 Err(e) => {
-                    let err_msg = format!("Error loading from URL: {e}");
-                    error_log.errors.update(|errors| errors.push(err_msg));
+                    error_context.push(e.into());
                 }
             }
         }
@@ -275,7 +270,7 @@ pub fn UploadInput() -> impl IntoView {
 
 #[component]
 pub fn FetchData() -> impl IntoView {
-    let error_log = expect_context::<ErrorLogContext>();
+    let error_context = expect_context::<ErrorLogContext>();
 
     let handle_reload = move || {
         spawn_local(async move {
@@ -287,8 +282,7 @@ pub fn FetchData() -> impl IntoView {
                         .send(RenderEvent::LoadGraph(graph_data));
                 }
                 Err(e) => {
-                    let err_msg = format!("Error reloading data: {e}");
-                    error_log.errors.update(|errors| errors.push(err_msg));
+                    error_context.extend(e.records);
                 }
             }
         });

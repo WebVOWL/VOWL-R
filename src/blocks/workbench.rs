@@ -4,6 +4,7 @@ mod export_menu;
 mod filter_menu;
 mod ontology_menu;
 mod options_menu;
+
 // mod search_menu;1
 use crate::components::lists::{ListDetails, ListElement, ListElementGroup};
 use crate::components::menu::vertical_menu::VerticalMenu;
@@ -27,11 +28,11 @@ pub struct GraphDataContext {
 #[component]
 fn WorkbenchMenuItems(#[prop(into)] title: String, children: Children) -> impl IntoView {
     view! {
-        <div class="flex flex-col justify-center p-2 w-[250px]">
+        <div class="flex flex-col justify-center p-2 min-w-250 md:min-w-[30vw]">
             <div class="workbench-menu-header">
                 <h3>{title}</h3>
             </div>
-            <div>{children()}</div>
+            {children()}
         </div>
     }
 }
@@ -46,14 +47,11 @@ pub fn NewWorkbench() -> impl IntoView {
         total_graph_data,
     });
 
-    let all_errors = RwSignal::new(Vec::<String>::new());
-
-    let error_context = ErrorLogContext { errors: all_errors };
-
-    provide_context(error_context.clone());
+    let error_context = ErrorLogContext::default();
+    provide_context(error_context);
 
     let error_title = Signal::derive(move || {
-        let count = error_context.errors.get().len();
+        let count = error_context.len();
         if count > 0 {
             format!("Error Log ({count})")
         } else {

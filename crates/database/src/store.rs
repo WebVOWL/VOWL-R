@@ -1,5 +1,5 @@
 use futures::{StreamExt, stream::BoxStream};
-use log::{info, warn};
+use log::{debug, info, warn};
 use rdf_fusion::store::Store;
 use std::path::Path;
 use std::time::Duration;
@@ -60,7 +60,7 @@ impl VOWLRStore {
         &self,
         resource_type: DataType,
     ) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLRStoreError>>, VOWLRStoreError> {
-        info!(
+        debug!(
             "Store size before export: {}",
             self.session.len().await.unwrap_or(0)
         );

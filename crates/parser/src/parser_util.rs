@@ -87,7 +87,7 @@ pub async fn parse_stream_to(
             let mut buf = Vec::new();
             let mut serializer =
                 RdfSerializer::from_format(format_from_resource_type(&DataType::OWL).ok_or(
-                    VOWLRStoreErrorKind::InvalidInput(format!(
+                    VOWLRStoreErrorKind::InvalidFileType(format!(
                         "Unsupported output type: {:?}",
                         output_type
                     )),
@@ -123,7 +123,7 @@ pub async fn parse_stream_to(
                         writer.flush()?;
                         Ok(writer)
                     }
-                    _ => Err(VOWLRStoreError::from(VOWLRStoreErrorKind::InvalidInput(
+                    _ => Err(VOWLRStoreError::from(VOWLRStoreErrorKind::InvalidFileType(
                         format!("Unsupported output type: {:?}", output_type),
                     ))),
                 })();
@@ -143,7 +143,7 @@ pub async fn parse_stream_to(
                 let result = async {
                     let mut serializer =
                         RdfSerializer::from_format(format_from_resource_type(&output_type).ok_or(
-                            VOWLRStoreErrorKind::InvalidInput(format!(
+                            VOWLRStoreErrorKind::InvalidFileType(format!(
                                 "Unsupported output type: {:?}",
                                 output_type
                             )),
@@ -186,7 +186,7 @@ pub fn parser_from_reader(
     };
 
     let Some(format) = path_type(path) else {
-        return Err(VOWLRStoreErrorKind::InvalidInput(format!(
+        return Err(VOWLRStoreErrorKind::InvalidFileType(format!(
             "Unsupported format {}",
             path.display()
         ))
@@ -313,14 +313,14 @@ pub fn parser_from_reader(
             reader.read_to_end(&mut input)?;
             let input = ParserInput::File(input);
             let format = format_from_resource_type(&f).ok_or_else(|| {
-                VOWLRStoreErrorKind::InvalidInput(format!("could not convert {f:?} to format"))
+                VOWLRStoreErrorKind::InvalidFileType(format!("could not convert {f:?} to format"))
             })?;
             Ok(PreparedParser {
                 parser: make_parser(format),
                 input,
             })
         }
-        _ => Err(VOWLRStoreErrorKind::InvalidInput(format!(
+        _ => Err(VOWLRStoreErrorKind::InvalidFileType(format!(
             "Unsupported parser: {}",
             format.mime_type()
         ))),
