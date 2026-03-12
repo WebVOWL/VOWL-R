@@ -811,7 +811,16 @@ impl GraphDisplayDataSolutionSerializer {
                     owl::COMPLEMENT_OF => {
                         let edge =
                             self.insert_edge(data_buffer, &triple, ElementType::NoDraw, None);
-                        if triple.target.is_some()
+
+                        let target_is_structural_class_expression =
+                            if let Some(target) = triple.target.as_ref() {
+                                self.is_structural_class_expression(data_buffer, target)
+                            } else {
+                                false
+                            };
+
+                        if !target_is_structural_class_expression
+                            && triple.target.is_some()
                             && let Some(index) = self.resolve(data_buffer, triple.id.clone())
                         {
                             self.upgrade_node_type(
@@ -820,6 +829,7 @@ impl GraphDisplayDataSolutionSerializer {
                                 ElementType::Owl(OwlType::Node(OwlNode::Complement)),
                             );
                         }
+
                         if edge.is_some() {
                             return Ok(SerializationStatus::Serialized);
                         } else {
@@ -1147,7 +1157,38 @@ impl GraphDisplayDataSolutionSerializer {
                                             "Resolving object property: range: {}, property: {}, domain: {}",
                                             range, property, domain
                                         );
-                                        (None, Some(triple.clone()))
+
+                                        // If range is a structural class-expression node, collapse to a Thing node.
+                                        let normalized_range = if self
+                                            .is_structural_class_expression(data_buffer, &range)
+                                        {
+                                            let thing_iri =
+                                                trim_tag_circumfix(domain.to_string().as_str())
+                                                    .to_string()
+                                                    + "_thing";
+                                            let thing_triple = self.create_triple(
+                                                thing_iri,
+                                                owl::THING.into(),
+                                                None,
+                                            )?;
+                                            self.insert_node(
+                                                data_buffer,
+                                                &thing_triple,
+                                                ElementType::Owl(OwlType::Node(OwlNode::Thing)),
+                                            )?;
+                                            thing_triple.id
+                                        } else {
+                                            range
+                                        };
+
+                                        (
+                                            None,
+                                            Some(Triple {
+                                                id: domain,
+                                                element_type: property,
+                                                target: Some(normalized_range),
+                                            }),
+                                        )
                                     }
                                     (Some(domain), Some(property), None) => {
                                         trace!("Missing range: {}", triple);
@@ -1386,11 +1427,12 @@ impl GraphDisplayDataSolutionSerializer {
                                     Some(edge_triple) => {
                                         // Dummy variable
                                         // TODO: Refactor clones away in all of serializer
+                                        let element_type = edge_triple.element_type.clone();
                                         let dummy = || edge_triple.clone();
 
                                         let property= data_buffer
                                         .edge_element_buffer
-                                        .get(&edge_triple.element_type).ok_or_else(|| {
+                                        .get(&element_type).ok_or_else(|| {
                                             let msg = "Edge triple not present in edge_element_buffer".to_string();
                                             SerializationErrorKind::SerializationFailed(dummy(), msg)})?;
                                         let edge = self.insert_edge(
@@ -1412,16 +1454,16 @@ impl GraphDisplayDataSolutionSerializer {
                                             );
                                             data_buffer.add_property_domain(
                                                 edge_triple.element_type.clone(),
+                                                edge_triple.id.clone(),
+                                            );
+                                            data_buffer.add_property_range(
+                                                edge_triple.element_type.clone(),
                                                 edge_triple.target.clone().ok_or_else(|| {
                                                     SerializationErrorKind::SerializationFailed(
                                                         dummy(),
                                                         "target should be a string".to_string(),
                                                     )
                                                 })?,
-                                            );
-                                            data_buffer.add_property_range(
-                                                edge_triple.element_type,
-                                                edge_triple.id,
                                             );
 
                                             // Re-evaluate any characteristics waiting for this edge to exist
@@ -1450,6 +1492,19 @@ impl GraphDisplayDataSolutionSerializer {
             }
         }
         Ok(SerializationStatus::Serialized)
+    }
+
+    fn is_structural_class_expression(
+        &self,
+        data_buffer: &SerializationDataBuffer,
+        term: &Term,
+    ) -> bool {
+        matches!(
+            data_buffer.node_element_buffer.get(term),
+            Some(ElementType::Owl(OwlType::Node(
+                OwlNode::UnionOf | OwlNode::IntersectionOf | OwlNode::DisjointUnion
+            )))
+        )
     }
 
     fn insert_characteristic(
@@ -1483,8 +1538,17 @@ impl GraphDisplayDataSolutionSerializer {
                             SerializationStatus::Serialized
                         }
                         None => {
-                            self.add_to_unknown_buffer(data_buffer, s, triple);
-                            SerializationStatus::Deferred
+                            // Property exists as an edge type, but no concrete edge instance has been materialized yet
+                            if data_buffer.edge_element_buffer.contains_key(&s) {
+                                debug!(
+                                    "Characteristic '{}' for '{}' has no materialized property edge; marking as serialized",
+                                    arg, s
+                                );
+                                SerializationStatus::Serialized
+                            } else {
+                                self.add_to_unknown_buffer(data_buffer, s, triple);
+                                SerializationStatus::Deferred
+                            }
                         }
                     }
                 }

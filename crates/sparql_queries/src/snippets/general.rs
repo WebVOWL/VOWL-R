@@ -6,10 +6,7 @@ pub const COLLECTIONS: &str = r#"{
             ?intermediate rdf:first ?firstItem .
             ?intermediate rdf:rest*/rdf:first ?target .
             FILTER(?nodeType IN (
-                owl:intersectionOf, 
-                owl:unionOf, 
-                owl:oneOf,
-                owl:disjointUnionOf
+                owl:oneOf
             ))
 
             # 6. Safety: Remove nil to avoid phantom edges
