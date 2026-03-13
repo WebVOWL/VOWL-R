@@ -1329,60 +1329,71 @@ impl GraphDisplayDataSolutionSerializer {
                                     }
                                     (None, Some(property), None) => {
                                         trace!("Missing domain and range: {}", triple);
-                                        if triple.element_type == owl::DATATYPE_PROPERTY.into() {
-                                            let local_literal = self.create_named_node(
-                                                property.to_string() + "_locallitral",
-                                            )?;
-                                            let literal_triple = self.create_triple(
-                                                local_literal.to_string(),
-                                                rdfs::LITERAL.into(),
-                                                None,
-                                            )?;
-                                            info!("Creating literal node: {}", local_literal);
-                                            let local_thing = self.create_named_node(
-                                                property.to_string() + "_localthing",
-                                            )?;
-                                            let thing_triple = self.create_triple(
-                                                local_thing.to_string(),
-                                                owl::THING.into(),
-                                                None,
-                                            )?;
-                                            info!("Creating thing node: {}", local_thing);
-                                            (
-                                                Some(vec![
-                                                    literal_triple.clone(),
-                                                    thing_triple.clone(),
-                                                ]),
-                                                Some(Triple {
-                                                    id: thing_triple.id.clone(),
-                                                    element_type: triple.element_type.clone(),
-                                                    target: Some(literal_triple.id),
-                                                }),
-                                            )
-                                        } else if triple.element_type == owl::OBJECT_PROPERTY.into()
-                                        {
-                                            let global_thing = self.create_named_node(
-                                                owl::THING.to_string() + "_thing",
-                                            )?;
 
-                                            let node = self.create_triple(
-                                                global_thing.to_string(),
-                                                owl::THING.into(),
-                                                None,
-                                            )?;
-                                            (
-                                                Some(vec![node.clone()]),
-                                                Some(Triple {
-                                                    id: node.id.clone(),
-                                                    element_type: triple.element_type.clone(),
-                                                    target: Some(node.id),
-                                                }),
-                                            )
-                                        } else {
-                                            debug!(
-                                                "Property triple ignored: Subject or Object not in display buffer."
-                                            );
-                                            return Ok(SerializationStatus::Deferred);
+                                        match data_buffer
+                                            .edge_element_buffer
+                                            .get(&property)
+                                            .copied()
+                                        {
+                                            Some(ElementType::Owl(OwlType::Edge(
+                                                OwlEdge::DatatypeProperty,
+                                            ))) => {
+                                                let local_literal = self.create_named_node(
+                                                    property.to_string() + "_locallitral",
+                                                )?;
+                                                let literal_triple = self.create_triple(
+                                                    local_literal.to_string(),
+                                                    rdfs::LITERAL.into(),
+                                                    None,
+                                                )?;
+                                                info!("Creating literal node: {}", local_literal);
+
+                                                let local_thing = self.create_named_node(
+                                                    property.to_string() + "_localthing",
+                                                )?;
+                                                let thing_triple = self.create_triple(
+                                                    local_thing.to_string(),
+                                                    owl::THING.into(),
+                                                    None,
+                                                )?;
+                                                info!("Creating thing node: {}", local_thing);
+
+                                                (
+                                                    Some(vec![
+                                                        literal_triple.clone(),
+                                                        thing_triple.clone(),
+                                                    ]),
+                                                    Some(Triple {
+                                                        id: thing_triple.id.clone(),
+                                                        element_type: property.clone(),
+                                                        target: Some(literal_triple.id),
+                                                    }),
+                                                )
+                                            }
+                                            Some(ElementType::Owl(OwlType::Edge(
+                                                OwlEdge::ObjectProperty,
+                                            ))) => {
+                                                let thing_anchor: Term = owl::THING.into();
+                                                let thing = self.get_or_create_anchor_thing(
+                                                    data_buffer,
+                                                    &thing_anchor,
+                                                )?;
+
+                                                (
+                                                    None,
+                                                    Some(Triple {
+                                                        id: thing.clone(),
+                                                        element_type: property.clone(),
+                                                        target: Some(thing),
+                                                    }),
+                                                )
+                                            }
+                                            _ => {
+                                                debug!(
+                                                    "Property triple ignored: Subject or Object not in display buffer."
+                                                );
+                                                return Ok(SerializationStatus::Deferred);
+                                            }
                                         }
                                     }
 
@@ -1669,14 +1680,15 @@ impl GraphDisplayDataSolutionSerializer {
                             // Property exists as an edge type, but no concrete edge instance has been materialized yet
                             if data_buffer.edge_element_buffer.contains_key(&s) {
                                 debug!(
-                                    "Characteristic '{}' for '{}' has no materialized property edge; marking as serialized",
+                                    "Characteristic '{}' for '{}' has no materialized property edge yet; deferring",
                                     arg, s
                                 );
-                                SerializationStatus::Serialized
                             } else {
-                                self.add_to_unknown_buffer(data_buffer, s, triple);
-                                SerializationStatus::Deferred
+                                debug!("Adding characteristic to unknown buffer: {}", triple);
                             }
+
+                            self.add_to_unknown_buffer(data_buffer, s, triple);
+                            SerializationStatus::Deferred
                         }
                     }
                 }
