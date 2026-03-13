@@ -9,6 +9,7 @@ impl SparqlSnippet for RdfsNode {
                 r#"{
                 ?id a rdfs:Class .
                 FILTER(?id != owl:Class)
+                FILTER NOT EXISTS { ?id a owl:Class }
                 BIND(rdfs:Class AS ?nodeType)
                 }"#
             }
