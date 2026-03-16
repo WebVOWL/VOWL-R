@@ -28,6 +28,10 @@ pub enum ParserInput {
 }
 
 impl ParserInput {
+    #[expect(
+        clippy::result_large_err,
+        reason = "fixed if VOWLRStoreErrorKind contains String instead of full error types"
+    )]
     pub fn from_path(path: &Path) -> Result<Self, VOWLRStoreError> {
         std::fs::read(path)
             .map(ParserInput::File)
@@ -167,12 +171,20 @@ pub async fn parse_stream_to(
     }
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "fixed if VOWLRStoreErrorKind contains String instead of full error types"
+)]
 pub fn parser_from_path(path: &Path, lenient: bool) -> Result<PreparedParser, VOWLRStoreError> {
     let reader = std::fs::File::open(path)?;
     let reader = BufReader::new(reader);
     parser_from_reader(reader, path, lenient)
 }
 
+#[expect(
+    clippy::result_large_err,
+    reason = "fixed if VOWLRStoreErrorKind contains String instead of full error types"
+)]
 pub fn parser_from_reader(
     mut reader: impl BufRead,
     path: &Path,
@@ -187,8 +199,8 @@ pub fn parser_from_reader(
 
     let Some(format) = path_type(path) else {
         return Err(VOWLRStoreErrorKind::InvalidFileType(format!(
-            "Unsupported format {}",
-            path.display()
+            "Unsupported format: {:?}",
+            path.file_name().unwrap_or_default()
         ))
         .into());
     };

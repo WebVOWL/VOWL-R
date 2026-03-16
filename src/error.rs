@@ -1,6 +1,6 @@
 use std::panic::Location;
 
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError};
+use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError, get_timestamp};
 
 #[derive(Debug)]
 pub enum ClientErrorKind {
@@ -23,6 +23,7 @@ impl From<ClientErrorKind> for ErrorRecord {
             ClientErrorKind::RenderError(e) => (e, ErrorType::Renderer, ErrorSeverity::Critical),
         };
         Self::new(
+            get_timestamp(),
             severity,
             error_type,
             message,

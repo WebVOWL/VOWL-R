@@ -8,7 +8,7 @@ use rdf_fusion::{
     model::{IriParseError, StorageError},
 };
 use tokio::task::JoinError;
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError};
+use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError, get_timestamp};
 
 #[derive(Debug)]
 pub enum VOWLRStoreErrorKind {
@@ -38,6 +38,8 @@ pub struct VOWLRStoreError {
     inner: VOWLRStoreErrorKind,
     /// The error's location in the source code.
     location: &'static Location<'static>,
+    /// When the error occurred.
+    timestamp: String,
 }
 
 impl From<VOWLRStoreError> for Error {
@@ -51,6 +53,7 @@ impl From<String> for VOWLRStoreError {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::InvalidFileType(error),
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -61,6 +64,7 @@ impl From<HornedError> for VOWLRStoreError {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::HornedError(error),
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -71,6 +75,7 @@ impl From<IriParseError> for VOWLRStoreError {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::IriParseError(error),
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -81,6 +86,7 @@ impl From<LoaderError> for VOWLRStoreError {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::LoaderError(error),
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -90,6 +96,7 @@ impl From<VOWLRStoreErrorKind> for VOWLRStoreError {
         VOWLRStoreError {
             inner: error,
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -100,6 +107,7 @@ impl From<std::io::Error> for VOWLRStoreError {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::IOError(error),
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -109,6 +117,7 @@ impl From<QueryEvaluationError> for VOWLRStoreError {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::QueryEvaluationError(error),
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -118,6 +127,7 @@ impl From<JoinError> for VOWLRStoreError {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::JoinError(error),
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -128,13 +138,14 @@ impl From<StorageError> for VOWLRStoreError {
         VOWLRStoreError {
             inner: VOWLRStoreErrorKind::StorageError(error),
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
 
 impl std::fmt::Display for VOWLRStoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} at {}", self.inner, self.location)
+        write!(f, "{:?}", self.inner)
     }
 }
 
@@ -180,6 +191,7 @@ impl From<VOWLRStoreError> for ErrorRecord {
             }
         };
         ErrorRecord::new(
+            value.timestamp,
             ErrorSeverity::Critical,
             error_type,
             message,

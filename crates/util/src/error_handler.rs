@@ -6,7 +6,6 @@ use leptos::{
     server_fn::{Decodes, Encodes, codec::RkyvEncoding, error::IntoAppError},
     view,
 };
-use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "server")]
 use tabled::{
@@ -14,7 +13,7 @@ use tabled::{
     settings::{Settings, Style},
 };
 
-use crate::layout::TableHTML;
+use crate::{layout::TableHTML, time::get_timestamp};
 
 #[derive(
     Debug,
@@ -23,8 +22,8 @@ use crate::layout::TableHTML;
     rkyv::Archive,
     rkyv::Serialize,
     rkyv::Deserialize,
-    Serialize,
-    Deserialize,
+    serde::Serialize,
+    serde::Deserialize,
     strum::Display,
 )]
 #[strum(serialize_all = "title_case")]
@@ -42,8 +41,8 @@ pub enum ErrorSeverity {
     rkyv::Archive,
     rkyv::Serialize,
     rkyv::Deserialize,
-    Serialize,
-    Deserialize,
+    serde::Serialize,
+    serde::Deserialize,
     strum::Display,
 )]
 pub enum ErrorType {
@@ -65,7 +64,13 @@ pub enum ErrorType {
 }
 
 #[derive(
-    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Serialize, Deserialize,
+    Debug,
+    Clone,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 #[cfg_attr(feature = "server", derive(Tabled))]
 /// The fundamental building block of the error handling system.
@@ -75,6 +80,8 @@ pub enum ErrorType {
 /// # Note
 /// Every error type in use should implement [`From<T> for ErrorRecord`].
 pub struct ErrorRecord {
+    /// When the error occurred.
+    pub timestamp: String,
     /// The severity of an error.
     ///
     /// Useful for grouping errors by severity and applying custom color schemes in the GUI.
@@ -95,12 +102,14 @@ pub struct ErrorRecord {
 
 impl ErrorRecord {
     pub fn new(
+        timestamp: String,
         severity: ErrorSeverity,
         error_type: ErrorType,
         message: String,
         #[cfg(debug_assertions)] location: Option<String>,
     ) -> Self {
         Self {
+            timestamp,
             severity,
             error_type,
             message,
@@ -125,6 +134,7 @@ impl TableHTML for ErrorRecord {
             "p-1 font-sans text-sm antialiased font-normal leading-normal text-blue-gray-900";
         view! {
             <tr class="border-b">
+                <th class=th_css>{"Timestamp"}</th>
                 <th class=th_css>{"Severity"}</th>
                 <th class=th_css>{"Error Type"}</th>
                 <th class=th_css>{"Message"}</th>
@@ -152,6 +162,7 @@ impl TableHTML for ErrorRecord {
 
         view! {
             <tr class=format!("border-b hover:bg-slate-200 {tr_color}")>
+                <td class=td_css>{self.timestamp.clone()}</td>
                 <td class=td_css>{self.severity.to_string()}</td>
                 <td class=td_css>{self.error_type.to_string()}</td>
                 <td class=td_css>{self.message.clone()}</td>
@@ -184,6 +195,7 @@ impl From<ServerFnError> for ErrorRecord {
         };
 
         ErrorRecord::new(
+            get_timestamp(),
             ErrorSeverity::Unset,
             error_type,
             message,
@@ -216,8 +228,8 @@ impl std::fmt::Display for ErrorRecord {
         {
             write!(
                 f,
-                "{} | {} | {} | {}",
-                self.severity, self.error_type, self.message, self.location
+                "{} | {} | {} | {} | {}",
+                self.timestamp, self.severity, self.error_type, self.message, self.location
             )
         }
 
@@ -225,15 +237,21 @@ impl std::fmt::Display for ErrorRecord {
         {
             write!(
                 f,
-                "{} | {} | {}",
-                self.severity, self.error_type, self.message
+                "{} | {} | {} | {}",
+                self.timestamp, self.severity, self.error_type, self.message
             )
         }
     }
 }
 
 #[derive(
-    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Serialize, Deserialize,
+    Debug,
+    Clone,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 /// The struct used by VOWL-R when things go south.
 ///

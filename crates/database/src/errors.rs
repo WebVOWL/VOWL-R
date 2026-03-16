@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use crate::serializers::Triple;
 use oxrdf::{BlankNodeIdParseError, IriParseError};
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType};
+use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, get_timestamp};
 
 #[derive(Debug)]
 pub enum SerializationErrorKind {
@@ -24,7 +24,10 @@ pub struct SerializationError {
     inner: SerializationErrorKind,
     /// The error's location in the source code.
     location: &'static Location<'static>,
+    /// When the error occurred.
+    timestamp: String,
 }
+
 impl std::fmt::Display for SerializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self.inner)
@@ -37,6 +40,7 @@ impl From<SerializationErrorKind> for SerializationError {
         SerializationError {
             inner: error,
             location: Location::caller(),
+            timestamp: get_timestamp(),
         }
     }
 }
@@ -63,6 +67,7 @@ impl From<SerializationError> for ErrorRecord {
             ),
         };
         ErrorRecord::new(
+            value.timestamp,
             severity,
             ErrorType::Serializer,
             message,
