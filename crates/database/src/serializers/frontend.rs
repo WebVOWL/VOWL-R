@@ -1180,43 +1180,12 @@ impl GraphDisplayDataSolutionSerializer {
                                             range, property, domain
                                         );
 
-                                        // If range is a structural class-expression node, collapse to a Thing node.
-                                        let (normalized_domain, normalized_range) = if self
-                                            .is_collapsible_range_expression(data_buffer, &range)
-                                        {
-                                            let thing_anchor = if domain == owl::THING.into() {
-                                                range.clone()
-                                            } else {
-                                                domain.clone()
-                                            };
-
-                                            let thing = self.get_or_create_anchor_thing(
-                                                data_buffer,
-                                                &thing_anchor,
-                                            )?;
-                                            self.hide_collapsed_range_expression(
-                                                data_buffer,
-                                                &range,
-                                                &thing,
-                                            )?;
-
-                                            let normalized_domain = if domain == owl::THING.into() {
-                                                thing.clone()
-                                            } else {
-                                                domain.clone()
-                                            };
-
-                                            (normalized_domain, thing)
-                                        } else {
-                                            (domain.clone(), range)
-                                        };
-
                                         (
                                             None,
                                             Some(Triple {
-                                                id: normalized_domain,
+                                                id: domain,
                                                 element_type: property,
-                                                target: Some(normalized_range),
+                                                target: Some(range),
                                             }),
                                         )
                                     }
@@ -1298,27 +1267,12 @@ impl GraphDisplayDataSolutionSerializer {
                                                 &thing_anchor,
                                             )?;
 
-                                            let normalized_range = if self
-                                                .is_collapsible_range_expression(
-                                                    data_buffer,
-                                                    &range,
-                                                ) {
-                                                self.hide_collapsed_range_expression(
-                                                    data_buffer,
-                                                    &range,
-                                                    &thing,
-                                                )?;
-                                                thing.clone()
-                                            } else {
-                                                range
-                                            };
-
                                             (
                                                 None,
                                                 Some(Triple {
                                                     id: thing,
                                                     element_type: property,
-                                                    target: Some(normalized_range),
+                                                    target: Some(range),
                                                 }),
                                             )
                                         } else if triple.id == rdfs::LITERAL.into() {
@@ -1570,75 +1524,6 @@ impl GraphDisplayDataSolutionSerializer {
             .insert(domain.clone(), thing_id.clone());
 
         Ok(thing_id)
-    }
-
-    fn no_draw_target(&self, data_buffer: &SerializationDataBuffer, term: &Term) -> Option<Term> {
-        data_buffer
-            .edge_buffer
-            .iter()
-            .find(|edge| edge.subject == *term && edge.element_type == ElementType::NoDraw)
-            .map(|edge| edge.object.clone())
-    }
-
-    fn is_collapsible_range_expression(
-        &self,
-        data_buffer: &SerializationDataBuffer,
-        term: &Term,
-    ) -> bool {
-        match data_buffer.node_element_buffer.get(term) {
-            Some(ElementType::Owl(OwlType::Node(
-                OwlNode::UnionOf | OwlNode::IntersectionOf | OwlNode::DisjointUnion,
-            ))) => true,
-            Some(ElementType::Owl(OwlType::Node(OwlNode::Complement))) => self
-                .no_draw_target(data_buffer, term)
-                .is_some_and(|target| {
-                    matches!(
-                        data_buffer.node_element_buffer.get(&target),
-                        Some(ElementType::Owl(OwlType::Node(
-                            OwlNode::UnionOf | OwlNode::IntersectionOf | OwlNode::DisjointUnion
-                        )))
-                    )
-                }),
-            _ => false,
-        }
-    }
-
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
-    fn hide_collapsed_range_expression(
-        &self,
-        data_buffer: &mut SerializationDataBuffer,
-        range: &Term,
-        replacement: &Term,
-    ) -> Result<(), SerializationError> {
-        let nested_target = match data_buffer.node_element_buffer.get(range) {
-            Some(ElementType::Owl(OwlType::Node(OwlNode::Complement))) => {
-                self.no_draw_target(data_buffer, range)
-            }
-            _ => None,
-        };
-        let nested_target_ref = nested_target.as_ref();
-
-        self.redirect_iri(data_buffer, range, replacement)?;
-        data_buffer.node_element_buffer.remove(range);
-        data_buffer.edges_include_map.remove(range);
-
-        if let Some(target) = nested_target_ref {
-            self.redirect_iri(data_buffer, target, replacement)?;
-            data_buffer.node_element_buffer.remove(target);
-            data_buffer.edges_include_map.remove(target);
-        }
-
-        data_buffer.edge_buffer.retain(|edge| {
-            edge.element_type != ElementType::NoDraw
-                || (edge.subject != *range && edge.object != *range && nested_target_ref.is_none()
-                    || nested_target_ref
-                        .is_none_or(|target| edge.subject != *target && edge.object != *target))
-        });
-
-        Ok(())
     }
 
     #[expect(
