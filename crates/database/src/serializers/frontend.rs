@@ -25,7 +25,7 @@ use rdf_fusion::{
     },
 };
 use vowlr_parser::errors::VOWLRStoreError;
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError};
+use vowlr_util::prelude::VOWLRError;
 
 pub struct GraphDisplayDataSolutionSerializer {
     pub resolvable_iris: HashSet<String>,
@@ -700,7 +700,6 @@ impl GraphDisplayDataSolutionSerializer {
                                 return Ok(SerializationStatus::Deferred);
                             }
                         }
-
                     }
                     // rdf::REST => {}
                     // rdf::SEQ => {}
@@ -1147,8 +1146,6 @@ impl GraphDisplayDataSolutionSerializer {
                         ));
                     }
                     owl::UNION_OF => {
-                        let edge =
-                            self.insert_edge(data_buffer, &triple, ElementType::NoDraw, None);
                         match self.insert_edge(data_buffer, &triple, ElementType::NoDraw, None) {
                             Some(edge) => {
                                 self.upgrade_node_type(
@@ -1240,8 +1237,7 @@ impl GraphDisplayDataSolutionSerializer {
                                             )
                                         } else if target == rdfs::LITERAL.into() {
                                             let target_iri =
-                                                trim_tag_circumfix(property.to_string().as_str())
-                                                    + "_literal";
+                                                Self::synthetic_iri(&property, "_literal");
                                             info!("Creating literal node: {}", target_iri);
                                             let node = self.create_triple(
                                                 target_iri.clone(),
@@ -1327,8 +1323,7 @@ impl GraphDisplayDataSolutionSerializer {
                                             )
                                         } else if triple.id == rdfs::LITERAL.into() {
                                             let target_iri =
-                                                trim_tag_circumfix(range.to_string().as_str())
-                                                    + "_literal";
+                                                Self::synthetic_iri(&range, "_literal");
                                             let node = self.create_triple(
                                                 target_iri,
                                                 rdfs::LITERAL.into(),
@@ -1374,7 +1369,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                     rdfs::LITERAL.into(),
                                                     None,
                                                 )?;
-                                                info!(
+                                                debug!(
                                                     "Creating literal node: {}",
                                                     local_literal_iri
                                                 );
@@ -1386,7 +1381,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                     owl::THING.into(),
                                                     None,
                                                 )?;
-                                                info!("Creating thing node: {}", local_thing_iri);
+                                                debug!("Creating thing node: {}", local_thing_iri);
 
                                                 (
                                                     Some(vec![
@@ -1560,7 +1555,7 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(existing.clone());
         }
 
-        let thing_iri = trim_tag_circumfix(domain.to_string().as_str()).to_string() + "_thing";
+        let thing_iri = Self::synthetic_iri(domain, "_thing");
         let thing_triple = self.create_triple(thing_iri, owl::THING.into(), None)?;
         let thing_id = thing_triple.id.clone();
 
@@ -1659,7 +1654,7 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(existing.clone());
         }
 
-        let thing_iri = trim_tag_circumfix(anchor.to_string().as_str()).to_string() + "_thing";
+        let thing_iri = Self::synthetic_iri(anchor, "_thing");
         let thing_triple = self.create_triple(thing_iri, owl::THING.into(), None)?;
         let thing_id = thing_triple.id.clone();
 
