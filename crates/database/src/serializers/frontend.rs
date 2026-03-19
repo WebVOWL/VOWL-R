@@ -826,21 +826,15 @@ impl GraphDisplayDataSolutionSerializer {
 
         let left_label = left_edge
             .as_ref()
-            .map(|edge| self.property_display_label(data_buffer, &left_property, edge))
-            .or_else(|| data_buffer.label_buffer.get(&left_property).cloned())
-            .unwrap_or_else(|| OwlEdge::InverseOf.to_string());
+            .and_then(|edge| data_buffer.edge_label_buffer.get(edge).cloned())
+            .or_else(|| data_buffer.label_buffer.get(&left_property).cloned());
 
         let right_label = right_edge
             .as_ref()
-            .map(|edge| self.property_display_label(data_buffer, &right_property, edge))
-            .or_else(|| data_buffer.label_buffer.get(&right_property).cloned())
-            .unwrap_or_else(|| OwlEdge::InverseOf.to_string());
+            .and_then(|edge| data_buffer.edge_label_buffer.get(edge).cloned())
+            .or_else(|| data_buffer.label_buffer.get(&right_property).cloned());
 
-        let merged_label = if left_label == right_label {
-            left_label
-        } else {
-            format!("{left_label}\n{right_label}")
-        };
+        let merged_label = Self::merge_optional_labels(left_label, right_label);
 
         if let Err(err) = self.merge_properties(data_buffer, &right_property, &left_property) {
             error!(
@@ -905,9 +899,9 @@ impl GraphDisplayDataSolutionSerializer {
             data_buffer.edge_buffer.insert(edge.clone());
             self.insert_edge_include(data_buffer, &edge.subject, edge.clone());
             self.insert_edge_include(data_buffer, &edge.object, edge.clone());
-            data_buffer
-                .edge_label_buffer
-                .insert(edge.clone(), merged_label.clone());
+            if let Some(label) = merged_label.clone() {
+                data_buffer.edge_label_buffer.insert(edge.clone(), label);
+            }
 
             if !merged_characteristics.is_empty() {
                 data_buffer
@@ -1956,6 +1950,15 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(SerializationStatus::Serialized)
     }
 
+    fn merge_optional_labels(left: Option<String>, right: Option<String>) -> Option<String> {
+        match (left, right) {
+            (Some(left), Some(right)) if left == right => Some(left),
+            (Some(left), Some(right)) => Some(format!("{left}\n{right}")),
+            (Some(label), None) | (None, Some(label)) => Some(label),
+            (None, None) => None,
+        }
+    }
+
     #[expect(
         clippy::result_large_err,
         reason = "fixed when serializer is refactored to use pointers instead of values"
@@ -2045,10 +2048,33 @@ impl GraphDisplayDataSolutionSerializer {
         // Characteristic can attach only after a concrete edge exists
         if let Some(edge) = data_buffer.property_edge_map.get(&resolved_iri).cloned() {
             debug!("Inserting edge characteristic: {} -> {}", resolved_iri, arg);
-            let entry = data_buffer.edge_characteristics.entry(edge).or_default();
-            if !entry.iter().any(|existing| existing == &arg) {
-                entry.push(arg);
+
+            let target_edges: Vec<Edge> =
+                if edge.element_type == ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)) {
+                    data_buffer
+                        .edge_buffer
+                        .iter()
+                        .filter(|candidate| {
+                            candidate.element_type
+                                == ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
+                                && candidate.property.as_ref() == Some(&resolved_iri)
+                        })
+                        .cloned()
+                        .collect()
+                } else {
+                    vec![edge]
+                };
+
+            for target_edge in target_edges {
+                let entry = data_buffer
+                    .edge_characteristics
+                    .entry(target_edge)
+                    .or_default();
+                if !entry.iter().any(|existing| existing == &arg) {
+                    entry.push(arg.clone());
+                }
             }
+
             return SerializationStatus::Serialized;
         }
 

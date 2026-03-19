@@ -302,8 +302,8 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
             let maybe_label = val.edge_label_buffer.remove(edge);
             let characteristics = val.edge_characteristics.remove(edge);
 
-            match (subject_idx, object_idx, maybe_label) {
-                (Some(subject_idx), Some(object_idx), Some(label)) => {
+            match (subject_idx, object_idx) {
+                (Some(subject_idx), Some(object_idx)) => {
                     let edge_idx = if edge.element_type
                         == ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
                     {
@@ -316,7 +316,7 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
                             Some(existing_idx) => *existing_idx,
                             None => {
                                 display_data.elements.push(edge.element_type);
-                                display_data.labels.push(Some(label));
+                                display_data.labels.push(maybe_label.clone());
                                 let new_idx = display_data.elements.len() - 1;
                                 inverse_edge_indices.insert(property_iri, new_idx);
                                 new_idx
@@ -324,7 +324,7 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
                         }
                     } else {
                         display_data.elements.push(edge.element_type);
-                        display_data.labels.push(Some(label));
+                        display_data.labels.push(maybe_label.clone());
                         display_data.elements.len() - 1
                     };
 
@@ -338,13 +338,10 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
                             .insert(edge_idx, characteristics.join("\n"));
                     }
                 }
-                (Some(_), Some(_), None) => {
-                    error!("Label in edge not found in iricache: {}", edge.subject);
-                }
-                (None, _, _) => {
+                (None, _) => {
                     error!("Subject in edge not found in iricache: {}", edge.subject);
                 }
-                (_, None, _) => {
+                (_, None) => {
                     error!("Object in edge not found in iricache: {}", edge.object);
                 }
             }
