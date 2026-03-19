@@ -71,8 +71,7 @@ impl PartialEq for Edge {
         }
 
         // For symmetric relations, treat (A, B) and (B, A) as equal
-        let eq_so = [ElementType::Owl(OwlType::Edge(OwlEdge::DisjointWith))];
-        if eq_so.contains(&self.element_type) {
+        if SYMMETRIC_EDGE_TYPES.contains(&self.element_type) {
             (self.subject == other.subject && self.object == other.object)
                 || (self.subject == other.object && self.object == other.subject)
         } else {
@@ -285,6 +284,8 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
     fn from(mut val: SerializationDataBuffer) -> Self {
         let mut display_data = GraphDisplayData::new();
         let mut iricache: HashMap<Term, usize> = HashMap::new();
+        let mut inverse_edge_indices: HashMap<Term, usize> = HashMap::new();
+
         for (iri, element) in val.node_element_buffer.into_iter() {
             let label = val.label_buffer.remove(&iri);
             if label.is_none() {
@@ -303,17 +304,38 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
 
             match (subject_idx, object_idx, maybe_label) {
                 (Some(subject_idx), Some(object_idx), Some(label)) => {
-                    display_data.elements.push(edge.element_type);
-                    display_data.labels.push(Some(label));
-                    display_data.edges.push([
-                        *subject_idx,
-                        display_data.elements.len() - 1,
-                        *object_idx,
-                    ]);
+                    let edge_idx = if edge.element_type
+                        == ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf))
+                    {
+                        let Some(property_iri) = edge.property.clone() else {
+                            error!("InverseOf edge is missing merged property id");
+                            continue;
+                        };
+
+                        match inverse_edge_indices.get(&property_iri) {
+                            Some(existing_idx) => *existing_idx,
+                            None => {
+                                display_data.elements.push(edge.element_type);
+                                display_data.labels.push(Some(label));
+                                let new_idx = display_data.elements.len() - 1;
+                                inverse_edge_indices.insert(property_iri, new_idx);
+                                new_idx
+                            }
+                        }
+                    } else {
+                        display_data.elements.push(edge.element_type);
+                        display_data.labels.push(Some(label));
+                        display_data.elements.len() - 1
+                    };
+
+                    display_data
+                        .edges
+                        .push([*subject_idx, edge_idx, *object_idx]);
+
                     if let Some(characteristics) = characteristics {
                         display_data
                             .characteristics
-                            .insert(display_data.elements.len() - 1, characteristics.join("\n"));
+                            .insert(edge_idx, characteristics.join("\n"));
                     }
                 }
                 (Some(_), Some(_), None) => {

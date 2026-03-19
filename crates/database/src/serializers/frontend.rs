@@ -582,6 +582,14 @@ impl GraphDisplayDataSolutionSerializer {
             return;
         };
 
+        if old_edge.element_type == ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)) {
+            debug!(
+                "Keeping merged inverse edge for '{}' as {} instead of downgrading it to {}",
+                property_iri, old_edge.element_type, new_element
+            );
+            return;
+        }
+
         let mut new_edge = old_edge.clone();
         new_edge.element_type = new_element;
 
@@ -621,6 +629,292 @@ impl GraphDisplayDataSolutionSerializer {
             "Upgraded deprecated property '{}' from {} to {}",
             property_iri, old_elem, new_element
         );
+    }
+
+    fn remove_edge_include(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        element_iri: &Term,
+        edge: &Edge,
+    ) {
+        if let Some(edges) = data_buffer.edges_include_map.get_mut(element_iri) {
+            edges.remove(edge);
+        }
+    }
+
+    fn property_display_label(
+        &self,
+        data_buffer: &SerializationDataBuffer,
+        property_iri: &Term,
+        edge: &Edge,
+    ) -> String {
+        data_buffer
+            .label_buffer
+            .get(property_iri)
+            .cloned()
+            .or_else(|| data_buffer.edge_label_buffer.get(edge).cloned())
+            .unwrap_or_else(|| edge.element_type.to_string())
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "fixed when serializer is refactored to use pointers instead of values"
+    )]
+    fn merge_properties(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        old: &Term,
+        new: &Term,
+    ) -> Result<(), SerializationError> {
+        if old == new {
+            return Ok(());
+        }
+
+        debug!("Merging property '{old}' into '{new}'");
+
+        data_buffer.edge_element_buffer.remove(old);
+
+        if let Some(domains) = data_buffer.property_domain_map.remove(old) {
+            data_buffer
+                .property_domain_map
+                .entry(new.clone())
+                .or_default()
+                .extend(domains);
+        }
+
+        if let Some(ranges) = data_buffer.property_range_map.remove(old) {
+            data_buffer
+                .property_range_map
+                .entry(new.clone())
+                .or_default()
+                .extend(ranges);
+        }
+
+        self.redirect_iri(data_buffer, old, new)?;
+        Ok(())
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "fixed when serializer is refactored to use pointers instead of values"
+    )]
+    fn normalize_inverse_endpoint(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        endpoint: &Term,
+        opposite: &Term,
+    ) -> Result<Term, SerializationError> {
+        let Some(element_type) = data_buffer.node_element_buffer.get(endpoint).copied() else {
+            return Ok(endpoint.clone());
+        };
+
+        match element_type {
+            ElementType::Owl(OwlType::Node(
+                OwlNode::Complement
+                | OwlNode::IntersectionOf
+                | OwlNode::UnionOf
+                | OwlNode::DisjointUnion
+                | OwlNode::EquivalentClass,
+            )) => self.get_or_create_anchor_thing(data_buffer, opposite),
+            _ => Ok(endpoint.clone()),
+        }
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "fixed when serializer is refactored to use pointers instead of values"
+    )]
+    fn inverse_edge_endpoints(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        property_iri: &Term,
+    ) -> Result<Option<(Term, Term)>, SerializationError> {
+        let domain = data_buffer
+            .property_domain_map
+            .get(property_iri)
+            .and_then(|domains| domains.iter().next())
+            .cloned();
+        let range = data_buffer
+            .property_range_map
+            .get(property_iri)
+            .and_then(|ranges| ranges.iter().next())
+            .cloned();
+
+        match (domain, range) {
+            (Some(domain), Some(range)) => {
+                let subject = self.normalize_inverse_endpoint(data_buffer, &domain, &range)?;
+                let object = self.normalize_inverse_endpoint(data_buffer, &range, &domain)?;
+                Ok(Some((subject, object)))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn insert_inverse_of(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        triple: Triple,
+    ) -> SerializationStatus {
+        let left_property_raw = triple.id.clone();
+        let Some(right_property_raw) = triple.target.clone() else {
+            warn!("owl:inverseOf triple is missing a target: {}", triple);
+            return SerializationStatus::Serialized;
+        };
+
+        let Some(left_property) = self.resolve(data_buffer, left_property_raw.clone()) else {
+            self.add_to_unknown_buffer(data_buffer, left_property_raw, triple);
+            return SerializationStatus::Deferred;
+        };
+
+        let Some(right_property) = self.resolve(data_buffer, right_property_raw.clone()) else {
+            self.add_to_unknown_buffer(data_buffer, right_property_raw, triple);
+            return SerializationStatus::Deferred;
+        };
+
+        if left_property == right_property {
+            return SerializationStatus::Serialized;
+        }
+
+        let (left_subject, left_object) =
+            match self.inverse_edge_endpoints(data_buffer, &left_property) {
+                Ok(Some(endpoints)) => endpoints,
+                Ok(None) => {
+                    self.add_to_unknown_buffer(data_buffer, left_property.clone(), triple);
+                    return SerializationStatus::Deferred;
+                }
+                Err(err) => {
+                    error!(
+                        "Failed to resolve inverse endpoints for '{}': {}",
+                        left_property, err
+                    );
+                    return SerializationStatus::Deferred;
+                }
+            };
+
+        let (right_subject, right_object) =
+            match self.inverse_edge_endpoints(data_buffer, &right_property) {
+                Ok(Some(endpoints)) => endpoints,
+                Ok(None) => {
+                    self.add_to_unknown_buffer(data_buffer, right_property.clone(), triple);
+                    return SerializationStatus::Deferred;
+                }
+                Err(err) => {
+                    error!(
+                        "Failed to resolve inverse endpoints for '{}': {}",
+                        right_property, err
+                    );
+                    return SerializationStatus::Deferred;
+                }
+            };
+
+        let compatible = left_subject == right_object && left_object == right_subject;
+        if !compatible {
+            warn!(
+                "Cannot merge owl:inverseOf '{}'<->'{}': normalized edges do not align ({} -> {}, {} -> {})",
+                left_property,
+                right_property,
+                left_subject,
+                left_object,
+                right_subject,
+                right_object
+            );
+            return SerializationStatus::Serialized;
+        }
+
+        let left_edge = data_buffer.property_edge_map.get(&left_property).cloned();
+        let right_edge = data_buffer.property_edge_map.get(&right_property).cloned();
+
+        let left_label = left_edge
+            .as_ref()
+            .map(|edge| self.property_display_label(data_buffer, &left_property, edge))
+            .or_else(|| data_buffer.label_buffer.get(&left_property).cloned())
+            .unwrap_or_else(|| OwlEdge::InverseOf.to_string());
+
+        let right_label = right_edge
+            .as_ref()
+            .map(|edge| self.property_display_label(data_buffer, &right_property, edge))
+            .or_else(|| data_buffer.label_buffer.get(&right_property).cloned())
+            .unwrap_or_else(|| OwlEdge::InverseOf.to_string());
+
+        let merged_label = if left_label == right_label {
+            left_label
+        } else {
+            format!("{left_label}\n{right_label}")
+        };
+
+        if let Err(err) = self.merge_properties(data_buffer, &right_property, &left_property) {
+            error!(
+                "Failed to merge inverse properties '{}' and '{}': {}",
+                left_property, right_property, err
+            );
+            return SerializationStatus::Deferred;
+        }
+
+        if let Some(left_edge) = left_edge.as_ref() {
+            self.remove_edge_include(data_buffer, &left_edge.subject, left_edge);
+            self.remove_edge_include(data_buffer, &left_edge.object, left_edge);
+            data_buffer.edge_buffer.remove(left_edge);
+            data_buffer.edge_label_buffer.remove(left_edge);
+        }
+
+        if let Some(right_edge) = right_edge.as_ref() {
+            self.remove_edge_include(data_buffer, &right_edge.subject, right_edge);
+            self.remove_edge_include(data_buffer, &right_edge.object, right_edge);
+            data_buffer.edge_buffer.remove(right_edge);
+            data_buffer.edge_label_buffer.remove(right_edge);
+        }
+
+        let mut merged_characteristics = left_edge
+            .as_ref()
+            .and_then(|edge| data_buffer.edge_characteristics.remove(edge))
+            .unwrap_or_default();
+
+        if let Some(right_characteristics) = right_edge
+            .as_ref()
+            .and_then(|edge| data_buffer.edge_characteristics.remove(edge))
+        {
+            for characteristic in right_characteristics {
+                if !merged_characteristics
+                    .iter()
+                    .any(|existing| existing == &characteristic)
+                {
+                    merged_characteristics.push(characteristic);
+                }
+            }
+        }
+
+        let inverse_property = Some(left_property.clone());
+        let inverse_edges = [
+            Edge {
+                subject: left_subject.clone(),
+                element_type: ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)),
+                object: left_object.clone(),
+                property: inverse_property.clone(),
+            },
+            Edge {
+                subject: left_object,
+                element_type: ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)),
+                object: left_subject,
+                property: inverse_property,
+            },
+        ];
+
+        for edge in inverse_edges {
+            data_buffer.edge_buffer.insert(edge.clone());
+            self.insert_edge_include(data_buffer, &edge.subject, edge.clone());
+            self.insert_edge_include(data_buffer, &edge.object, edge.clone());
+            data_buffer
+                .edge_label_buffer
+                .insert(edge.clone(), merged_label.clone());
+
+            if !merged_characteristics.is_empty() {
+                data_buffer
+                    .edge_characteristics
+                    .insert(edge, merged_characteristics.clone());
+            }
+        }
+
+        SerializationStatus::Serialized
     }
 
     /// Appends a string to an element's label.
@@ -1177,20 +1471,9 @@ impl GraphDisplayDataSolutionSerializer {
                     }
 
                     owl::INVERSE_OF => {
-                        match self.insert_edge(
-                            data_buffer,
-                            &triple,
-                            ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)),
-                            None,
-                        ) {
-                            Some(_) => {
-                                return Ok(SerializationStatus::Serialized);
-                            }
-                            None => {
-                                return Ok(SerializationStatus::Deferred);
-                            }
-                        }
+                        return Ok(self.insert_inverse_of(data_buffer, triple));
                     }
+
                     owl::IRREFLEXIVE_PROPERTY => {
                         return Ok(self.insert_characteristic(
                             data_buffer,
@@ -1458,6 +1741,26 @@ impl GraphDisplayDataSolutionSerializer {
                                     (None, Some(property), None) => {
                                         trace!("Missing domain and range: {}", triple);
 
+                                        let is_full_query_fallback =
+                                            Self::is_query_fallback_endpoint(&triple.id)
+                                                && triple
+                                                    .target
+                                                    .as_ref()
+                                                    .is_some_and(Self::is_query_fallback_endpoint);
+
+                                        if !is_full_query_fallback {
+                                            trace!(
+                                                "Deferring property triple with unresolved structural domain/range: {}",
+                                                triple
+                                            );
+                                            self.add_to_unknown_buffer(
+                                                data_buffer,
+                                                triple.id.clone(),
+                                                triple.clone(),
+                                            );
+                                            return Ok(SerializationStatus::Deferred);
+                                        }
+
                                         match data_buffer
                                             .edge_element_buffer
                                             .get(&property)
@@ -1704,6 +2007,10 @@ impl GraphDisplayDataSolutionSerializer {
             .insert(anchor.clone(), thing_id.clone());
 
         Ok(thing_id)
+    }
+
+    fn is_query_fallback_endpoint(term: &Term) -> bool {
+        *term == owl::THING.into() || *term == rdfs::LITERAL.into()
     }
 
     fn synthetic_iri(base: &Term, suffix: &str) -> String {
