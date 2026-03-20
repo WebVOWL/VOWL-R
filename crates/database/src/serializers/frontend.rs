@@ -8,7 +8,7 @@ use super::{Edge, SerializationDataBuffer, Triple};
 use crate::{
     errors::{SerializationError, SerializationErrorKind},
     serializers::util::{get_reserved_iris, trim_tag_circumfix},
-    vocab::owl,
+    vocab::{owl, rdf, rdfs, xsd},
 };
 use fluent_uri::Iri;
 use futures::StreamExt;
@@ -19,10 +19,7 @@ use grapher::prelude::{
 use log::{debug, error, info, trace, warn};
 use rdf_fusion::{
     execution::results::QuerySolutionStream,
-    model::{
-        BlankNode, NamedNode, Term,
-        vocab::{rdf, rdfs},
-    },
+    model::{BlankNode, NamedNode, Term},
 };
 use vowlr_parser::errors::VOWLRStoreError;
 use vowlr_util::prelude::VOWLRError;
