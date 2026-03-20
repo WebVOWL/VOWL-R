@@ -117,7 +117,7 @@ impl GraphDisplayDataSolutionSerializer {
             let total = data_buffer.failed_buffer.len();
             let err: VOWLRError = take(&mut data_buffer.failed_buffer).into();
             error!("Failed to serialize {} triples:\n{}", total, err);
-            return Err(err);
+            // return Err(err);
         }
         *data = data_buffer.into();
         debug!("{}", data);
@@ -957,8 +957,6 @@ impl GraphDisplayDataSolutionSerializer {
         &self,
         data_buffer: &mut SerializationDataBuffer,
     ) -> Result<(), SerializationError> {
-        info!("Second pass: Resolving all possible unknowns");
-
         let mut pending = take(&mut data_buffer.unknown_buffer);
         let mut pass: usize = 0;
         let max_passes: usize = 4;
@@ -967,7 +965,7 @@ impl GraphDisplayDataSolutionSerializer {
             pass += 1;
 
             let pending_before: usize = pending.values().map(|set| set.len()).sum();
-            trace!(
+            info!(
                 "Unknown resolution pass {} ({} triples pending)",
                 pass, pending_before
             );
@@ -1019,7 +1017,7 @@ impl GraphDisplayDataSolutionSerializer {
             let pending_after: usize = pending.values().map(|set| set.len()).sum();
 
             if pending_after >= pending_before {
-                trace!(
+                info!(
                     "Unknown resolution reached fixpoint after pass {} ({} triples still pending)",
                     pass, pending_after
                 );
