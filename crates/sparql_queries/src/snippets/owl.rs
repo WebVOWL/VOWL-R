@@ -5,62 +5,62 @@ use crate::snippets::SparqlSnippet;
 impl SparqlSnippet for OwlNode {
     fn snippet(self) -> &'static str {
         match self {
-            OwlNode::AnonymousClass => {
+            Self::AnonymousClass => {
                 r#"{
                 ?id a owl:Class
                 FILTER(!isIRI(?id))
                 BIND("blanknode" AS ?nodeType)
                 }"#
             }
-            OwlNode::Class => {
+            Self::Class => {
                 r#"{
                 ?id a owl:Class .
                 FILTER(isIRI(?id))
                 BIND(owl:Class AS ?nodeType)
                 }"#
             }
-            OwlNode::Complement => {
+            Self::Complement => {
                 r#"{
                 ?id owl:complementOf ?target .
                 BIND(owl:complementOf AS ?nodeType)
                 }"#
             }
-            OwlNode::DeprecatedClass => {
+            Self::DeprecatedClass => {
                 r#"{
                 ?id a owl:DeprecatedClass .
                 BIND(owl:DeprecatedClass AS ?nodeType)
                 }"#
             }
-            OwlNode::ExternalClass => {
+            Self::ExternalClass => {
                 // Not handled here as externals uses identical
                 // logic across classes and properties.
                 ""
             }
-            OwlNode::EquivalentClass => {
+            Self::EquivalentClass => {
                 r#"{
                 ?id owl:equivalentClass ?target
                 BIND(owl:equivalentClass AS ?nodeType)
                 }"#
             }
-            OwlNode::DisjointUnion => {
+            Self::DisjointUnion => {
                 r#"{
                 ?id owl:disjointUnionOf/rdf:rest*/rdf:first ?target .
                 BIND(owl:disjointUnionOf AS ?nodeType)
                 }"#
             }
-            OwlNode::IntersectionOf => {
+            Self::IntersectionOf => {
                 r#"{
                 ?id owl:intersectionOf/rdf:rest*/rdf:first ?target .
                 BIND(owl:intersectionOf AS ?nodeType)
                 }"#
             }
-            OwlNode::Thing => {
+            Self::Thing => {
                 r#"{
                 ?id a owl:Thing .
                 BIND(owl:Thing AS ?nodeType)
                 }"#
             }
-            OwlNode::UnionOf => {
+            Self::UnionOf => {
                 r#"{
                 ?id owl:unionOf/rdf:rest*/rdf:first ?target .
                 FILTER(?target != rdf:nil)
@@ -86,42 +86,42 @@ impl SparqlSnippet for OwlNode {
 impl SparqlSnippet for OwlEdge {
     fn snippet(self) -> &'static str {
         match self {
-            OwlEdge::DatatypeProperty => {
+            Self::DatatypeProperty => {
                 r#"{
                 ?id a owl:DatatypeProperty .
                 BIND(owl:DatatypeProperty AS ?nodeType)
                 }"#
             }
-            OwlEdge::DisjointWith => {
+            Self::DisjointWith => {
                 r#"{
                 ?id owl:disjointWith ?target
                 BIND(owl:disjointWith AS ?nodeType)
                 }"#
             }
-            OwlEdge::DeprecatedProperty => {
+            Self::DeprecatedProperty => {
                 r#"{
                 ?id a owl:DeprecatedProperty .
                 BIND(owl:DeprecatedProperty AS ?nodeType)
                 }"#
             }
-            OwlEdge::ExternalProperty => {
+            Self::ExternalProperty => {
                 // Not handled here as externals uses identical
                 // logic across classes and properties.
                 ""
             }
-            OwlEdge::InverseOf => {
+            Self::InverseOf => {
                 r#"{
                 ?id owl:inverseOf ?target .
                 BIND(owl:inverseOf AS ?nodeType)
                 }"#
             }
-            OwlEdge::ObjectProperty => {
+            Self::ObjectProperty => {
                 r#"{
                 ?id a owl:ObjectProperty
                 BIND(owl:ObjectProperty AS ?nodeType)
                 }"#
             }
-            OwlEdge::ValuesFrom => {
+            Self::ValuesFrom => {
                 r#"{
                 {
                     ?id owl:someValuesFrom ?target .
