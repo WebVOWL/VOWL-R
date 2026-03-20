@@ -5,7 +5,7 @@ use crate::snippets::SparqlSnippet;
 impl SparqlSnippet for RdfsNode {
     fn snippet(self) -> &'static str {
         match self {
-            RdfsNode::Class => {
+            Self::Class => {
                 r#"{
                 ?id a rdfs:Class .
                 FILTER(?id != owl:Class)
@@ -13,20 +13,20 @@ impl SparqlSnippet for RdfsNode {
                 BIND(rdfs:Class AS ?nodeType)
                 }"#
             }
-            RdfsNode::Literal => {
+            Self::Literal => {
                 r#"{
                 ?id a rdfs:Literal .
                 BIND(rdfs:Literal AS ?nodeType)
                 }"#
             }
-            RdfsNode::Resource => {
+            Self::Resource => {
                 r#"{
                 ?id a rdfs:Resource .
                 FILTER(isIRI(?id) || isBlank(?id))
                 BIND(rdfs:Resource AS ?nodeType)
                 }"#
             }
-            RdfsNode::Datatype => {
+            Self::Datatype => {
                 r#"{
                 ?id a rdfs:Datatype .
                 BIND(rdfs:Datatype AS ?nodeType)
@@ -39,7 +39,7 @@ impl SparqlSnippet for RdfsNode {
 impl SparqlSnippet for RdfsEdge {
     fn snippet(self) -> &'static str {
         match self {
-            RdfsEdge::SubclassOf => {
+            Self::SubclassOf => {
                 r#"{
                 ?id rdfs:subClassOf ?target
                 BIND(rdfs:subClassOf AS ?nodeType)
