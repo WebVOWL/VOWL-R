@@ -1,4 +1,4 @@
-use crate::errors::{VOWLRStoreError, VOWLRStoreErrorKind};
+use crate::errors::{LOVETStoreError, LOVETStoreErrorKind};
 use futures::{StreamExt, stream::BoxStream};
 use horned_owl::{
     io::{rdf::reader::ConcreteRDFOntology, *},
@@ -6,6 +6,7 @@ use horned_owl::{
     ontology::component_mapped::RcComponentMappedOntology,
 };
 use log::info;
+use lovet_util::prelude::DataType;
 use rdf_fusion::{
     execution::results::QuadStream,
     io::{JsonLdProfileSet, RdfFormat, RdfParser, RdfSerializer},
@@ -20,7 +21,6 @@ use std::{
 };
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use vowlr_util::prelude::DataType;
 
 pub enum ParserInput {
     File(Vec<u8>),
@@ -28,10 +28,10 @@ pub enum ParserInput {
 }
 
 impl ParserInput {
-    pub fn from_path(path: &Path) -> Result<Self, VOWLRStoreError> {
+    pub fn from_path(path: &Path) -> Result<Self, LOVETStoreError> {
         std::fs::read(path)
             .map(ParserInput::File)
-            .map_err(VOWLRStoreError::from)
+            .map_err(LOVETStoreError::from)
     }
 
     pub fn as_slice(&self) -> &[u8] {
@@ -80,14 +80,14 @@ pub fn format_from_resource_type(resource_type: &DataType) -> Option<RdfFormat> 
 pub async fn parse_stream_to(
     mut stream: QuadStream,
     output_type: DataType,
-) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLRStoreError>>, VOWLRStoreError> {
+) -> Result<BoxStream<'static, Result<Vec<u8>, LOVETStoreError>>, LOVETStoreError> {
     match output_type {
         DataType::OFN | DataType::OWX | DataType::OWL => {
             let (tx, rx) = mpsc::unbounded_channel();
             let mut buf = Vec::new();
             let mut serializer =
                 RdfSerializer::from_format(format_from_resource_type(&DataType::OWL).ok_or(
-                    VOWLRStoreErrorKind::InvalidFileType(format!(
+                    LOVETStoreErrorKind::InvalidFileType(format!(
                         "Unsupported output type: {:?}",
                         output_type
                     )),
@@ -123,7 +123,7 @@ pub async fn parse_stream_to(
                         writer.flush()?;
                         Ok(writer)
                     }
-                    _ => Err(VOWLRStoreError::from(VOWLRStoreErrorKind::InvalidFileType(
+                    _ => Err(LOVETStoreError::from(LOVETStoreErrorKind::InvalidFileType(
                         format!("Unsupported output type: {:?}", output_type),
                     ))),
                 })();
@@ -133,7 +133,7 @@ pub async fn parse_stream_to(
                 }
             });
             Ok(UnboundedReceiverStream::new(rx)
-                .map(|result| result.map_err(VOWLRStoreError::from))
+                .map(|result| result.map_err(LOVETStoreError::from))
                 .boxed())
         }
         _ => {
@@ -143,7 +143,7 @@ pub async fn parse_stream_to(
                 let result = async {
                     let mut serializer =
                         RdfSerializer::from_format(format_from_resource_type(&output_type).ok_or(
-                            VOWLRStoreErrorKind::InvalidFileType(format!(
+                            LOVETStoreErrorKind::InvalidFileType(format!(
                                 "Unsupported output type: {:?}",
                                 output_type
                             )),
@@ -153,7 +153,7 @@ pub async fn parse_stream_to(
                         serializer.serialize_quad(&quad?)?;
                     }
                     serializer.finish()?;
-                    Ok::<ChannelWriter, VOWLRStoreError>(writer)
+                    Ok::<ChannelWriter, LOVETStoreError>(writer)
                 };
 
                 if let Err(e) = result.await {
@@ -161,13 +161,13 @@ pub async fn parse_stream_to(
                 }
             });
             Ok(UnboundedReceiverStream::new(rx)
-                .map(|result| result.map_err(VOWLRStoreError::from))
+                .map(|result| result.map_err(LOVETStoreError::from))
                 .boxed())
         }
     }
 }
 
-pub fn parser_from_path(path: &Path, lenient: bool) -> Result<PreparedParser, VOWLRStoreError> {
+pub fn parser_from_path(path: &Path, lenient: bool) -> Result<PreparedParser, LOVETStoreError> {
     let reader = std::fs::File::open(path)?;
     let reader = BufReader::new(reader);
     parser_from_reader(reader, path, lenient)
@@ -177,7 +177,7 @@ pub fn parser_from_reader(
     mut reader: impl BufRead,
     path: &Path,
     lenient: bool,
-) -> Result<PreparedParser, VOWLRStoreError> {
+) -> Result<PreparedParser, LOVETStoreError> {
     let make_parser = |fmt| {
         // TODO: Handle non default graph
         let parser = RdfParser::from_format(fmt).with_default_graph(GraphName::DefaultGraph);
@@ -186,7 +186,7 @@ pub fn parser_from_reader(
     };
 
     let Some(format) = path_type(path) else {
-        return Err(VOWLRStoreErrorKind::InvalidFileType(format!(
+        return Err(LOVETStoreErrorKind::InvalidFileType(format!(
             "Unsupported format {}",
             path.display()
         ))
@@ -313,14 +313,14 @@ pub fn parser_from_reader(
             reader.read_to_end(&mut input)?;
             let input = ParserInput::File(input);
             let format = format_from_resource_type(&f).ok_or_else(|| {
-                VOWLRStoreErrorKind::InvalidFileType(format!("could not convert {f:?} to format"))
+                LOVETStoreErrorKind::InvalidFileType(format!("could not convert {f:?} to format"))
             })?;
             Ok(PreparedParser {
                 parser: make_parser(format),
                 input,
             })
         }
-        _ => Err(VOWLRStoreErrorKind::InvalidFileType(format!(
+        _ => Err(LOVETStoreErrorKind::InvalidFileType(format!(
             "Unsupported parser: {}",
             format.mime_type()
         ))),

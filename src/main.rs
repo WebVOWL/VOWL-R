@@ -7,8 +7,8 @@ use leptos::prelude::*;
 use leptos_actix::{LeptosRoutes, generate_route_list};
 use leptos_meta::MetaTags;
 use log::info;
-use vowlr::app::App;
-use vowlr::hydration_scripts::HydrationScripts as Hydro;
+use lovet::app::App;
+use lovet::hydration_scripts::HydrationScripts as Hydro;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

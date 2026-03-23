@@ -10,7 +10,7 @@ use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use log::info;
-use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
+use lovet_sparql_queries::prelude::DEFAULT_QUERY;
 use web_sys::HtmlInputElement;
 
 const MAX_FILE_SIZE_BYTES: f64 = 50.0 * 1024.0 * 1024.0;
@@ -29,7 +29,7 @@ pub fn SelectStaticInput() -> impl IntoView {
         vec![
             "Friend of a Friend (FOAF) vocabulary (22 classes)".to_string(),
             "Clinical Trials Ontology (CTO) (273 classes)".to_string(),
-            "VOWL-R Benchmark Ontology (2.5k nodes)".to_string(),
+            "LOVET Benchmark Ontology (2.5k nodes)".to_string(),
             "The Environment Ontology (6.9k classes)".to_string(),
         ]
         .into_iter()

@@ -2,11 +2,11 @@ use env_logger::Env;
 use futures::StreamExt;
 use grapher::prelude::GraphDisplayData;
 use log::info;
+use lovet_database::prelude::{GraphDisplayDataSolutionSerializer, LOVETStore};
+use lovet_sparql_queries::prelude::DEFAULT_QUERY;
 use rdf_fusion::{execution::results::QueryResults, store::Store};
 use std::env;
 use std::path::Path;
-use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, VOWLRStore};
-use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 
 #[tokio::main]
 pub async fn main() {
@@ -18,14 +18,14 @@ pub async fn main() {
     } else {
         Path::new("crates/database/owl1-unions-simple.owl")
     };
-    let vowlr = VOWLRStore::new(session);
-    vowlr
+    let lovet = LOVETStore::new(session);
+    lovet
         .insert_file(path, false)
         .await
         .expect("Error inserting file");
-    info!("Loaded {} quads", vowlr.session.len().await.unwrap());
+    info!("Loaded {} quads", lovet.session.len().await.unwrap());
 
-    let all_stream = vowlr
+    let all_stream = lovet
         .session
         .query("SELECT * WHERE { ?s ?p ?o }")
         .await
@@ -50,7 +50,7 @@ pub async fn main() {
 
     let mut data_buffer = GraphDisplayData::new();
     let solution_serializer = GraphDisplayDataSolutionSerializer::new();
-    let query_stream = vowlr.session.query(DEFAULT_QUERY.as_str()).await.unwrap();
+    let query_stream = lovet.session.query(DEFAULT_QUERY.as_str()).await.unwrap();
     if let QueryResults::Solutions(solutions) = query_stream {
         solution_serializer
             .serialize_nodes_stream(&mut data_buffer, solutions)

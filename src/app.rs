@@ -12,7 +12,7 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
-        <Stylesheet id="vowlr" href="/pkg/vowlr.css" />
+        <Stylesheet id="lovet" href="/pkg/lovet.css" />
         <Link rel="shortcut icon" type_="image/ico" href="/favicon.ico" />
         <Router>
             <FlatRoutes fallback=|| "404 - Page not found.">

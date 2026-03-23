@@ -4,8 +4,8 @@ use grapher::run;
 use perfdebugger::util::query;
 use std::env;
 use std::path::Path;
-use vowlr_database::prelude::VOWLRStore;
-use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
+use lovet_database::prelude::LOVETStore;
+use lovet_sparql_queries::prelude::DEFAULT_QUERY;
 
 #[tokio::main]
 async fn main() {
@@ -15,7 +15,7 @@ async fn main() {
     if args.len() > 1 {
         let path = Path::new(&args[1]);
 
-        let store = VOWLRStore::default();
+        let store = LOVETStore::default();
         store
             .insert_file(path, false)
             .await

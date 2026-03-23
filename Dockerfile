@@ -13,7 +13,7 @@ RUN apk update && apk upgrade --no-cache && apk add --no-cache \
     binaryen \
     clang \
     lld \
-    mold 
+    mold
 
 # Install a prebuilt binary of cargo-leptos matching version in README.md
 RUN curl --proto '=https' --tlsv1.2 -LsSf https://github.com/leptos-rs/cargo-leptos/releases/download/v0.3.5/cargo-leptos-installer.sh | sh
@@ -28,7 +28,7 @@ RUN ./build_mimalloc.sh
 # Override bin-target-triple defined in Cargo.toml
 ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 
-# Build VOWL-R
+# Build LOVET
 RUN ./build.sh binary
 
 FROM scratch AS runner
@@ -41,8 +41,8 @@ COPY --chown=10001 --from=builder --exclude=/tmp/* /tmp /tmp
 
 WORKDIR /app
 
-# Import VOWL-R from the build stage
-COPY --chown=10001 --from=builder /build/target/x86_64-unknown-linux-musl/release/vowlr /app/
+# Import LOVET from the build stage
+COPY --chown=10001 --from=builder /build/target/x86_64-unknown-linux-musl/release/lovet /app/
 COPY --chown=10001 --from=builder /build/target/site /app/site
 
 # Import the CAcertificates from the build stage to enable HTTPS
@@ -72,4 +72,4 @@ ENV LEPTOS_SITE_ROOT=./site
 EXPOSE 8080
 
 # Must match your final server executable name
-CMD ["/app/vowlr"]
+CMD ["/app/lovet"]

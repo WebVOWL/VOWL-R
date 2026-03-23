@@ -2,7 +2,7 @@ use super::WorkbenchMenuItems;
 use crate::components::table::Table;
 use leptos::either::Either;
 use leptos::prelude::*;
-use vowlr_util::prelude::{ErrorRecord, VOWLRError};
+use lovet_util::prelude::{ErrorRecord, LOVETError};
 
 #[derive(Debug, Copy, Clone)]
 pub struct ErrorLogContext {
@@ -69,8 +69,8 @@ impl Default for ErrorLogContext {
     }
 }
 
-impl From<VOWLRError> for ErrorLogContext {
-    fn from(value: VOWLRError) -> Self {
+impl From<LOVETError> for ErrorLogContext {
+    fn from(value: LOVETError) -> Self {
         Self::new(value.records)
     }
 }

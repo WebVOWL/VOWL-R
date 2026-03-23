@@ -1,6 +1,6 @@
 [package]
     authors=["TheRealMorgenfrue"]
-    description="Performance & Debugging primarily of WasmGrapher, but works across all crates constituting VOWL-R"
+    description="Performance & Debugging primarily of WasmGrapher, but works across all crates constituting LOVET"
     edition="2024"
     name="perfdebugger"
     readme="README.md"
@@ -11,6 +11,6 @@
     env_logger="0.11.0"
     grapher={workspace=true, features=["native", "static"]}
     log="0.4"
+    lovet-database={path="../database"}
+    lovet-sparql-queries={path="../sparql_queries"}
     tokio="1.48.0"
-    vowlr-database={path="../database"}
-    vowlr-sparql-queries={path="../sparql_queries"}

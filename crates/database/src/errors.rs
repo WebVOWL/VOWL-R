@@ -1,8 +1,8 @@
 use std::panic::Location;
 
 use crate::serializers::Triple;
+use lovet_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType};
 use oxrdf::{BlankNodeIdParseError, IriParseError};
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType};
 
 #[derive(Debug)]
 pub enum SerializationErrorKind {

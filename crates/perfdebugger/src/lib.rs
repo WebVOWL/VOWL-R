@@ -1,9 +1,9 @@
 pub mod util {
     use grapher::prelude::GraphDisplayData;
-    use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, QueryResults, VOWLRStore};
+    use lovet_database::prelude::{GraphDisplayDataSolutionSerializer, LOVETStore, QueryResults};
 
     pub async fn query(query: String) -> Result<GraphDisplayData, String> {
-        let store = VOWLRStore::default();
+        let store = LOVETStore::default();
 
         let mut data_buffer = GraphDisplayData::new();
         let solution_serializer = GraphDisplayDataSolutionSerializer::new();

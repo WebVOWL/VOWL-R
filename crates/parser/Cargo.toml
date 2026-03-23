@@ -1,12 +1,12 @@
 [package]
     authors=["khmikkelsen"]
-    description="Parsers for various OWL and RDF formats supported by VOWL-R"
+    description="Parsers for various OWL and RDF formats supported by LOVET"
     edition="2024"
     keywords=["parser", "owl", "rdf"]
     license-file="LICENSE"
-    name="vowlr-parser"
+    name="lovet-parser"
     readme="README.md"
-    repository="https://github.com/WebVOWL/VOWL-R"
+    repository="https://github.com/WebVOWL/LOVET"
     version="0.1.0"
 
 [lib]
@@ -18,12 +18,12 @@
     horned-owl.workspace=true
     leptos.workspace=true
     log.workspace=true
+    lovet-util={path="../util"}
     rdf-fusion.workspace=true
     serde="1.0"
     strum.workspace=true
     tokio.workspace=true
     tokio-stream="0.1.17"
-    vowlr-util={path="../util"}
 
 [dev-dependencies]
     env_logger.workspace=true

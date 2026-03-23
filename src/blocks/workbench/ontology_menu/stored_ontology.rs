@@ -2,32 +2,32 @@ use grapher::prelude::GraphDisplayData;
 use leptos::prelude::*;
 use leptos::server_fn::ServerFnError;
 use leptos::server_fn::codec::Rkyv;
+#[cfg(feature = "server")]
+use lovet_database::prelude::{GraphDisplayDataSolutionSerializer, LOVETStore, QueryResults};
+#[cfg(feature = "server")]
+use lovet_parser::errors::LOVETStoreError;
+use lovet_sparql_queries::prelude::DEFAULT_QUERY;
+use lovet_util::prelude::LOVETError;
 use std::path::Path;
-#[cfg(feature = "server")]
-use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, QueryResults, VOWLRStore};
-#[cfg(feature = "server")]
-use vowlr_parser::errors::VOWLRStoreError;
-use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
-use vowlr_util::prelude::VOWLRError;
 
-fn ontology_file_path(name: &str) -> Result<&'static str, VOWLRError> {
+fn ontology_file_path(name: &str) -> Result<&'static str, LOVETError> {
     match name {
         "Clinical Trials Ontology (CTO) (273 classes)" => {
             Ok("src/assets/data/ClinicalTrialOntology-merged.owl")
         }
         "Friend of a Friend (FOAF) vocabulary (22 classes)" => Ok("src/assets/data/foaf.ttl"),
-        "VOWL-R Benchmark Ontology (2.5k nodes)" => Ok("src/assets/data/vowlr-benchmark-2500.ofn"),
+        "LOVET Benchmark Ontology (2.5k nodes)" => Ok("src/assets/data/lovet-benchmark-2500.ofn"),
         "The Environment Ontology (6.9k classes)" => Ok("src/assets/data/envo.owl"),
         _ => Err(ServerFnError::ServerError(format!("Unknown ontology: {name}")).into()),
     }
 }
 
 #[server(input = Rkyv, output = Rkyv)]
-pub async fn load_stored_ontology(name: String) -> Result<GraphDisplayData, VOWLRError> {
+pub async fn load_stored_ontology(name: String) -> Result<GraphDisplayData, LOVETError> {
     let file_path = ontology_file_path(&name)?;
     let path = Path::new(file_path);
 
-    let store = VOWLRStore::default();
+    let store = LOVETStore::default();
     store.insert_file(path, false).await?;
 
     let mut data_buffer = GraphDisplayData::new();
@@ -36,7 +36,7 @@ pub async fn load_stored_ontology(name: String) -> Result<GraphDisplayData, VOWL
         .session
         .query(DEFAULT_QUERY.as_str())
         .await
-        .map_err(|e| <VOWLRStoreError as Into<VOWLRError>>::into(e.into()))?;
+        .map_err(|e| <LOVETStoreError as Into<LOVETError>>::into(e.into()))?;
 
     if let QueryResults::Solutions(solutions) = query_stream {
         solution_serializer

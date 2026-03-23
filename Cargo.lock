@@ -4073,6 +4073,105 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
+name = "lovet"
+version = "0.1.0-alpha"
+dependencies = [
+ "actix-files",
+ "actix-web",
+ "async-broadcast",
+ "bytes",
+ "console_error_panic_hook",
+ "console_log",
+ "dashmap",
+ "env_logger",
+ "futures",
+ "getrandom 0.3.4",
+ "gloo-timers 0.2.6",
+ "grapher",
+ "http 1.4.0",
+ "icondata",
+ "leptos",
+ "leptos-use",
+ "leptos_actix",
+ "leptos_meta",
+ "leptos_router",
+ "log",
+ "lovet-database",
+ "lovet-parser",
+ "lovet-sparql-queries",
+ "lovet-util",
+ "rayon",
+ "reqwest",
+ "rkyv",
+ "tokio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-rayon",
+ "web-sys",
+]
+
+[[package]]
+name = "lovet-database"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "fluent-uri",
+ "futures",
+ "grapher",
+ "horned-owl",
+ "log",
+ "lovet-parser",
+ "lovet-sparql-queries",
+ "lovet-util",
+ "memchr",
+ "oxrdf",
+ "rdf-fusion",
+ "smallvec",
+ "tempfile",
+ "test-generator",
+ "tokio",
+ "unescape_zero_copy",
+]
+
+[[package]]
+name = "lovet-parser"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "futures",
+ "horned-owl",
+ "leptos",
+ "log",
+ "lovet-util",
+ "rdf-fusion",
+ "serde",
+ "strum 0.27.2",
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
+name = "lovet-sparql-queries"
+version = "0.1.0"
+dependencies = [
+ "const_format",
+ "grapher",
+ "lovet-util",
+]
+
+[[package]]
+name = "lovet-util"
+version = "0.1.0"
+dependencies = [
+ "leptos",
+ "log",
+ "rkyv",
+ "serde",
+ "strum 0.27.2",
+ "tabled",
+]
+
+[[package]]
 name = "lru"
 version = "0.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5056,9 +5155,9 @@ dependencies = [
  "env_logger",
  "grapher",
  "log",
+ "lovet-database",
+ "lovet-sparql-queries",
  "tokio",
- "vowlr-database",
- "vowlr-sparql-queries",
 ]
 
 [[package]]
@@ -7532,105 +7631,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "vowlr"
-version = "0.1.0-alpha"
-dependencies = [
- "actix-files",
- "actix-web",
- "async-broadcast",
- "bytes",
- "console_error_panic_hook",
- "console_log",
- "dashmap",
- "env_logger",
- "futures",
- "getrandom 0.3.4",
- "gloo-timers 0.2.6",
- "grapher",
- "http 1.4.0",
- "icondata",
- "leptos",
- "leptos-use",
- "leptos_actix",
- "leptos_meta",
- "leptos_router",
- "log",
- "rayon",
- "reqwest",
- "rkyv",
- "tokio",
- "vowlr-database",
- "vowlr-parser",
- "vowlr-sparql-queries",
- "vowlr-util",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-rayon",
- "web-sys",
-]
-
-[[package]]
-name = "vowlr-database"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "fluent-uri",
- "futures",
- "grapher",
- "horned-owl",
- "log",
- "memchr",
- "oxrdf",
- "rdf-fusion",
- "smallvec",
- "tempfile",
- "test-generator",
- "tokio",
- "unescape_zero_copy",
- "vowlr-parser",
- "vowlr-sparql-queries",
- "vowlr-util",
-]
-
-[[package]]
-name = "vowlr-parser"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "futures",
- "horned-owl",
- "leptos",
- "log",
- "rdf-fusion",
- "serde",
- "strum 0.27.2",
- "tokio",
- "tokio-stream",
- "vowlr-util",
-]
-
-[[package]]
-name = "vowlr-sparql-queries"
-version = "0.1.0"
-dependencies = [
- "const_format",
- "grapher",
- "vowlr-util",
-]
-
-[[package]]
-name = "vowlr-util"
-version = "0.1.0"
-dependencies = [
- "leptos",
- "log",
- "rkyv",
- "serde",
- "strum 0.27.2",
- "tabled",
-]
 
 [[package]]
 name = "walkdir"

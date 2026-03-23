@@ -1,11 +1,11 @@
 [package]
     authors=["TheRealMorgenfrue", "LouiseWolff17"]
-    description="Utility code used by the entire VOWL-R workspace"
+    description="Utility code used by the entire LOVET workspace"
     edition="2024"
     license-file="LICENSE"
-    name="vowlr-util"
+    name="lovet-util"
     readme="README.md"
-    repository="https://github.com/WebVOWL/VOWL-R"
+    repository="https://github.com/WebVOWL/LOVET"
     version="0.1.0"
 
 [lib]

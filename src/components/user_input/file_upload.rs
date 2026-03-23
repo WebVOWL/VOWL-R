@@ -8,16 +8,16 @@ use leptos::server_fn::codec::{MultipartData, MultipartFormData, Rkyv, Streaming
 use leptos::task::spawn_local;
 use log::{debug, info};
 #[cfg(feature = "server")]
+use lovet_database::prelude::{GraphDisplayDataSolutionSerializer, LOVETStore, QueryResults};
+#[cfg(feature = "server")]
+use lovet_parser::errors::LOVETStoreError;
+use lovet_util::prelude::{DataType, LOVETError};
+#[cfg(feature = "server")]
 use reqwest::Client;
 use std::cell::RefCell;
 #[cfg(feature = "server")]
 use std::path::Path;
 use std::rc::Rc;
-#[cfg(feature = "server")]
-use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, QueryResults, VOWLRStore};
-#[cfg(feature = "server")]
-use vowlr_parser::errors::VOWLRStoreError;
-use vowlr_util::prelude::{DataType, VOWLRError};
 use web_sys::{FileList, FormData};
 
 const MAX_FILE_SIZE_BYTES: usize = 50 * 1024 * 1024;
@@ -90,7 +90,7 @@ pub async fn ontology_progress(filename: String) -> Result<TextStream, ServerFnE
     input = MultipartFormData,
 )]
 pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), ServerFnError> {
-    let mut session = VOWLRStore::default();
+    let mut session = LOVETStore::default();
     #[expect(
         clippy::expect_used,
         reason = "MultipartData::into_inner always returns Some on the server-side"
@@ -161,7 +161,7 @@ pub async fn handle_remote(url: String) -> Result<(DataType, usize), ServerFnErr
         }
     }
 
-    let mut session = VOWLRStore::default();
+    let mut session = LOVETStore::default();
     let progress_key = url.clone();
     progress::reset(&progress_key);
     session
@@ -198,7 +198,7 @@ pub async fn handle_sparql(
     format: Option<String>,
 ) -> Result<(DataType, usize), ServerFnError> {
     let client = Client::new();
-    let mut session = VOWLRStore::default();
+    let mut session = LOVETStore::default();
 
     let accept_type = match format.as_deref() {
         Some("xml") => DataType::SPARQLXML.mime_type(),
@@ -243,16 +243,16 @@ pub async fn handle_sparql(
 }
 
 #[server (input = Rkyv, output = Rkyv)]
-pub async fn handle_internal_sparql(query: String) -> Result<GraphDisplayData, VOWLRError> {
-    let vowlr = VOWLRStore::default();
+pub async fn handle_internal_sparql(query: String) -> Result<GraphDisplayData, LOVETError> {
+    let lovet = LOVETStore::default();
 
     let mut data_buffer = GraphDisplayData::new();
     let solution_serializer = GraphDisplayDataSolutionSerializer::new();
-    let query_stream = vowlr
+    let query_stream = lovet
         .session
         .query(query.as_str())
         .await
-        .map_err(|e| <VOWLRStoreError as Into<VOWLRError>>::into(e.into()))?;
+        .map_err(|e| <LOVETStoreError as Into<LOVETError>>::into(e.into()))?;
     if let QueryResults::Solutions(solutions) = query_stream {
         solution_serializer
             .serialize_nodes_stream(&mut data_buffer, solutions)

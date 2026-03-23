@@ -9,7 +9,7 @@ pub const DEFAULT_PREFIXES: [&str; 6] = [
     "rdfs: <http://www.w3.org/2000/01/rdf-schema#>",
     "rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
     "xsd: <http://www.w3.org/2001/XMLSchema#>",
-    "vowlr: <http://www.example.com/iri#>",
+    "lovet: <http://www.example.com/iri#>",
     "xml: <http://www.w3.org/XML/1998/namespace>",
 ];
 

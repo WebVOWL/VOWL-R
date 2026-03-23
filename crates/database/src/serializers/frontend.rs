@@ -17,13 +17,13 @@ use grapher::prelude::{
     RdfsEdge, RdfsNode, RdfsType,
 };
 use log::{debug, error, info, trace, warn};
+use lovet_parser::errors::LOVETStoreError;
+use lovet_util::prelude::LOVETError;
 use rdf_fusion::{
     execution::results::QuerySolutionStream,
     model::{BlankNode, NamedNode, Term},
 };
 use unescape_zero_copy::unescape_default;
-use vowlr_parser::errors::VOWLRStoreError;
-use vowlr_util::prelude::VOWLRError;
 
 pub struct GraphDisplayDataSolutionSerializer;
 pub enum SerializationStatus {
@@ -40,7 +40,7 @@ impl GraphDisplayDataSolutionSerializer {
         &self,
         data: &mut GraphDisplayData,
         mut solution_stream: QuerySolutionStream,
-    ) -> Result<(), VOWLRError> {
+    ) -> Result<(), LOVETError> {
         let mut count: u32 = 0;
         info!("Serializing query solution stream...");
         let start_time = Instant::now();
@@ -49,7 +49,7 @@ impl GraphDisplayDataSolutionSerializer {
             let solution = match maybe_solution {
                 Ok(solution) => solution,
                 Err(e) => {
-                    let a: VOWLRStoreError = e.into();
+                    let a: LOVETStoreError = e.into();
                     data_buffer.failed_buffer.push(a.into());
                     continue;
                 }
@@ -73,13 +73,13 @@ impl GraphDisplayDataSolutionSerializer {
             self.write_node_triple(&mut data_buffer, triple)
                 .or_else(|e| {
                     data_buffer.failed_buffer.push(e.into());
-                    Ok::<SerializationStatus, VOWLRError>(SerializationStatus::Serialized)
+                    Ok::<SerializationStatus, LOVETError>(SerializationStatus::Serialized)
                 })?;
             count += 1;
         }
         self.check_all_unknowns(&mut data_buffer).or_else(|e| {
             data_buffer.failed_buffer.push(e.into());
-            Ok::<(), VOWLRError>(())
+            Ok::<(), LOVETError>(())
         })?;
 
         // Catch permanently unresolved triples
@@ -117,7 +117,7 @@ impl GraphDisplayDataSolutionSerializer {
         debug!("{}", data_buffer);
         if !data_buffer.failed_buffer.is_empty() {
             let total = data_buffer.failed_buffer.len();
-            let err: VOWLRError = take(&mut data_buffer.failed_buffer).into();
+            let err: LOVETError = take(&mut data_buffer.failed_buffer).into();
             error!("Failed to serialize {} triples:\n{}", total, err);
             return Err(err);
         }

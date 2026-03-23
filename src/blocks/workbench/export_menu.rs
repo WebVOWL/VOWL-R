@@ -6,14 +6,14 @@ use futures::StreamExt;
 use leptos::prelude::*;
 use leptos::server_fn::codec::{ByteStream, Streaming};
 #[cfg(feature = "server")]
-use vowlr_database::prelude::VOWLRStore;
-use vowlr_util::prelude::{DataType, VOWLRError};
+use lovet_database::prelude::LOVETStore;
+use lovet_util::prelude::{DataType, LOVETError};
 use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url, js_sys, wasm_bindgen::JsCast};
 
 #[server(output = Streaming)]
 /// Export a graph from the database
-pub async fn export_graph(resource_type: DataType) -> Result<ByteStream<VOWLRError>, VOWLRError> {
-    let store = VOWLRStore::default();
+pub async fn export_graph(resource_type: DataType) -> Result<ByteStream<LOVETError>, LOVETError> {
+    let store = LOVETStore::default();
     let stream = store.serialize_stream(resource_type).await?;
     Ok(ByteStream::new(stream.map(|chunk| {
         chunk
@@ -25,7 +25,7 @@ pub async fn export_graph(resource_type: DataType) -> Result<ByteStream<VOWLRErr
 pub async fn download_ontology(
     resource_type: DataType,
     progress_message: RwSignal<String>,
-) -> Result<(), VOWLRError> {
+) -> Result<(), LOVETError> {
     let byte_stream = export_graph(resource_type).await?;
 
     // Download data from server

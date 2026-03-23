@@ -1,12 +1,12 @@
 [package]
     authors=["TheRealMorgenfrue", "LouiseWolff17", "khmikkelsen"]
-    description="Database code for VOWL-R"
+    description="Database code for LOVET"
     edition="2024"
     keywords=["rdf", "graph", "sparql", "datafusion"]
     license-file="LICENSE"
-    name="vowlr-database"
+    name="lovet-database"
     readme="README.md"
-    repository="https://github.com/WebVOWL/VOWL-R"
+    repository="https://github.com/WebVOWL/LOVET"
     version="0.1.0"
 
 [lib]
@@ -20,6 +20,9 @@
     grapher={workspace=true}
     horned-owl={workspace=true}
     log={workspace=true}
+    lovet-parser={path="../parser"}
+    lovet-sparql-queries={path="../sparql_queries"}
+    lovet-util={path="../util"}
     memchr="2.7.6"
     oxrdf="0.3.1"
     rdf-fusion={workspace=true}
@@ -28,6 +31,3 @@
     test-generator="^0.3"
     tokio={workspace=true}
     unescape_zero_copy="2.3.1"
-    vowlr-parser={path="../parser"}
-    vowlr-sparql-queries={path="../sparql_queries"}
-    vowlr-util={path="../util"}

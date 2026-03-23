@@ -1,8 +1,8 @@
-//! Shared SPARQL query strings for VOWL-R.
+//! Shared SPARQL query strings for LOVET.
 //!
 //! This crate is intentionally dependency-free and WASM-safe so it can be used by:
-//! - the SSR/server side (via `vowlr-database`)
-//! - the client/wasm side (via `vowlr`)
+//! - the SSR/server side (via `lovet-database`)
+//! - the client/wasm side (via `lovet`)
 
 mod assembly;
 mod snippets;
@@ -30,7 +30,7 @@ pub mod prelude {
     ];
 
     // PERF: this could maybe be a thread_local instead?
-    /// The default query contains all classes and properties supported by VOWL-R.
+    /// The default query contains all classes and properties supported by LOVET.
     pub static DEFAULT_QUERY: LazyLock<String> = LazyLock::new(|| {
         let snippets = [
             snippets_from_enum::<OwlNode>(),

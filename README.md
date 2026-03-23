@@ -1,28 +1,28 @@
-# VOWL-R: WebVOWL Reimagined
+# LOVET: WebVOWL Reimagined
 
-This branch tracks development of VOWL-R, which is a total rewrite of WebVOWL in Rust.
+This branch tracks development of LOVET, which is a total rewrite of WebVOWL in Rust.
 
 ## Run using Docker
 
-Pull image: `docker pull ghcr.io/webvowl/vowl-r:latest`
+Pull image: `docker pull ghcr.io/webvowl/lovet:latest`
 
 Or use the [docker compose file](/docker-compose.yml) with command `docker-compose up -d`
 
 ### Building the docker image
 
 0. Make sure Docker is installed
-1. Clone the project locally, e.g. `git clone https://github.com/WebVOWL/VOWL-R.git`
-2. Make sure you're in the VOWL-R folder, e.g. `cd VOWL-R`
-3. To build the docker image run `docker build . -t vowlr-dev`
-4. To start the docker image run `docker run -p 8080:8080 vowlr-dev`
-5. Visit [http://localhost:8080](http://localhost:8080) to use VOWL-R
+1. Clone the project locally, e.g. `git clone https://github.com/WebVOWL/LOVET.git`
+2. Make sure you're in the LOVET folder, e.g. `cd LOVET`
+3. To build the docker image run `docker build . -t lovet-dev`
+4. To start the docker image run `docker run -p 8080:8080 lovet-dev`
+5. Visit [http://localhost:8080](http://localhost:8080) to use LOVET
 
 ## Development setup
 
 > [!NOTE]
 > Using Linux is recommended
 
-0. Clone the project locally, e.g. `git clone https://github.com/WebVOWL/VOWL-R.git`
+0. Clone the project locally, e.g. `git clone https://github.com/WebVOWL/LOVET.git`
 1. Install Rust from [https://www.rust-lang.org/tools/install](https://www.rust-lang.org/tools/install)
 2. Install the clang compiler toolchain, e.g. `dnf install clang`
 3. Install the mold linker, e.g. `dnf install mold`

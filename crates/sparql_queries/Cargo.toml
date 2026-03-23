@@ -1,8 +1,8 @@
 [package]
-    description="Shared SPARQL query strings for VOWL-R (WASM-safe)."
+    description="Shared SPARQL query strings for LOVET (WASM-safe)."
     edition="2024"
     license="MIT OR Apache-2.0"
-    name="vowlr-sparql-queries"
+    name="lovet-sparql-queries"
     version="0.1.0"
 
 [lib]
@@ -14,4 +14,4 @@
 [dependencies]
     const_format="0.2.35"
     grapher={workspace=true}
-    vowlr-util={path="../util"}
+    lovet-util={path="../util"}

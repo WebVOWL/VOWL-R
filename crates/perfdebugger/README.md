@@ -1,6 +1,6 @@
 # Performance Debugging
 
-This crate runs all code of VOWL-R natively to take advantage
+This crate runs all code of LOVET natively to take advantage
 of the suite of debugging and performance optimization tools available in Rust.
 
 ## Building and Running

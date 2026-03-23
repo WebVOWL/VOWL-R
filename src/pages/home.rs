@@ -5,7 +5,7 @@ use leptos_meta::Title;
 #[component]
 pub fn Home() -> impl IntoView {
     view! {
-        <Title text="VOWL-R" />
+        <Title text="LOVET" />
         <main class="-z-99">
             <canvas class="fixed -z-98 size-full" id="canvas" />
             <NewWorkbench />

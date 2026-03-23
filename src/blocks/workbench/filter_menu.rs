@@ -13,8 +13,8 @@ use grapher::prelude::{ElementType, GraphDisplayData};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use log::error;
+use lovet_sparql_queries::prelude::QueryAssembler;
 use std::collections::HashMap;
-use vowlr_sparql_queries::prelude::QueryAssembler;
 
 use classes::{is_owl_class, is_rdf_class};
 use filtergroup::FilterGroup;

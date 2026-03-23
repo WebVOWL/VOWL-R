@@ -2,14 +2,14 @@ use super::WorkbenchMenuItems;
 use crate::components::icon::Icon;
 use leptos::prelude::*;
 
-pub fn VowlrDesc() -> impl IntoView {
+pub fn LOVETDesc() -> impl IntoView {
     let description = include_str!("../../assets/about_description.txt");
     view! {
         <p>{description}</p>
         <div class="flex gap-4">
             <a
                 class="text-2xl transition"
-                href="https://github.com/WebVOWL/VOWL-R"
+                href="https://github.com/WebVOWL/LOVET"
             >
                 <Icon icon=icondata::AiGithubFilled />
             </a>
@@ -38,7 +38,7 @@ pub fn AboutMenu() -> impl IntoView {
     view! {
         <WorkbenchMenuItems title="About">
             <Version />
-            <VowlrDesc />
+            <LOVETDesc />
         </WorkbenchMenuItems>
     }
 }

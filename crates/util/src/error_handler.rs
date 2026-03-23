@@ -235,15 +235,15 @@ impl std::fmt::Display for ErrorRecord {
 #[derive(
     Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Serialize, Deserialize,
 )]
-/// The struct used by VOWL-R when things go south.
+/// The struct used by LOVET when things go south.
 ///
 /// # Note
-/// Every error type in use should implement [`From<T> for VOWLRServerError`].
-pub struct VOWLRError {
+/// Every error type in use should implement [`From<T> for LOVETServerError`].
+pub struct LOVETError {
     pub records: Vec<ErrorRecord>,
 }
 
-impl FromServerFnError for VOWLRError {
+impl FromServerFnError for LOVETError {
     type Encoder = RkyvEncoding;
 
     fn from_server_fn_error(value: ServerFnErrorErr) -> Self {
@@ -265,43 +265,43 @@ impl FromServerFnError for VOWLRError {
     }
 }
 
-impl From<ServerFnError> for VOWLRError {
+impl From<ServerFnError> for LOVETError {
     fn from(value: ServerFnError) -> Self {
         let record: ErrorRecord = value.into();
         record.into()
     }
 }
 
-impl From<ServerFnErrorErr> for VOWLRError {
+impl From<ServerFnErrorErr> for LOVETError {
     fn from(value: ServerFnErrorErr) -> Self {
         let record: ErrorRecord = value.into();
         record.into()
     }
 }
 
-impl From<ErrorRecord> for VOWLRError {
+impl From<ErrorRecord> for LOVETError {
     fn from(value: ErrorRecord) -> Self {
-        VOWLRError {
+        LOVETError {
             records: vec![value],
         }
     }
 }
 
-impl From<Vec<ErrorRecord>> for VOWLRError {
+impl From<Vec<ErrorRecord>> for LOVETError {
     fn from(value: Vec<ErrorRecord>) -> Self {
-        VOWLRError { records: value }
+        LOVETError { records: value }
     }
 }
 
 #[cfg(feature = "server")]
-impl std::fmt::Display for VOWLRError {
+impl std::fmt::Display for LOVETError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", ErrorRecord::format_records(&self.records))
     }
 }
 
 #[cfg(not(feature = "server"))]
-impl std::fmt::Display for VOWLRError {
+impl std::fmt::Display for LOVETError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         #[cfg(debug_assertions)]
         {

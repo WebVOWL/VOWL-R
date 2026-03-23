@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use vowlr_util::prelude::TableHTML;
+use lovet_util::prelude::TableHTML;
 
 /// A table
 #[component]

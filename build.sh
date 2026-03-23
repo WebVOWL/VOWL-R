@@ -10,9 +10,9 @@ commands=(
     "cargo leptos build --release --precompress -vv"
     )
 help=(
-    "Builds VOWL-R in development mode and runs it on a local server"
-    "Builds VOWL-R in production mode and runs it on a local server"
-    "Builds VOWL-R in production mode, ready for deployment"
+    "Builds LOVET in development mode and runs it on a local server"
+    "Builds LOVET in production mode and runs it on a local server"
+    "Builds LOVET in production mode, ready for deployment"
     )
 
 valid=0

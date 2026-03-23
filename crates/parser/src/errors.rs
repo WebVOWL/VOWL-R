@@ -2,16 +2,16 @@ use std::{io::Error, panic::Location};
 
 use horned_owl::error::HornedError;
 
+use lovet_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, LOVETError};
 use rdf_fusion::{
     error::LoaderError,
     execution::sparql::error::QueryEvaluationError,
     model::{IriParseError, StorageError},
 };
 use tokio::task::JoinError;
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError};
 
 #[derive(Debug)]
-pub enum VOWLRStoreErrorKind {
+pub enum LOVETStoreErrorKind {
     /// The file type is not supported by the server.
     ///
     /// Example: server only supports `.owl` and is given `.png`
@@ -33,149 +33,149 @@ pub enum VOWLRStoreErrorKind {
 }
 
 #[derive(Debug)]
-pub struct VOWLRStoreError {
+pub struct LOVETStoreError {
     /// The contained error type.
-    inner: VOWLRStoreErrorKind,
+    inner: LOVETStoreErrorKind,
     /// The error's location in the source code.
     location: &'static Location<'static>,
 }
 
-impl From<VOWLRStoreError> for Error {
-    fn from(val: VOWLRStoreError) -> Self {
+impl From<LOVETStoreError> for Error {
+    fn from(val: LOVETStoreError) -> Self {
         Error::other(val.to_string())
     }
 }
-impl From<String> for VOWLRStoreError {
+impl From<String> for LOVETStoreError {
     #[track_caller]
     fn from(error: String) -> Self {
-        VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::InvalidFileType(error),
+        LOVETStoreError {
+            inner: LOVETStoreErrorKind::InvalidFileType(error),
             location: Location::caller(),
         }
     }
 }
 
-impl From<HornedError> for VOWLRStoreError {
+impl From<HornedError> for LOVETStoreError {
     #[track_caller]
     fn from(error: HornedError) -> Self {
-        VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::HornedError(error),
+        LOVETStoreError {
+            inner: LOVETStoreErrorKind::HornedError(error),
             location: Location::caller(),
         }
     }
 }
 
-impl From<IriParseError> for VOWLRStoreError {
+impl From<IriParseError> for LOVETStoreError {
     #[track_caller]
     fn from(error: IriParseError) -> Self {
-        VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::IriParseError(error),
+        LOVETStoreError {
+            inner: LOVETStoreErrorKind::IriParseError(error),
             location: Location::caller(),
         }
     }
 }
 
-impl From<LoaderError> for VOWLRStoreError {
+impl From<LoaderError> for LOVETStoreError {
     #[track_caller]
     fn from(error: LoaderError) -> Self {
-        VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::LoaderError(error),
+        LOVETStoreError {
+            inner: LOVETStoreErrorKind::LoaderError(error),
             location: Location::caller(),
         }
     }
 }
-impl From<VOWLRStoreErrorKind> for VOWLRStoreError {
+impl From<LOVETStoreErrorKind> for LOVETStoreError {
     #[track_caller]
-    fn from(error: VOWLRStoreErrorKind) -> Self {
-        VOWLRStoreError {
+    fn from(error: LOVETStoreErrorKind) -> Self {
+        LOVETStoreError {
             inner: error,
             location: Location::caller(),
         }
     }
 }
 
-impl From<std::io::Error> for VOWLRStoreError {
+impl From<std::io::Error> for LOVETStoreError {
     #[track_caller]
     fn from(error: std::io::Error) -> Self {
-        VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::IOError(error),
+        LOVETStoreError {
+            inner: LOVETStoreErrorKind::IOError(error),
             location: Location::caller(),
         }
     }
 }
-impl From<QueryEvaluationError> for VOWLRStoreError {
+impl From<QueryEvaluationError> for LOVETStoreError {
     #[track_caller]
     fn from(error: QueryEvaluationError) -> Self {
-        VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::QueryEvaluationError(error),
+        LOVETStoreError {
+            inner: LOVETStoreErrorKind::QueryEvaluationError(error),
             location: Location::caller(),
         }
     }
 }
-impl From<JoinError> for VOWLRStoreError {
+impl From<JoinError> for LOVETStoreError {
     #[track_caller]
     fn from(error: JoinError) -> Self {
-        VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::JoinError(error),
+        LOVETStoreError {
+            inner: LOVETStoreErrorKind::JoinError(error),
             location: Location::caller(),
         }
     }
 }
 
-impl From<StorageError> for VOWLRStoreError {
+impl From<StorageError> for LOVETStoreError {
     #[track_caller]
     fn from(error: StorageError) -> Self {
-        VOWLRStoreError {
-            inner: VOWLRStoreErrorKind::StorageError(error),
+        LOVETStoreError {
+            inner: LOVETStoreErrorKind::StorageError(error),
             location: Location::caller(),
         }
     }
 }
 
-impl std::fmt::Display for VOWLRStoreError {
+impl std::fmt::Display for LOVETStoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?} at {}", self.inner, self.location)
     }
 }
 
-impl std::error::Error for VOWLRStoreError {
+impl std::error::Error for LOVETStoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.inner {
-            VOWLRStoreErrorKind::InvalidFileType(_) => None,
-            VOWLRStoreErrorKind::HornedError(e) => Some(e),
-            VOWLRStoreErrorKind::IOError(e) => Some(e),
-            VOWLRStoreErrorKind::IriParseError(e) => Some(e),
-            VOWLRStoreErrorKind::LoaderError(e) => Some(e),
-            VOWLRStoreErrorKind::QueryEvaluationError(e) => Some(e),
-            VOWLRStoreErrorKind::JoinError(e) => Some(e),
-            VOWLRStoreErrorKind::StorageError(e) => Some(e),
+            LOVETStoreErrorKind::InvalidFileType(_) => None,
+            LOVETStoreErrorKind::HornedError(e) => Some(e),
+            LOVETStoreErrorKind::IOError(e) => Some(e),
+            LOVETStoreErrorKind::IriParseError(e) => Some(e),
+            LOVETStoreErrorKind::LoaderError(e) => Some(e),
+            LOVETStoreErrorKind::QueryEvaluationError(e) => Some(e),
+            LOVETStoreErrorKind::JoinError(e) => Some(e),
+            LOVETStoreErrorKind::StorageError(e) => Some(e),
         }
     }
 }
 
-impl From<VOWLRStoreError> for ErrorRecord {
-    fn from(value: VOWLRStoreError) -> Self {
+impl From<LOVETStoreError> for ErrorRecord {
+    fn from(value: LOVETStoreError) -> Self {
         let (message, error_type) = match value.inner {
-            VOWLRStoreErrorKind::InvalidFileType(e) => (e, ErrorType::Parser),
-            VOWLRStoreErrorKind::HornedError(horned_error) => {
+            LOVETStoreErrorKind::InvalidFileType(e) => (e, ErrorType::Parser),
+            LOVETStoreErrorKind::HornedError(horned_error) => {
                 (horned_error.to_string(), ErrorType::Parser)
             }
-            VOWLRStoreErrorKind::IOError(error) => {
+            LOVETStoreErrorKind::IOError(error) => {
                 (error.to_string(), ErrorType::InternalServerError)
             }
-            VOWLRStoreErrorKind::IriParseError(iri_parse_error) => {
+            LOVETStoreErrorKind::IriParseError(iri_parse_error) => {
                 (iri_parse_error.to_string(), ErrorType::Parser)
             }
-            VOWLRStoreErrorKind::LoaderError(loader_error) => {
+            LOVETStoreErrorKind::LoaderError(loader_error) => {
                 (loader_error.to_string(), ErrorType::Database)
             }
-            VOWLRStoreErrorKind::QueryEvaluationError(query_evaluation_error) => {
+            LOVETStoreErrorKind::QueryEvaluationError(query_evaluation_error) => {
                 (query_evaluation_error.to_string(), ErrorType::Database)
             }
-            VOWLRStoreErrorKind::JoinError(join_error) => {
+            LOVETStoreErrorKind::JoinError(join_error) => {
                 (join_error.to_string(), ErrorType::InternalServerError)
             }
-            VOWLRStoreErrorKind::StorageError(storage_error) => {
+            LOVETStoreErrorKind::StorageError(storage_error) => {
                 (storage_error.to_string(), ErrorType::Database)
             }
         };
@@ -189,8 +189,8 @@ impl From<VOWLRStoreError> for ErrorRecord {
     }
 }
 
-impl From<VOWLRStoreError> for VOWLRError {
-    fn from(value: VOWLRStoreError) -> Self {
+impl From<LOVETStoreError> for LOVETError {
+    fn from(value: LOVETStoreError) -> Self {
         let record: ErrorRecord = value.into();
         record.into()
     }

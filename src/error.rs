@@ -1,6 +1,6 @@
 use std::panic::Location;
 
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError};
+use lovet_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, LOVETError};
 
 #[derive(Debug)]
 pub enum ClientErrorKind {
@@ -32,7 +32,7 @@ impl From<ClientErrorKind> for ErrorRecord {
     }
 }
 
-impl From<ClientErrorKind> for VOWLRError {
+impl From<ClientErrorKind> for LOVETError {
     fn from(value: ClientErrorKind) -> Self {
         let a: ErrorRecord = value.into();
         a.into()
@@ -40,30 +40,30 @@ impl From<ClientErrorKind> for VOWLRError {
 }
 
 // #[derive(Debug)]
-// pub struct VOWLRClientError {
+// pub struct LOVETClientError {
 //     /// The contained error type.
 //     inner: ClientErrorKind,
 //     /// The error's location in the source code.
 //     location: &'static Location<'static>,
 // }
-// impl std::fmt::Display for VOWLRClientError {
+// impl std::fmt::Display for LOVETClientError {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //         write!(f, "{:?}", self.inner)
 //     }
 // }
 
-// impl From<ClientErrorKind> for VOWLRClientError {
+// impl From<ClientErrorKind> for LOVETClientError {
 //     #[track_caller]
 //     fn from(error: ClientErrorKind) -> Self {
-//         VOWLRClientError {
+//         LOVETClientError {
 //             inner: error,
 //             location: Location::caller(),
 //         }
 //     }
 // }
 
-// impl From<VOWLRClientError> for ErrorRecord {
-//     fn from(value: VOWLRClientError) -> Self {
+// impl From<LOVETClientError> for ErrorRecord {
+//     fn from(value: LOVETClientError) -> Self {
 //         let (message, error_type, severity) = match value.inner {
 //             ClientErrorKind::JavaScriptError(e) => (e, ErrorType::Gui, ErrorSeverity::Error),
 //             ClientErrorKind::RenderError(e) => (e, ErrorType::Renderer, ErrorSeverity::Critical),
@@ -78,8 +78,8 @@ impl From<ClientErrorKind> for VOWLRError {
 //     }
 // }
 
-// impl From<VOWLRClientError> for VOWLRError {
-//     fn from(value: VOWLRClientError) -> Self {
+// impl From<LOVETClientError> for LOVETError {
+//     fn from(value: LOVETClientError) -> Self {
 //         let a: ErrorRecord = value.into();
 //         a.into()
 //     }

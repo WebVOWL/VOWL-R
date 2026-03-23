@@ -1,7 +1,7 @@
 services:
-    vowlr:
-        image: ghcr.io/webvowl/vowl-r:latest
-        container_name: vowl-r
+    lovet:
+        image: ghcr.io/webvowl/lovet:latest
+        container_name: lovet
         ports:
             - 8080:8080
         restart: unless-stopped
