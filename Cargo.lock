@@ -7615,7 +7615,6 @@ dependencies = [
 name = "vowlr-sparql-queries"
 version = "0.1.0"
 dependencies = [
- "const_format",
  "grapher",
  "vowlr-util",
 ]
