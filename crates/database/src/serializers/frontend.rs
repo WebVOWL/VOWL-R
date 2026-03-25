@@ -533,6 +533,7 @@ impl GraphDisplayDataSolutionSerializer {
         self.merge_restriction_state(data_buffer, old, new);
         data_buffer.node_element_buffer.remove(old);
         self.update_edges(data_buffer, old, new);
+        self.merge_individual_counts(data_buffer, old, new);
         self.redirect_iri(data_buffer, old, new)?;
         self.retry_restrictions(data_buffer)?;
         Ok(())
@@ -1820,7 +1821,14 @@ impl GraphDisplayDataSolutionSerializer {
                         state.requires_filler = true;
                         return self.try_materialize_restriction(data_buffer, &triple.id);
                     }
-                    // owl::NAMED_INDIVIDUAL => {}
+                    owl::NAMED_INDIVIDUAL => {
+                        let count = Self::individual_count_literal(&triple)?;
+                        *data_buffer
+                            .individual_count_buffer
+                            .entry(triple.id.clone())
+                            .or_default() += count;
+                        return Ok(SerializationStatus::Serialized);
+                    }
                     // owl::NEGATIVE_PROPERTY_ASSERTION => {}
 
                     //TODO: OWL1
@@ -1836,7 +1844,30 @@ impl GraphDisplayDataSolutionSerializer {
                         self.retry_restrictions(data_buffer)?;
                         return Ok(SerializationStatus::Serialized);
                     }
-                    // owl::ONE_OF => {}
+                    owl::ONE_OF => {
+                        let Some(raw_target) = triple.target.clone() else {
+                            return Err(SerializationErrorKind::MissingObject(
+                                triple,
+                                "owl:oneOf triple is missing a target".to_string(),
+                            )
+                            .into());
+                        };
+
+                        let materialized_target =
+                            self.materialize_one_of_target(data_buffer, &triple.id, &raw_target)?;
+
+                        let edge_triple = Triple {
+                            id: triple.id.clone(),
+                            element_type: triple.element_type.clone(),
+                            target: Some(materialized_target),
+                        };
+
+                        match self.insert_edge(data_buffer, &edge_triple, ElementType::NoDraw, None)
+                        {
+                            Some(_) => return Ok(SerializationStatus::Serialized),
+                            None => return Ok(SerializationStatus::Deferred),
+                        }
+                    }
                     owl::ONTOLOGY => {
                         if let Some(base) = &data_buffer.document_base {
                             warn!(
@@ -2370,6 +2401,22 @@ impl GraphDisplayDataSolutionSerializer {
         }
     }
 
+    fn merge_individual_counts(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        old: &Term,
+        new: &Term,
+    ) {
+        let Some(old_count) = data_buffer.individual_count_buffer.remove(old) else {
+            return;
+        };
+
+        *data_buffer
+            .individual_count_buffer
+            .entry(new.clone())
+            .or_default() += old_count;
+    }
+
     #[expect(
         clippy::result_large_err,
         reason = "fixed when serializer is refactored to use pointers instead of values"
@@ -2561,6 +2608,36 @@ impl GraphDisplayDataSolutionSerializer {
         }
     }
 
+    #[expect(
+        clippy::result_large_err,
+        reason = "fixed when serializer is refactored to use pointers instead of values"
+    )]
+    fn individual_count_literal(triple: &Triple) -> Result<u32, SerializationError> {
+        match triple.target.as_ref() {
+            Some(Term::Literal(literal)) => literal.value().parse::<u32>().map_err(|e| {
+                SerializationErrorKind::SerializationFailed(
+                    triple.clone(),
+                    format!(
+                        "Expected individual count literal, got '{}': {}",
+                        literal.value(),
+                        e
+                    ),
+                )
+                .into()
+            }),
+            Some(other) => Err(SerializationErrorKind::SerializationFailed(
+                triple.clone(),
+                format!("Expected individual count literal, got '{other}'"),
+            )
+            .into()),
+            None => Err(SerializationErrorKind::MissingObject(
+                triple.clone(),
+                "NamedIndividual count triple is missing a target".to_string(),
+            )
+            .into()),
+        }
+    }
+
     fn is_restriction_owner_edge(edge: &Edge) -> bool {
         edge.element_type == ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))
             || edge.element_type == ElementType::NoDraw
@@ -2619,6 +2696,44 @@ impl GraphDisplayDataSolutionSerializer {
                 Ok(literal_id)
             }
             _ => self.get_or_create_domain_thing(data_buffer, owner),
+        }
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "fixed when serializer is refactored to use pointers instead of values"
+    )]
+    fn materialize_one_of_target(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        owner: &Term,
+        target: &Term,
+    ) -> Result<Term, SerializationError> {
+        match target {
+            Term::Literal(literal) => {
+                self.materialize_literal_value_target(data_buffer, owner, literal)
+            }
+            Term::NamedNode(_) | Term::BlankNode(_) => {
+                if let Some(resolved) = self.resolve(data_buffer, target.clone()) {
+                    return Ok(resolved);
+                }
+
+                if !data_buffer.label_buffer.contains_key(target) {
+                    self.extract_label(data_buffer, None, target);
+                }
+
+                let resource_triple = Triple::new(target.clone(), rdfs::RESOURCE.into(), None);
+
+                if !data_buffer.node_element_buffer.contains_key(target) {
+                    self.insert_node_without_retry(
+                        data_buffer,
+                        &resource_triple,
+                        ElementType::Rdfs(RdfsType::Node(RdfsNode::Resource)),
+                    )?;
+                }
+
+                Ok(target.clone())
+            }
         }
     }
 
@@ -2912,6 +3027,7 @@ impl GraphDisplayDataSolutionSerializer {
         data_buffer.node_characteristics.remove(restriction);
         data_buffer.edges_include_map.remove(restriction);
         data_buffer.restriction_buffer.remove(restriction);
+        data_buffer.individual_count_buffer.remove(restriction);
     }
 
     fn is_synthetic_property_fallback(edge: &Edge) -> bool {
@@ -2967,6 +3083,7 @@ impl GraphDisplayDataSolutionSerializer {
         data_buffer.label_buffer.remove(iri);
         data_buffer.node_characteristics.remove(iri);
         data_buffer.anchor_thing_map.retain(|_, value| value != iri);
+        data_buffer.individual_count_buffer.remove(iri);
     }
 
     fn remove_property_fallback_edge(
