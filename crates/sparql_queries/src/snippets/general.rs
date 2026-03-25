@@ -1,17 +1,42 @@
 //! Provides SPARQL query snippets for generic querying across vocabularies.
 
-/// Flatten collections. Currently only supports select OWL types.
+/// Flatten collections.
 pub const COLLECTIONS: &str = r#"{
-            ?id ?nodeType ?intermediate .
-            ?intermediate rdf:first ?firstItem .
-            ?intermediate rdf:rest*/rdf:first ?target .
-            FILTER(?nodeType IN (
-                owl:oneOf
-            ))
+    {
+        ?owner owl:oneOf ?list .
+    }
+    UNION
+    {
+        ?owner ?connector ?expr .
+        FILTER(?connector IN (
+            owl:equivalentClass,
+            rdfs:subClassOf,
+            rdfs:range
+        ))
+        ?expr owl:oneOf ?list .
+    }
 
-            # 6. Safety: Remove nil to avoid phantom edges
-            # FILTER(?label != rdf:nil)
-            }"#;
+    ?list rdf:rest*/rdf:first ?target .
+    FILTER(?target != rdf:nil)
+
+    BIND(?owner AS ?id)
+    BIND(owl:oneOf AS ?nodeType)
+    }"#;
+
+pub const NAMED_INDIVIDUAL_COUNTS: &str = r#"{
+    {
+        SELECT ?id (COUNT(DISTINCT ?individual) AS ?target)
+        WHERE {
+            ?individual a owl:NamedIndividual .
+            ?individual a ?id .
+            FILTER(isIRI(?id))
+            FILTER(?id != owl:NamedIndividual)
+        }
+        GROUP BY ?id
+    }
+
+    BIND(owl:NamedIndividual AS ?nodeType)
+}"#;
 
 /// External classes.
 ///

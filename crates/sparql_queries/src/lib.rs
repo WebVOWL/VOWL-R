@@ -15,17 +15,19 @@ pub mod prelude {
     use crate::assembly::DEFAULT_PREFIXES;
     pub use crate::assembly::QueryAssembler;
     use crate::snippets::general::{
-        COLLECTIONS, DOMAIN_RANGES, LABEL, ONTOLOGY, OWL_DEPRECATED, XML_BASE,
+        COLLECTIONS, DOMAIN_RANGES, LABEL, NAMED_INDIVIDUAL_COUNTS, ONTOLOGY, OWL_DEPRECATED,
+        XML_BASE,
     };
     use crate::snippets::snippets_from_enum;
 
     /// SPARQL snippets that should generally be included in all queries.
-    pub static GENERAL_SNIPPETS: [&str; 6] = [
+    pub static GENERAL_SNIPPETS: [&str; 7] = [
         ONTOLOGY,
         XML_BASE,
         COLLECTIONS,
         DOMAIN_RANGES,
         OWL_DEPRECATED,
+        NAMED_INDIVIDUAL_COUNTS,
         LABEL,
     ];
 

@@ -240,6 +240,8 @@ pub struct SerializationDataBuffer {
     edge_characteristics: HashMap<Edge, HashSet<Characteristic>>,
     /// Maps from node iri to its characteristics.
     node_characteristics: HashMap<Term, HashSet<Characteristic>>,
+    /// Maps from node iri to number of individuals
+    individual_count_buffer: HashMap<Term, u32>,
     /// Stores unresolved triples.
     ///
     /// - Key = The unresolved IRI of the triple
@@ -275,6 +277,7 @@ impl SerializationDataBuffer {
             document_base: None,
             edge_characteristics: HashMap::new(),
             node_characteristics: HashMap::new(),
+            individual_count_buffer: HashMap::new(),
         }
     }
 }
@@ -395,6 +398,17 @@ impl From<SerializationDataBuffer> for GraphDisplayData {
             }
         }
 
+        for (iri, count) in val.individual_count_buffer.into_iter() {
+            match iricache.get(&iri) {
+                Some(idx) => {
+                    display_data.individual_counts.insert(*idx, count);
+                }
+                None => {
+                    error!("Individual count not found for node in iricache: {}", iri);
+                }
+            }
+        }
+
         display_data
     }
 }
@@ -441,6 +455,11 @@ impl Display for SerializationDataBuffer {
         }
         writeln!(f, "\tedge_characteristics: {:?}", self.edge_characteristics)?;
         writeln!(f, "\tnode_characteristics: {:?}", self.node_characteristics)?;
+        writeln!(
+            f,
+            "\tindividual_count_buffer: {:?}",
+            self.individual_count_buffer
+        )?;
         writeln!(f, "\tunknown_buffer:")?;
         for (iri, triples) in self.unknown_buffer.iter() {
             write!(f, "\t\t{} : ", iri)?;
