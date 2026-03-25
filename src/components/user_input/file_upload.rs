@@ -22,6 +22,8 @@ use crate::errors::ClientErrorKind;
 const MAX_FILE_SIZE_BYTES: usize = 50 * 1024 * 1024;
 
 #[cfg(feature = "ssr")]
+/// # Errors
+/// Throws an error if fails to get session
 pub async fn manage_user_id() -> Result<String, ServerFnError> {
     use actix_session::Session;
     use leptos_actix::extract;
