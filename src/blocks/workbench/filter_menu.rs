@@ -6,13 +6,11 @@ mod meta_filter;
 mod properties;
 mod special_operators;
 
+use crate::components::user_input::internal_sparql::load_graph;
+
 use super::{GraphDataContext, WorkbenchMenuItems};
-use crate::components::user_input::file_upload::handle_internal_sparql;
-use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
-use grapher::prelude::{ElementType, GraphDisplayData};
-use leptos::prelude::*;
-use leptos::task::spawn_local;
-use log::error;
+use grapher::prelude::ElementType;
+use leptos::{prelude::*, task::spawn_local_scoped_with_cancellation};
 use std::collections::HashMap;
 use vowlr_sparql_queries::prelude::QueryAssembler;
 
@@ -22,25 +20,10 @@ use meta_filter::filter;
 use properties::is_property;
 use special_operators::is_set_operator;
 
-fn update_graph(query: String, graph_data: RwSignal<GraphDisplayData>) {
-    spawn_local(async move {
-        let output_result = handle_internal_sparql(query).await;
-        match output_result {
-            Ok(new_graph_data) => {
-                graph_data.set(new_graph_data.clone());
-                let _ = EVENT_DISPATCHER
-                    .rend_write_chan
-                    .send(RenderEvent::LoadGraph(new_graph_data));
-            }
-            Err(e) => error!("{e}"),
-        }
-    });
-}
-
 #[component]
 pub fn FilterMenu() -> impl IntoView {
     let GraphDataContext {
-        graph_data,
+        graph_data: _,
         total_graph_data,
     } = expect_context::<GraphDataContext>();
     let element_counts = Memo::new(move |_| {
@@ -116,7 +99,10 @@ pub fn FilterMenu() -> impl IntoView {
             let query =
                 QueryAssembler::assemble_filtered_query(checks /* , char_checks.get()*/);
             leptos::logging::log!("{}", query);
-            update_graph(query, graph_data);
+
+            spawn_local_scoped_with_cancellation(async move {
+                load_graph(query).await;
+            });
         },
         false,
     );

@@ -1,5 +1,7 @@
 use futures::{StreamExt, stream::BoxStream};
+use grapher::prelude::GraphDisplayData;
 use log::{debug, info, warn};
+use rdf_fusion::execution::results::QueryResults;
 use rdf_fusion::store::Store;
 use std::path::Path;
 use std::time::Duration;
@@ -9,7 +11,10 @@ use vowlr_parser::{
     errors::VOWLRStoreError,
     parser_util::{parse_stream_to, parser_from_path},
 };
-use vowlr_util::prelude::DataType;
+use vowlr_util::prelude::{DataType, VOWLRError};
+
+use crate::errors::SerializationErrorKind;
+use crate::serializers::frontend::GraphDisplayDataSolutionSerializer;
 
 static GLOBAL_STORE: std::sync::OnceLock<Store> = std::sync::OnceLock::new();
 
@@ -23,6 +28,44 @@ impl VOWLRStore {
         Self {
             session,
             upload_handle: None,
+        }
+    }
+
+    /// Executes a SPARQL query and serializes the result.
+    ///
+    /// This method tries to continue serializing despite errors.
+    /// As such, the `Ok` value contains non-fatal errors encountered during serialization.
+    pub async fn query(
+        &self,
+        query: String,
+    ) -> Result<(GraphDisplayData, Option<VOWLRError>), VOWLRError> {
+        let solution_serializer = GraphDisplayDataSolutionSerializer::new();
+        let query_stream = self
+            .session
+            .query(query.as_str())
+            .await
+            .map_err(|e| <VOWLRStoreError as Into<VOWLRError>>::into(e.into()))?;
+
+        match query_stream {
+            QueryResults::Solutions(query_solution_stream) => {
+                let mut data_buffer = GraphDisplayData::new();
+
+                let maybe_errors = solution_serializer
+                    .serialize_nodes_stream(&mut data_buffer, query_solution_stream)
+                    .await?;
+                Ok((data_buffer, maybe_errors))
+            }
+            QueryResults::Boolean(_result) => Err(SerializationErrorKind::UnsupportedQueryType(
+                "Query stream is not a SELECT query".to_string(),
+            )
+            .into()),
+            QueryResults::Graph(_query_triple_stream) => {
+                // TODO: Implement to support user-defined SPARQL queries
+                Err(SerializationErrorKind::UnsupportedQueryType(
+                    "Query stream is not a SELECT query".to_string(),
+                )
+                .into())
+            }
         }
     }
 

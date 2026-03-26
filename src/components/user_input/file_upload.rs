@@ -1,10 +1,9 @@
 #[cfg(feature = "server")]
 use futures::StreamExt;
 use gloo_timers::callback::Interval;
-use grapher::prelude::GraphDisplayData;
 use leptos::prelude::*;
 use leptos::server_fn::ServerFnError;
-use leptos::server_fn::codec::{MultipartData, MultipartFormData, Rkyv, StreamingText, TextStream};
+use leptos::server_fn::codec::{MultipartData, MultipartFormData, StreamingText, TextStream};
 use leptos::task::spawn_local;
 use log::{debug, info};
 #[cfg(feature = "server")]
@@ -14,10 +13,8 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "server")]
-use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, QueryResults, VOWLRStore};
-#[cfg(feature = "server")]
-use vowlr_parser::errors::VOWLRStoreError;
-use vowlr_util::prelude::{DataType, VOWLRError};
+use vowlr_database::prelude::VOWLRStore;
+use vowlr_util::prelude::DataType;
 use web_sys::{FileList, FormData};
 
 const MAX_FILE_SIZE_BYTES: usize = 50 * 1024 * 1024;
@@ -240,30 +237,6 @@ pub async fn handle_sparql(
         DataType::SPARQLJSON
     };
     Ok((dtype, total))
-}
-
-#[server (input = Rkyv, output = Rkyv)]
-pub async fn handle_internal_sparql(query: String) -> Result<GraphDisplayData, VOWLRError> {
-    let vowlr = VOWLRStore::default();
-
-    let mut data_buffer = GraphDisplayData::new();
-    let solution_serializer = GraphDisplayDataSolutionSerializer::new();
-    let query_stream = vowlr
-        .session
-        .query(query.as_str())
-        .await
-        .map_err(|e| <VOWLRStoreError as Into<VOWLRError>>::into(e.into()))?;
-    if let QueryResults::Solutions(solutions) = query_stream {
-        solution_serializer
-            .serialize_nodes_stream(&mut data_buffer, solutions)
-            .await?;
-    } else {
-        return Err(ServerFnError::ServerError(
-            "Query stream is not a solutions stream".to_string(),
-        )
-        .into());
-    }
-    Ok(data_buffer)
 }
 
 pub struct UploadProgress {

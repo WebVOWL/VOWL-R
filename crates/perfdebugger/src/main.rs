@@ -1,7 +1,6 @@
 use env_logger::Env;
 use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
 use grapher::run;
-use perfdebugger::util::query;
 use std::env;
 use std::path::Path;
 use vowlr_database::prelude::VOWLRStore;
@@ -21,7 +20,8 @@ async fn main() {
             .await
             .expect("Error inserting file");
 
-        let data = query(DEFAULT_QUERY.to_string()).await.unwrap();
+        let (data, _) = store.query(DEFAULT_QUERY.to_string()).await.unwrap();
+
         EVENT_DISPATCHER
             .rend_write_chan
             .send(RenderEvent::LoadGraph(data))

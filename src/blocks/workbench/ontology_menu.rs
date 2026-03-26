@@ -1,14 +1,12 @@
-mod stored_ontology;
-use super::error_log::ErrorLogContext;
-use super::{GraphDataContext, WorkbenchMenuItems};
+use super::WorkbenchMenuItems;
+use crate::blocks::workbench::GraphDataContext;
 use crate::components::progress_bar::LoadingCircle;
-use crate::components::{
-    icon::Icon,
-    user_input::file_upload::{FileUpload, handle_internal_sparql},
-};
-use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
+use crate::components::user_input::internal_sparql::load_graph;
+use crate::components::user_input::stored_ontology::load_stored_ontology;
+use crate::components::{icon::Icon, user_input::file_upload::FileUpload};
+use crate::errors::ErrorLogContext;
 use leptos::prelude::*;
-use leptos::task::spawn_local;
+use leptos::task::spawn_local_scoped_with_cancellation;
 use log::info;
 use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 use web_sys::HtmlInputElement;
@@ -17,10 +15,6 @@ const MAX_FILE_SIZE_BYTES: f64 = 50.0 * 1024.0 * 1024.0;
 
 #[component]
 pub fn SelectStaticInput() -> impl IntoView {
-    let GraphDataContext {
-        graph_data,
-        total_graph_data,
-    } = expect_context::<GraphDataContext>();
     let error_context = expect_context::<ErrorLogContext>();
     let selected_ontology = RwSignal::new(String::new());
     let loading = RwSignal::new(false);
@@ -56,18 +50,9 @@ pub fn SelectStaticInput() -> impl IntoView {
                     }
                     selected_ontology.set(name.clone());
                     loading.set(true);
-                    spawn_local(async move {
-                        match stored_ontology::load_stored_ontology(name).await {
-                            Ok(new_graph_data) => {
-                                graph_data.set(new_graph_data.clone());
-                                total_graph_data.set(new_graph_data.clone());
-                                let _ = EVENT_DISPATCHER
-                                    .rend_write_chan
-                                    .send(RenderEvent::LoadGraph(new_graph_data));
-                            }
-                            Err(e) => {
-                                error_context.extend(e.records);
-                            }
+                    spawn_local_scoped_with_cancellation(async move {
+                        if let Err(e) = load_stored_ontology(name, DEFAULT_QUERY.to_string()).await {
+                            error_context.extend(e.records);
                         }
                         loading.set(false);
                     });
@@ -96,8 +81,8 @@ pub fn SelectStaticInput() -> impl IntoView {
 #[component]
 pub fn UploadInput() -> impl IntoView {
     let GraphDataContext {
-        graph_data,
-        total_graph_data,
+        graph_data: _,
+        total_graph_data: _,
     } = expect_context::<GraphDataContext>();
     let error_context = expect_context::<ErrorLogContext>();
     let upload = FileUpload::new();
@@ -113,20 +98,8 @@ pub fn UploadInput() -> impl IntoView {
     Effect::new(move || {
         if let Some(value) = local_loading_done.get() {
             match value {
-                Ok(_) => spawn_local(async move {
-                    let output_result = handle_internal_sparql(DEFAULT_QUERY.to_string()).await;
-                    match output_result {
-                        Ok(new_graph_data) => {
-                            graph_data.set(new_graph_data.clone());
-                            total_graph_data.set(new_graph_data.clone());
-                            let _ = EVENT_DISPATCHER
-                                .rend_write_chan
-                                .send(RenderEvent::LoadGraph(new_graph_data));
-                        }
-                        Err(e) => {
-                            error_context.extend(e.records);
-                        }
-                    }
+                Ok(_) => spawn_local_scoped_with_cancellation(async move {
+                    load_graph(DEFAULT_QUERY.to_string()).await;
                 }),
                 Err(e) => {
                     error_context.push(e.into());
@@ -138,20 +111,8 @@ pub fn UploadInput() -> impl IntoView {
     Effect::new(move || {
         if let Some(value) = remote_loading_done.get() {
             match value {
-                Ok(_) => spawn_local(async move {
-                    let output_result = handle_internal_sparql(DEFAULT_QUERY.to_string()).await;
-                    match output_result {
-                        Ok(new_graph_data) => {
-                            graph_data.set(new_graph_data.clone());
-                            total_graph_data.set(new_graph_data.clone());
-                            let _ = EVENT_DISPATCHER
-                                .rend_write_chan
-                                .send(RenderEvent::LoadGraph(new_graph_data));
-                        }
-                        Err(e) => {
-                            error_context.extend(e.records);
-                        }
-                    }
+                Ok(_) => spawn_local_scoped_with_cancellation(async move {
+                    load_graph(DEFAULT_QUERY.to_string()).await;
                 }),
                 Err(e) => {
                     error_context.push(e.into());
@@ -283,30 +244,16 @@ pub fn UploadInput() -> impl IntoView {
 
 #[component]
 pub fn FetchData() -> impl IntoView {
-    let error_context = expect_context::<ErrorLogContext>();
-
-    let handle_reload = move || {
-        spawn_local(async move {
-            let output_result = handle_internal_sparql(DEFAULT_QUERY.to_string()).await;
-            match output_result {
-                Ok(graph_data) => {
-                    let _ = EVENT_DISPATCHER
-                        .rend_write_chan
-                        .send(RenderEvent::LoadGraph(graph_data));
-                }
-                Err(e) => {
-                    error_context.extend(e.records);
-                }
-            }
-        });
-    };
+    let fetch = Action::new(|(): &()| async move {
+        load_graph(DEFAULT_QUERY.to_string()).await;
+    });
 
     view! {
         <div class="flex flex-col gap-2">
             <button
                 class="flex relative justify-center items-center p-1 mt-1 text-xs bg-gray-200 rounded text-[#000000]"
                 on:click=move |_| {
-                    handle_reload();
+                    fetch.dispatch(());
                 }
             >
                 <Icon class="pr-0.5" icon=icondata::AiReloadOutlined />

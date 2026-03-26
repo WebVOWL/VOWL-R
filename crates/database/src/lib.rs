@@ -1,10 +1,8 @@
 mod errors;
-pub mod serializers;
-pub mod store;
-pub mod vocab;
+mod serializers;
+mod store;
+mod vocab;
 
 pub mod prelude {
-    pub use crate::serializers::frontend::GraphDisplayDataSolutionSerializer;
     pub use crate::store::VOWLRStore;
-    pub use rdf_fusion::execution::results::QueryResults;
 }

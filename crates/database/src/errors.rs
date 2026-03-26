@@ -2,7 +2,7 @@ use std::panic::Location;
 
 use crate::serializers::Triple;
 use oxrdf::{BlankNodeIdParseError, IriParseError};
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, get_timestamp};
+use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError, get_timestamp};
 
 #[derive(Debug)]
 pub enum SerializationErrorKind {
@@ -16,6 +16,16 @@ pub enum SerializationErrorKind {
     IriParseError(String, IriParseError),
     /// An error raised during BlankNode IDs validation
     BlankNodeParseError(String, BlankNodeIdParseError),
+    /// An error raised if the query type is not supported.
+    ///
+    /// Some types are: SELECT, ASK, CONSTRUCT.
+    UnsupportedQueryType(String),
+}
+
+impl From<SerializationErrorKind> for VOWLRError {
+    fn from(value: SerializationErrorKind) -> Self {
+        <SerializationError as Into<VOWLRError>>::into(value.into())
+    }
 }
 
 #[derive(Debug)]
@@ -65,6 +75,7 @@ impl From<SerializationError> for ErrorRecord {
                 format!("{blank_node_id_parse_error} (ID: {id})"),
                 ErrorSeverity::Error,
             ),
+            SerializationErrorKind::UnsupportedQueryType(e) => (e, ErrorSeverity::Critical),
         };
         ErrorRecord::new(
             value.timestamp,
@@ -74,5 +85,11 @@ impl From<SerializationError> for ErrorRecord {
             #[cfg(debug_assertions)]
             Some(value.location.to_string()),
         )
+    }
+}
+
+impl From<SerializationError> for VOWLRError {
+    fn from(value: SerializationError) -> Self {
+        <ErrorRecord as Into<VOWLRError>>::into(value.into())
     }
 }
