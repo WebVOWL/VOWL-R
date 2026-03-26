@@ -199,7 +199,10 @@ pub async fn handle_sparql(
 
     let accept_type = match format.as_deref() {
         Some("xml") => DataType::SPARQLXML.mime_type(),
-        _ => DataType::SPARQLJSON.mime_type(),
+        Some("tsv") => DataType::SPARQLTSV.mime_type(),
+        Some("csv") => DataType::SPARQLCSV.mime_type(),
+        Some("json") => DataType::SPARQLJSON.mime_type(),
+        _ => DataType::UNKNOWN.mime_type(),
     };
 
     let resp = client
