@@ -1,4 +1,5 @@
 use super::WorkbenchMenuItems;
+use crate::components::progress_bar::LoadingCircle;
 use crate::components::user_input::internal_sparql::load_graph;
 use crate::components::user_input::stored_ontology::StoredOntology;
 use crate::components::user_input::stored_ontology::load_stored_ontology;
@@ -19,40 +20,17 @@ pub fn SelectStaticInput() -> impl IntoView {
     let error_context = expect_context::<ErrorLogContext>();
 
     let selected_ontology = RwSignal::new(StoredOntology::FriendOfAFriend);
-    // let _ = AsyncDerived::new(|| async {
-    //     async move || {
-    //         if let Err(e) =
-    //             load_stored_ontology(selected_ontology.get(), DEFAULT_QUERY.to_string()).await
-    //         {
-    //             error_context.extend(e.records);
-    //         }
-    //     }
-    // });
 
-    let stored_res2 = Resource::new_rkyv(
-        move || selected_ontology.get(),
-        move |ontology| async move {
-            match load_stored_ontology(ontology).await {
-                Ok(()) => {
-                    // TODO: This runs on the server and has no access to expect_context.
-                    // load_graph(DEFAULT_QUERY.to_string()).await;
-                }
-                Err(e) => {
-                    error_context.extend(e.records);
-                }
+    let stored_res = LocalResource::new(move || async move {
+        match load_stored_ontology(selected_ontology.get()).await {
+            Ok(()) => {
+                load_graph(DEFAULT_QUERY.to_string(), true).await;
             }
-        },
-    );
-
-    // let stored_res = LocalResource::new(move || {
-    //     load_stored_ontology(selected_ontology.get(), DEFAULT_QUERY.to_string())
-    // });
-
-    // if let Some(result) = stored_res.get()
-    //     && let Err(e) = result
-    // {
-    //     error_context.extend(e.records);
-    // }
+            Err(e) => {
+                error_context.extend(e.records);
+            }
+        }
+    });
 
     let update_selected_ontology = move |ev: Event| {
         let target: HtmlInputElement = event_target::<HtmlInputElement>(&ev);
@@ -86,17 +64,13 @@ pub fn SelectStaticInput() -> impl IntoView {
                 prop:value=selected_ontology.read().to_string()
                 on:change=update_selected_ontology
             >
-                <option value="" disabled=true selected=true>
-                    "Select an ontology"
-                </option>
                 {ontologies()}
             </select>
             <Suspense fallback=move || {
-                view! {}
+                view! { <LoadingCircle /> }
             }>
                 {move || Suspend::new(async move {
-                    stored_res2.await;
-                    view! {}
+                    stored_res.await;
                 })}
             </Suspense>
         </div>
@@ -119,9 +93,11 @@ pub fn UploadInput() -> impl IntoView {
     Effect::new(move || {
         if let Some(value) = local_loading_done.get() {
             match value {
-                Ok(_) => spawn_local_scoped_with_cancellation(async move {
-                    load_graph(DEFAULT_QUERY.to_string()).await;
-                }),
+                Ok(_) => {
+                    spawn_local_scoped_with_cancellation(async move {
+                        load_graph(DEFAULT_QUERY.to_string(), true).await;
+                    });
+                }
                 Err(e) => {
                     error_context.push(e.into());
                 }
@@ -132,9 +108,11 @@ pub fn UploadInput() -> impl IntoView {
     Effect::new(move || {
         if let Some(value) = remote_loading_done.get() {
             match value {
-                Ok(_) => spawn_local_scoped_with_cancellation(async move {
-                    load_graph(DEFAULT_QUERY.to_string()).await;
-                }),
+                Ok(_) => {
+                    spawn_local_scoped_with_cancellation(async move {
+                        load_graph(DEFAULT_QUERY.to_string(), true).await;
+                    });
+                }
                 Err(e) => {
                     error_context.push(e.into());
                 }
@@ -266,7 +244,7 @@ pub fn UploadInput() -> impl IntoView {
 #[component]
 pub fn FetchData() -> impl IntoView {
     let fetch = Action::new(|(): &()| async move {
-        load_graph(DEFAULT_QUERY.to_string()).await;
+        load_graph(DEFAULT_QUERY.to_string(), true).await;
     });
 
     view! {

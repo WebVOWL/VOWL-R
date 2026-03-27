@@ -16,21 +16,19 @@ pub async fn handle_internal_sparql(
     store.query(query).await
 }
 
-pub async fn load_graph(query: String) {
+pub async fn load_graph(query: String, clean_load: bool) {
     let error_context = expect_context::<ErrorLogContext>();
 
     match handle_internal_sparql(query).await {
         Ok((result, non_fatal_error)) => {
-            let contex_update = update_context(|graph_data_context: &mut GraphDataContext| {
-                let _ = std::mem::replace(graph_data_context, GraphDataContext::new(&result));
-            });
-            if contex_update.is_none() {
-                error_context.push(
-                    ClientErrorKind::EventHandlingError(
-                        "Failed to update GraphDataContext while loading graph".to_string(),
-                    )
-                    .into(),
-                );
+            if clean_load {
+                let GraphDataContext {
+                    element_counts,
+                    element_checks,
+                } = expect_context::<GraphDataContext>();
+                let new_context = GraphDataContext::new(&result);
+                element_counts.update(|counts| *counts = new_context.element_counts.get());
+                element_checks.update(|checks| *checks = new_context.element_checks.get());
             }
 
             if let Err(e) = EVENT_DISPATCHER
