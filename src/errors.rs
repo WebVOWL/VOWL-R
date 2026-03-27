@@ -8,6 +8,8 @@ pub enum ClientErrorKind {
     JavaScriptError(String),
     /// Errors related to the graph renderer (i.e. ``WasmGrapher``)
     RenderError(String),
+    /// Errors related to file upload
+    FileUploadError(String),
     /// An error raised when the event handler fails to send or receive events.
     EventHandlingError(String),
 }
@@ -18,7 +20,7 @@ impl From<ClientErrorKind> for ErrorRecord {
         let (message, error_type, severity) = match value {
             ClientErrorKind::JavaScriptError(e) => (e, ErrorType::Gui, ErrorSeverity::Error),
             ClientErrorKind::RenderError(e) => (e, ErrorType::Renderer, ErrorSeverity::Critical),
-            ClientErrorKind::EventHandlingError(e) => {
+            ClientErrorKind::FileUploadError(e) | ClientErrorKind::EventHandlingError(e) => {
                 (e, ErrorType::ClientError, ErrorSeverity::Error)
             }
         };
