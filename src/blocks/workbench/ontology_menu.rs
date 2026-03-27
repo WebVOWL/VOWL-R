@@ -4,6 +4,7 @@ use crate::components::user_input::internal_sparql::load_graph;
 use crate::components::user_input::stored_ontology::StoredOntology;
 use crate::components::user_input::stored_ontology::load_stored_ontology;
 use crate::components::{icon::Icon, user_input::file_upload::FileUpload};
+use crate::errors::ClientErrorKind;
 use crate::errors::ErrorLogContext;
 use leptos::prelude::*;
 use leptos::task::spawn_local_scoped_with_cancellation;
@@ -159,7 +160,7 @@ pub fn UploadInput() -> impl IntoView {
                                     file.name(), MAX_FILE_SIZE_BYTES / 1024.0 / 1024.0
                                 );
                                 error_context
-                                    .push(crate::error::ClientErrorKind::FileUploadError(err_msg).into());
+                                    .push(ClientErrorKind::FileUploadError(err_msg).into());
                                 input.set_value("");
                                 return;
                             }
