@@ -16,7 +16,7 @@
     leptos.workspace=true
     log.workspace=true
     rkyv.workspace=true
-    serde={version="1.0", features=["derive"]}
+    serde.workspace=true
     strum.workspace=true
     tabled={version="0.20", optional=true}
     time={version="0.3.47", features=["formatting", "macros"]}

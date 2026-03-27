@@ -7534,6 +7534,8 @@ dependencies = [
  "rayon",
  "reqwest",
  "rkyv",
+ "serde",
+ "strum 0.27.2",
  "tokio",
  "vowlr-database",
  "vowlr-parser",
