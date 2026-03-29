@@ -25,6 +25,7 @@ use grapher::prelude::{
     RdfsEdge, RdfsNode, RdfsType,
 };
 use log::{debug, error, info, trace, warn};
+use rayon::iter::ParallelBridge;
 use rdf_fusion::{
     execution::results::QuerySolutionStream,
     model::{BlankNode, NamedNode, Term},
@@ -50,6 +51,235 @@ impl GraphDisplayDataSolutionSerializer {
         Self {
             term_index: TermIndex::new(),
         }
+    }
+
+    pub async fn par_serialize_nodes_stream(
+        &self,
+        data: &mut GraphDisplayData,
+        mut solution_stream: QuerySolutionStream,
+    ) -> Result<(), VOWLRError> {
+        let mut count: u64 = 0;
+        info!("Serializing query solution stream...");
+        let start_time = Instant::now();
+        let mut data_buffer = SerializationDataBuffer::new();
+
+        // TODO:
+        // - https://morestina.net/1432/parallel-stream-processing-with-rayon
+        // - https://docs.rs/rayon/latest/rayon/iter/trait.ParallelBridge.html
+        // - https://users.rust-lang.org/t/parallel-work-collected-sequentially/13504/2
+        // - https://docs.rs/parallel-stream/latest/parallel_stream/
+        // - https://doc.rust-lang.org/nightly/std/sync/index.html
+        for item in solution_stream.chunks(1024) {}
+
+        while let Some(maybe_solution) = solution_stream.next().await {
+            let solution = match maybe_solution {
+                Ok(solution) => solution,
+                Err(e) => {
+                    data_buffer
+                        .failed_buffer
+                        .push(<VOWLRStoreError as Into<ErrorRecord>>::into(e.into()));
+                    continue;
+                }
+            };
+            let Some(id_term) = solution.get("id") else {
+                continue;
+            };
+
+            let subject_term_id = data_buffer.term_index.insert(id_term.to_owned());
+            self.extract_label(
+                &mut data_buffer,
+                solution.get("label"),
+                id_term,
+                &subject_term_id,
+            );
+
+            let Some(node_type_term) = solution.get("nodeType") else {
+                continue;
+            };
+
+            let triple = Rc::new(Triple {
+                id: subject_term_id,
+                element_type: data_buffer.term_index.insert(node_type_term.to_owned()),
+                target: solution
+                    .get("target")
+                    .map(|term| data_buffer.term_index.insert(term.to_owned())),
+            });
+
+            self.write_node_triple(&mut data_buffer, triple)
+                .or_else(|e| {
+                    data_buffer.failed_buffer.push(e.into());
+                    Ok::<SerializationStatus, VOWLRError>(SerializationStatus::Serialized)
+                })?;
+            count += 1;
+        }
+
+        self.check_all_unknowns(&mut data_buffer).or_else(|e| {
+            data_buffer.failed_buffer.push(e.into());
+            Ok::<(), VOWLRError>(())
+        })?;
+
+        // Catch permanently unresolved triples
+        for (term, triples) in data_buffer.unknown_buffer.drain() {
+            for triple in triples {
+                let e: SerializationError = SerializationErrorKind::SerializationFailed(
+                    triple,
+                    format!("Unresolved reference: could not map '{}'", term),
+                )
+                .into();
+                data_buffer.failed_buffer.push(e.into());
+            }
+        }
+
+        let finish_time = Instant::now()
+            .checked_duration_since(start_time)
+            .unwrap_or(Duration::new(0, 0))
+            .as_secs_f32();
+        info!(
+            "Serialization completed in {} s\n \
+            \tTotal solutions: {count}\n \
+            \tElements       : {}\n \
+            \tEdges          : {}\n \
+            \tLabels         : {}\n \
+            \tCardinalities  : {}\n \
+            \tCharacteristics: {}\n\n \
+        ",
+            finish_time,
+            data_buffer.node_element_buffer.len(),
+            data_buffer.edge_buffer.len(),
+            data_buffer.label_buffer.len(),
+            data_buffer.edge_cardinality_buffer.len(),
+            data_buffer.edge_characteristics.len() + data_buffer.node_characteristics.len(),
+        );
+        debug!("{}", data_buffer);
+        let errors = if !data_buffer.failed_buffer.is_empty() {
+            let total = data_buffer.failed_buffer.len();
+            let err: VOWLRError = take(&mut data_buffer.failed_buffer).into();
+            error!(
+                "Failed to serialize {} triple{}:\n{}",
+                total,
+                if total != 1 { "s" } else { "" },
+                err
+            );
+            Some(err)
+        } else {
+            None
+        };
+        *data = data_buffer.into();
+        debug!("{}", data);
+        Ok(errors)
+    }
+
+    /// Serializes a query solution stream into the data buffer.
+    ///
+    /// This method tries to continue serializing despite errors.
+    /// As such, the `Ok` value contains non-fatal errors encountered during
+    /// serialization. The `Err` value contains fatal errors, preventing serialization.
+    pub async fn serialize_nodes_stream(
+        &self,
+        data: &mut GraphDisplayData,
+        mut solution_stream: QuerySolutionStream,
+    ) -> Result<Option<VOWLRError>, VOWLRError> {
+        let mut count: u64 = 0;
+        info!("Serializing query solution stream...");
+        let start_time = Instant::now();
+        let mut data_buffer = SerializationDataBuffer::new();
+
+        // TODO:
+        // - https://morestina.net/1432/parallel-stream-processing-with-rayon
+        // - https://docs.rs/rayon/latest/rayon/iter/trait.ParallelBridge.html
+        // - https://users.rust-lang.org/t/parallel-work-collected-sequentially/13504/2
+        // - https://docs.rs/parallel-stream/latest/parallel_stream/
+        // - https://doc.rust-lang.org/nightly/std/sync/index.html
+        for item in solution_stream.chunks(1024) {}
+
+        while let Some(maybe_solution) = solution_stream.next().await {
+            let solution = match maybe_solution {
+                Ok(solution) => solution,
+                Err(e) => {
+                    let a: VOWLRStoreError = e.into();
+                    data_buffer.failed_buffer.push(a.into());
+                    continue;
+                }
+            };
+            let Some(id_term) = solution.get("id") else {
+                continue;
+            };
+
+            let subject_term_id = data_buffer.term_index.insert(id_term.to_owned());
+            self.extract_label(
+                &mut data_buffer,
+                solution.get("label"),
+                id_term,
+                &subject_term_id,
+            );
+
+            let Some(node_type_term) = solution.get("nodeType") else {
+                continue;
+            };
+
+            let triple = Rc::new(Triple {
+                id: subject_term_id,
+                element_type: data_buffer.term_index.insert(node_type_term.to_owned()),
+                target: solution
+                    .get("target")
+                    .map(|term| data_buffer.term_index.insert(term.to_owned())),
+            });
+
+            self.write_node_triple(&mut data_buffer, triple)
+                .or_else(|e| {
+                    data_buffer.failed_buffer.push(e.into());
+                    Ok::<SerializationStatus, VOWLRError>(SerializationStatus::Serialized)
+                })?;
+            count += 1;
+        }
+
+        self.check_all_unknowns(&mut data_buffer).or_else(|e| {
+            data_buffer.failed_buffer.push(e.into());
+            Ok::<(), VOWLRError>(())
+        })?;
+
+        // Catch permanently unresolved triples
+        for (term, triples) in data_buffer.unknown_buffer.drain() {
+            for triple in triples {
+                let e: SerializationError = SerializationErrorKind::SerializationFailed(
+                    triple,
+                    format!("Unresolved reference: could not map '{}'", term),
+                )
+                .into();
+                data_buffer.failed_buffer.push(e.into());
+            }
+        }
+
+        let finish_time = Instant::now()
+            .checked_duration_since(start_time)
+            .unwrap_or(Duration::new(0, 0))
+            .as_secs_f32();
+        info!(
+            "Serialization completed in {} s\n \
+            \tTotal solutions: {count}\n \
+            \tElements       : {}\n \
+            \tEdges          : {}\n \
+            \tLabels         : {}\n \
+            \tCardinalities  : {}\n \
+            \tCharacteristics: {}\n\n \
+        ",
+            finish_time,
+            data_buffer.node_element_buffer.len(),
+            data_buffer.edge_buffer.len(),
+            data_buffer.label_buffer.len(),
+            0,
+            data_buffer.edge_characteristics.len() + data_buffer.node_characteristics.len(),
+        );
+        debug!("{}", data_buffer);
+        if !data_buffer.failed_buffer.is_empty() {
+            let total = data_buffer.failed_buffer.len();
+            let err: VOWLRError = take(&mut data_buffer.failed_buffer).into();
+            error!("Failed to serialize {} triples:\n{}", total, err);
+            // return Err(err);
+        }
+        *data = data_buffer.into();
+        debug!("{}", data);
+        Ok(())
     }
 
     /// Serializes a query solution stream into the data buffer.
