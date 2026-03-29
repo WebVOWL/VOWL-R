@@ -7741,6 +7741,7 @@ dependencies = [
  "log",
  "memchr",
  "oxrdf",
+ "rayon",
  "rdf-fusion",
  "smallvec",
  "tempfile",

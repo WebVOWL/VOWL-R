@@ -24,6 +24,7 @@
     log={workspace=true}
     memchr="2.7.6"
     oxrdf="0.3.1"
+    rayon.workspace=true
     rdf-fusion={workspace=true}
     smallvec={workspace=true}
     tempfile="3.10"
