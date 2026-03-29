@@ -30,6 +30,12 @@ use rdf_fusion::{
     execution::results::QuerySolutionStream,
     model::{BlankNode, NamedNode, Term},
 };
+use std::{
+    collections::{HashMap, HashSet},
+    mem::take,
+    rc::Rc,
+    time::{Duration, Instant},
+};
 use unescape_zero_copy::unescape_default;
 use vowlr_parser::errors::VOWLRStoreError;
 use vowlr_util::prelude::{ErrorRecord, VOWLRError};
@@ -480,7 +486,7 @@ impl GraphDisplayDataSolutionSerializer {
         };
     }
 
-    fn resolve(&self, data_buffer: &SerializationDataBuffer, x: Term) -> Option<Term> {
+    fn resolve(&self, data_buffer: &SerializationDataBuffer, mut x: Term) -> Option<Term> {
         let resolved = self.follow_redirection(data_buffer, &x);
 
         if let Some(elem) = data_buffer.node_element_buffer.get(&resolved) {
@@ -492,20 +498,20 @@ impl GraphDisplayDataSolutionSerializer {
             debug!("Resolved: {}: {}", resolved, elem);
             return Some(resolved);
         }
-
         None
     }
 
+    /// Returns the subject and object of the triple if their element type is known.
     fn resolve_so(
         &self,
         data_buffer: &SerializationDataBuffer,
         triple: &Triple,
-    ) -> (Option<Term>, Option<Term>) {
-        let resolved_subject = self.resolve(data_buffer, triple.id.clone());
+    ) -> (Option<usize>, Option<usize>) {
+        let resolved_subject = self.resolve(data_buffer, triple.id);
         let resolved_object = match &triple.target {
-            Some(target) => self.resolve(data_buffer, target.clone()),
+            Some(target) => self.resolve(data_buffer, *target),
             None => {
-                warn!("No object in triple:\n {}", triple);
+                debug!("Cannot resolve object of triple:\n {}", triple);
                 None
             }
         };
@@ -518,7 +524,7 @@ impl GraphDisplayDataSolutionSerializer {
     /// identifies itself as multiple elements. E.g. an element is both an rdfs:Class and a owl:class.
     fn add_to_element_buffer(
         &self,
-        element_buffer: &mut HashMap<Term, ElementType>,
+        element_buffer: &mut HashMap<usize, ElementType>,
         triple: &Triple,
         element_type: ElementType,
     ) {
@@ -529,7 +535,7 @@ impl GraphDisplayDataSolutionSerializer {
             );
         } else {
             trace!("Adding to element buffer: {}: {}", triple.id, element_type);
-            element_buffer.insert(triple.id.clone(), element_type);
+            element_buffer.insert(triple.id, element_type);
         }
     }
 
@@ -537,8 +543,8 @@ impl GraphDisplayDataSolutionSerializer {
     fn add_to_unknown_buffer(
         &self,
         data_buffer: &mut SerializationDataBuffer,
-        element_iri: Term,
-        triple: Triple,
+        element_iri: usize,
+        triple: Rc<Triple>,
     ) {
         trace!("Adding to unknown buffer: {}: {}", element_iri, triple);
         if let Some(id_unknowns) = data_buffer.unknown_buffer.get_mut(&element_iri) {
@@ -554,31 +560,25 @@ impl GraphDisplayDataSolutionSerializer {
     fn insert_edge_include(
         &self,
         data_buffer: &mut SerializationDataBuffer,
-        element_iri: &Term,
-        edge: Edge,
+        element_iri: usize,
+        edge: Rc<Edge>,
     ) {
         data_buffer
             .edges_include_map
-            .entry(element_iri.clone())
+            .entry(element_iri)
             .or_default()
             .insert(edge);
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     pub fn redirect_iri(
         &self,
         data_buffer: &mut SerializationDataBuffer,
-        old: &Term,
-        new: &Term,
+        old: usize,
+        new: usize,
     ) -> Result<(), SerializationError> {
         debug!("Redirecting '{}' to '{}'", old, new);
-        data_buffer
-            .edge_redirection
-            .insert(old.clone(), new.clone());
-        self.check_unknown_buffer(data_buffer, old)?;
+        data_buffer.edge_redirection.insert(old, new);
+        self.check_unknown_buffer(data_buffer, &old)?;
         Ok(())
     }
 
@@ -595,14 +595,10 @@ impl GraphDisplayDataSolutionSerializer {
         current
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     pub fn check_unknown_buffer(
         &self,
         data_buffer: &mut SerializationDataBuffer,
-        term: &Term,
+        term: &usize,
     ) -> Result<(), SerializationError> {
         let triple = data_buffer.unknown_buffer.remove(term);
         if let Some(triples) = triple {
@@ -613,10 +609,6 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(())
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn insert_node(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -626,10 +618,6 @@ impl GraphDisplayDataSolutionSerializer {
         self.insert_node_impl(data_buffer, triple, node_type, true)
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn insert_node_impl(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -661,10 +649,6 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(())
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn insert_node_without_retry(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -682,10 +666,10 @@ impl GraphDisplayDataSolutionSerializer {
     fn insert_edge(
         &self,
         data_buffer: &mut SerializationDataBuffer,
-        triple: &Triple,
+        triple: Rc<Triple>,
         edge_type: ElementType,
         label: Option<String>,
-    ) -> Option<Edge> {
+    ) -> Option<Rc<Edge>> {
         let external_probe = if PROPERTY_EDGE_TYPES.contains(&edge_type) {
             &triple.element_type
         } else {
@@ -699,7 +683,7 @@ impl GraphDisplayDataSolutionSerializer {
             } else {
                 edge_type
             };
-        match self.resolve_so(data_buffer, triple) {
+        match self.resolve_so(data_buffer, &triple) {
             (Some(sub_iri), Some(obj_iri)) => {
                 let should_hash_property = [
                     ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
@@ -708,27 +692,29 @@ impl GraphDisplayDataSolutionSerializer {
                     ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty)),
                 ];
                 let property = if should_hash_property.contains(&new_type) {
-                    Some(triple.element_type.clone())
+                    Some(triple.element_type)
                 } else {
                     None
                 };
-                let edge = Edge {
-                    subject: sub_iri.clone(),
+                let edge = Rc::new(Edge {
+                    subject: sub_iri,
                     element_type: new_type,
-                    object: obj_iri.clone(),
+                    object: obj_iri,
                     property,
-                };
-                data_buffer
-                    .edge_element_buffer
-                    .insert(triple.element_type.clone(), edge.element_type);
-                data_buffer.edge_buffer.insert(edge.clone());
+                });
+
                 trace!(
                     "Inserting edge: {} -> {} -> {}",
                     edge.subject, edge.element_type, edge.object
                 );
+
+                data_buffer
+                    .edge_element_buffer
+                    .insert(triple.element_type, edge.element_type);
+
                 data_buffer.edge_buffer.insert(edge.clone());
-                self.insert_edge_include(data_buffer, &sub_iri, edge.clone());
-                self.insert_edge_include(data_buffer, &obj_iri, edge.clone());
+                self.insert_edge_include(data_buffer, sub_iri, edge.clone());
+                self.insert_edge_include(data_buffer, obj_iri, edge.clone());
 
                 data_buffer
                     .edge_label_buffer
@@ -736,47 +722,47 @@ impl GraphDisplayDataSolutionSerializer {
                 return Some(edge);
             }
             (None, Some(_)) => {
-                warn!("Cannot resolve subject of triple:\n {}", triple);
-                self.add_to_unknown_buffer(data_buffer, triple.id.clone(), triple.clone());
+                debug!("Cannot resolve subject of triple:\n {}", triple);
+                self.add_to_unknown_buffer(data_buffer, triple.id, triple);
             }
             (Some(_), None) => {
                 if let Some(obj_iri) = &triple.target {
-                    warn!("Cannot resolve object of triple:\n {}", triple);
                     // resolve_so already warns about unresolved object. No need to repeat it here.
                     self.add_to_unknown_buffer(data_buffer, obj_iri.clone(), triple.clone());
                 }
             }
             _ => {
-                warn!("Cannot resolve subject and object of triple:\n {}", triple);
+                debug!("Cannot resolve subject and object of triple:\n {}", triple);
                 self.add_to_unknown_buffer(data_buffer, triple.id.clone(), triple.clone());
             }
         }
         None
     }
 
-    fn is_external(&self, data_buffer: &SerializationDataBuffer, iri: &Term) -> bool {
-        if iri.is_blank_node() {
-            return false;
-        }
-        let clean_iri = trim_tag_circumfix(&iri.to_string());
-        match &data_buffer.document_base {
-            Some(base) => !(clean_iri.contains(base) || is_reserved(iri) || is_synthetic(iri)),
-            None => {
-                warn!("Cannot determine externals: Missing document base!");
-                false
+    fn is_external(&self, data_buffer: &SerializationDataBuffer, term_id: &usize) -> bool {
+        if let Some(term) = data_buffer.term_index.get(term_id) {
+            if term.is_blank_node() {
+                return false;
+            }
+            let clean_term = trim_tag_circumfix(&term.to_string());
+            match &data_buffer.document_base {
+                Some(base) => {
+                    return !(clean_term.contains(base) || is_reserved(&term) || is_synthetic(iri));
+                }
+                None => {
+                    warn!("Cannot determine externals: Missing document base!");
+                    return false;
+                }
             }
         }
+        false
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn merge_nodes(
         &self,
         data_buffer: &mut SerializationDataBuffer,
-        old: &Term,
-        new: &Term,
+        old: &usize,
+        new: &usize,
     ) -> Result<(), SerializationError> {
         if old == new {
             return Ok(());
@@ -834,7 +820,7 @@ impl GraphDisplayDataSolutionSerializer {
         }
     }
 
-    fn update_edges(&self, data_buffer: &mut SerializationDataBuffer, old: &Term, new: &Term) {
+    fn update_edges(&self, data_buffer: &mut SerializationDataBuffer, old: &usize, new: usize) {
         let old_edges = data_buffer.edges_include_map.remove(old);
         if let Some(old_edges) = old_edges {
             debug!("Updating edges from '{}' to '{}'", old, new);
@@ -854,7 +840,7 @@ impl GraphDisplayDataSolutionSerializer {
                 }
 
                 if edge.object == *old {
-                    edge.object = new.clone();
+                    edge.object = Some(new);
                 }
                 if edge.subject == *old {
                     edge.subject = new.clone();
@@ -1091,10 +1077,6 @@ impl GraphDisplayDataSolutionSerializer {
         }
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn merge_properties(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -1134,10 +1116,6 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(())
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn normalize_inverse_endpoint(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -1160,10 +1138,6 @@ impl GraphDisplayDataSolutionSerializer {
         }
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn inverse_edge_endpoints(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -1371,26 +1345,14 @@ impl GraphDisplayDataSolutionSerializer {
         }
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn create_named_node(&self, iri: String) -> Result<NamedNode, SerializationError> {
         Ok(NamedNode::new(&iri).map_err(|e| SerializationErrorKind::IriParseError(iri, e))?)
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn create_blank_node(&self, id: String) -> Result<BlankNode, SerializationError> {
         Ok(BlankNode::new(&id).map_err(|e| SerializationErrorKind::BlankNodeParseError(id, e))?)
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn create_triple(
         &self,
         id: String,
@@ -1411,10 +1373,7 @@ impl GraphDisplayDataSolutionSerializer {
         debug!("Created new triple: {}", t);
         Ok(t)
     }
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
+
     fn check_all_unknowns(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -1492,10 +1451,7 @@ impl GraphDisplayDataSolutionSerializer {
     }
 
     /// Serialize a triple to `data_buffer`.
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
+
     fn write_node_triple(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -2677,10 +2633,6 @@ impl GraphDisplayDataSolutionSerializer {
         };
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn get_or_create_domain_thing(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -2711,10 +2663,6 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(thing_id)
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "fixed when serializer is refactored to use pointers instead of values"
-    )]
     fn get_or_create_anchor_thing(
         &self,
         data_buffer: &mut SerializationDataBuffer,
