@@ -95,7 +95,7 @@ impl VOWLRStore {
         path: &Path,
         lenient: bool,
         skip_format: Option<DataType>,
-    ) -> Result<(), VOWLRStoreError> {
+    ) -> Result<DataType, VOWLRStoreError> {
         let all_formats = [
             DataType::OFN,
             DataType::OWX,
@@ -124,7 +124,7 @@ impl VOWLRStore {
                     .await
                     .is_ok()
             {
-                return Ok(());
+                return Ok(format);
             }
         }
 
@@ -178,13 +178,15 @@ impl VOWLRStore {
         }
     }
 
-    pub async fn complete_upload(&mut self) -> Result<(), VOWLRStoreError> {
+    pub async fn complete_upload(&mut self) -> Result<DataType, VOWLRStoreError> {
         let path = if let Some(file) = &mut self.upload_handle {
             std::io::Write::flush(file)?;
             Some(file.path().to_owned())
         } else {
             None
         };
+
+        let mut loaded_format = DataType::UNKNOWN;
 
         if let Some(path) = path {
             info!("Loading input into database...");
@@ -193,7 +195,7 @@ impl VOWLRStore {
             let path_clone = path.clone();
             let explicit_format = path_type(&path_clone);
 
-            let mut success = false;
+            let mut success_format = None;
 
             if let Some(format) = explicit_format {
                 let parser_res =
@@ -206,18 +208,20 @@ impl VOWLRStore {
                         .await
                         .is_ok()
                 {
-                    success = true;
+                    success_format = Some(format);
                 }
             }
 
-            if !success {
+            loaded_format = if let Some(format) = success_format {
+                format
+            } else {
                 match self.try_load_fallback(&path, false, explicit_format).await {
-                    Ok(_) => {}
+                    Ok(fmt) => fmt,
                     Err(e) => {
                         return Err(e);
                     }
                 }
-            }
+            };
 
             info!(
                 "Loaded {} quads in {} s",
@@ -229,7 +233,7 @@ impl VOWLRStore {
             );
         }
         self.upload_handle = None;
-        Ok(())
+        Ok(loaded_format)
     }
 }
 

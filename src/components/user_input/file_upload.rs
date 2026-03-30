@@ -13,8 +13,10 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "server")]
-use vowlr_database::prelude::VOWLRStore;
-use vowlr_util::prelude::{DataType, VOWLRError};
+use vowlr_database::prelude::{GraphDisplayDataSolutionSerializer, QueryResults, VOWLRStore};
+#[cfg(feature = "server")]
+use vowlr_parser::errors::VOWLRStoreError;
+use vowlr_util::prelude::{DataType, ErrorRecord, ErrorSeverity, ErrorType, VOWLRError};
 use web_sys::{FileList, FormData};
 
 use crate::errors::ClientErrorKind;
@@ -132,8 +134,24 @@ pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), VOWL
         }
     }
 
-    session.complete_upload().await?;
-    Ok((dtype, count))
+    let parsed_dtype = session.complete_upload().await?;
+    let warning = if parsed_dtype != dtype
+        && parsed_dtype != DataType::UNKNOWN
+        && dtype != DataType::UNKNOWN
+    {
+        Some(ErrorRecord::new(
+            ErrorSeverity::Warning,
+            ErrorType::Parser,
+            format!(
+                "The uploaded file had an incorrect file extension. It was parsed as {parsed_dtype} instead of {dtype}."
+            ),
+            #[cfg(debug_assertions)]
+            None,
+        ))
+    } else {
+        None
+    };
+    Ok((parsed_dtype, count, warning))
 }
 
 /// Remote reads url and calls for the datatype label and returns (label, data content)
@@ -225,7 +243,6 @@ pub async fn handle_sparql(
 
     progress::remove(&progress_key);
     session.complete_upload().await?;
-
     let dtype = if accept_type.contains("xml") {
         DataType::SPARQLXML
     } else {
@@ -391,6 +408,9 @@ impl Default for UploadProgress {
 }
 
 /// handles what server side function to use (local, remote or sparql)
+pub type UploadResult = Result<(DataType, usize, Option<ErrorRecord>), VOWLRError>;
+pub type SparqlInput = (String, String, Option<String>);
+
 #[derive(Clone)]
 pub struct FileUpload {
     pub mode: RwSignal<String>,
