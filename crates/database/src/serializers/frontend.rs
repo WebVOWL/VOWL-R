@@ -7,7 +7,11 @@ use std::{
 use super::{Edge, SerializationDataBuffer, Triple};
 use crate::{
     errors::{SerializationError, SerializationErrorKind},
-    serializers::util::{is_reserved, trim_tag_circumfix, try_resolve_reserved},
+    serializers::util::{
+        is_reserved, is_synthetic,
+        synthetic::{SYNTH_LITERAL, SYNTH_LOCAL_LITERAL, SYNTH_LOCAL_THING, SYNTH_THING},
+        synthetic_iri, trim_tag_circumfix, try_resolve_reserved,
+    },
     vocab::{owl, rdf, rdfs, xsd},
 };
 use fluent_uri::Iri;
@@ -357,7 +361,13 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(());
         }
 
-        self.add_to_element_buffer(&mut data_buffer.node_element_buffer, triple, node_type);
+        let new_type = if self.is_external(data_buffer, &triple.id) {
+            ElementType::Owl(OwlType::Node(OwlNode::ExternalClass))
+        } else {
+            node_type
+        };
+
+        self.add_to_element_buffer(&mut data_buffer.node_element_buffer, triple, new_type);
         self.check_unknown_buffer(data_buffer, &triple.id)?;
         Ok(())
     }
@@ -375,12 +385,13 @@ impl GraphDisplayDataSolutionSerializer {
         label: Option<String>,
     ) -> Option<Edge> {
         // Skip external check for NoDraw edges - they should always retain their type
-        let new_type =
-            if edge_type != ElementType::NoDraw && self.is_external(data_buffer, &triple.id) {
-                ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty))
-            } else {
-                edge_type
-            };
+        let new_type = if edge_type != ElementType::NoDraw
+            && self.is_external(data_buffer, &triple.element_type)
+        {
+            ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty))
+        } else {
+            edge_type
+        };
         match self.resolve_so(data_buffer, triple) {
             (Some(sub_iri), Some(obj_iri)) => {
                 let should_hash_property = [
@@ -442,7 +453,7 @@ impl GraphDisplayDataSolutionSerializer {
         }
         let clean_iri = trim_tag_circumfix(&iri.to_string());
         match &data_buffer.document_base {
-            Some(base) => !clean_iri.contains(base) && !is_reserved(iri),
+            Some(base) => !(clean_iri.contains(base) || is_reserved(iri) || is_synthetic(iri)),
             None => {
                 warn!("Cannot determine externals: Missing document base!");
                 false
@@ -471,11 +482,6 @@ impl GraphDisplayDataSolutionSerializer {
         let old_edges = data_buffer.edges_include_map.remove(old);
         if let Some(old_edges) = old_edges {
             debug!("Updating edges from '{}' to '{}'", old, new);
-            // info!("old_edges: ");
-            // for edge in old_edges.iter() {
-            //     info!("edge: {} ", edge);
-            // }
-
             for mut edge in old_edges.into_iter() {
                 data_buffer.edge_buffer.remove(&edge);
                 if edge.object == *old {
@@ -487,10 +493,6 @@ impl GraphDisplayDataSolutionSerializer {
                 data_buffer.edge_buffer.insert(edge.clone());
                 self.insert_edge_include(data_buffer, new, edge.clone());
             }
-            // info!("new_edges: ");
-            // for edge in data_buffer.edge_buffer.iter() {
-            //     info!("edge: {} ", edge);
-            // }
         }
     }
 
@@ -1066,8 +1068,6 @@ impl GraphDisplayDataSolutionSerializer {
         data_buffer: &mut SerializationDataBuffer,
         triple: Triple,
     ) -> Result<SerializationStatus, SerializationError> {
-        // TODO: Collect errors and show to frontend
-        debug!("{}", triple);
         match &triple.element_type {
             Term::BlankNode(bnode) => {
                 // The query must never put blank nodes in the ?nodeType variable
@@ -1733,7 +1733,7 @@ impl GraphDisplayDataSolutionSerializer {
                                             )
                                         } else if target == rdfs::LITERAL.into() {
                                             let target_iri =
-                                                Self::synthetic_iri(&property, "_literal");
+                                                synthetic_iri(&property, SYNTH_LITERAL);
                                             info!("Creating literal node: {}", target_iri);
                                             let node = self.create_triple(
                                                 target_iri.clone(),
@@ -1803,8 +1803,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                 }),
                                             )
                                         } else if triple.id == rdfs::LITERAL.into() {
-                                            let target_iri =
-                                                Self::synthetic_iri(&range, "_literal");
+                                            let target_iri = synthetic_iri(&range, SYNTH_LITERAL);
                                             let node = self.create_triple(
                                                 target_iri,
                                                 rdfs::LITERAL.into(),
@@ -1820,10 +1819,6 @@ impl GraphDisplayDataSolutionSerializer {
                                                 }),
                                             )
                                         } else {
-                                            trace!(
-                                                "Adding unknown buffer: target: {}, triple: {}",
-                                                target, triple
-                                            );
                                             self.add_to_unknown_buffer(
                                                 data_buffer,
                                                 target,
@@ -1864,7 +1859,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                 OwlEdge::DatatypeProperty,
                                             ))) => {
                                                 let local_literal_iri =
-                                                    Self::synthetic_iri(&property, "_localliteral");
+                                                    synthetic_iri(&property, SYNTH_LOCAL_LITERAL);
                                                 let literal_triple = self.create_triple(
                                                     local_literal_iri.clone(),
                                                     rdfs::LITERAL.into(),
@@ -1876,7 +1871,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                 );
 
                                                 let local_thing_iri =
-                                                    Self::synthetic_iri(&property, "_localthing");
+                                                    synthetic_iri(&property, SYNTH_LOCAL_THING);
                                                 let thing_triple = self.create_triple(
                                                     local_thing_iri.clone(),
                                                     owl::THING.into(),
@@ -1924,10 +1919,6 @@ impl GraphDisplayDataSolutionSerializer {
                                     }
 
                                     (Some(_), None, Some(_)) => {
-                                        trace!(
-                                            "Adding unknown buffer: element type: {}, triple: {}",
-                                            triple.element_type, triple
-                                        );
                                         self.add_to_unknown_buffer(
                                             data_buffer,
                                             triple.element_type.clone(),
@@ -1936,7 +1927,6 @@ impl GraphDisplayDataSolutionSerializer {
                                         return Ok(SerializationStatus::Deferred);
                                     }
                                     _ => {
-                                        trace!("Adding unknown buffer: triple: {}", triple);
                                         self.add_to_unknown_buffer(
                                             data_buffer,
                                             triple.id.clone(),
@@ -2065,7 +2055,7 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(existing.clone());
         }
 
-        let thing_iri = Self::synthetic_iri(domain, "_thing");
+        let thing_iri = synthetic_iri(domain, SYNTH_THING);
         let thing_triple = self.create_triple(thing_iri, owl::THING.into(), None)?;
         let thing_id = thing_triple.id.clone();
 
@@ -2095,7 +2085,7 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(existing.clone());
         }
 
-        let thing_iri = Self::synthetic_iri(anchor, "_thing");
+        let thing_iri = synthetic_iri(anchor, SYNTH_THING);
         let thing_triple = self.create_triple(thing_iri, owl::THING.into(), None)?;
         let thing_id = thing_triple.id.clone();
 
@@ -2114,11 +2104,6 @@ impl GraphDisplayDataSolutionSerializer {
 
     fn is_query_fallback_endpoint(term: &Term) -> bool {
         *term == owl::THING.into() || *term == rdfs::LITERAL.into()
-    }
-
-    fn synthetic_iri(base: &Term, suffix: &str) -> String {
-        let clean = trim_tag_circumfix(&base.to_string());
-        format!("{clean}{suffix}")
     }
 
     fn insert_characteristic(
