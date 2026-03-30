@@ -1,6 +1,6 @@
 [package]
     authors=["TheRealMorgenfrue"]
-    description="Performance & Debugging primarily of WasmGrapher, but works across all crates constituting VOWL-R"
+    description="Run this workspace natively, i.e., without a browser."
     edition.workspace=true
     keywords.workspace=true
     license-file.workspace=true
