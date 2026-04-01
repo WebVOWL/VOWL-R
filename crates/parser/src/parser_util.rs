@@ -7,6 +7,7 @@ use horned_owl::{
 };
 use log::info;
 use rdf_fusion::{
+    error::LoaderError,
     execution::results::QuadStream,
     io::{JsonLdProfileSet, RdfFormat, RdfParser, RdfSerializer},
     model::GraphName,
@@ -202,14 +203,6 @@ pub fn parser_from_reader(
         if lenient { parser.lenient() } else { parser }
     };
 
-    let Some(format) = path_type(path) else {
-        return Err(VOWLRStoreErrorKind::InvalidFileType(format!(
-            "Unsupported format: {:?}",
-            path.file_name().unwrap_or_default()
-        ))
-        .into());
-    };
-
     let prepared = match format {
         DataType::OFN => {
             info!("Parsing OFN input...");
@@ -332,6 +325,10 @@ pub fn parser_from_reader(
             let format = format_from_resource_type(&f).ok_or_else(|| {
                 VOWLRStoreErrorKind::InvalidFileType(format!("could not convert {f:?} to format"))
             })?;
+            let parser = make_parser(format);
+            for quad_result in parser.for_reader(input.as_slice()) {
+                quad_result.map_err(LoaderError::from)?;
+            }
             Ok(PreparedParser {
                 parser: make_parser(format),
                 input,
