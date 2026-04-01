@@ -3,9 +3,9 @@ use std::path::Path;
 /// Supported content types.
 #[repr(C)]
 #[derive(
-    rkyv::Archive, 
+    rkyv::Archive,
     rkyv::Deserialize,
-    rkyv::Serialize, 
+    rkyv::Serialize,
     serde::Deserialize,
     serde::Serialize,
     Debug,
@@ -13,6 +13,7 @@ use std::path::Path;
     Clone,
     strum::Display,
     PartialEq,
+    strum::EnumIter,
 )]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum DataType {
