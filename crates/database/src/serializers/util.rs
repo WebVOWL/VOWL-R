@@ -40,9 +40,9 @@ pub fn is_synthetic(term: &Term) -> bool {
         SYNTH_LOCAL_THING,
         SYNTH_THING,
     ];
-    let str_term = term.to_string();
+    let str_term = trim_tag_circumfix(&term.to_string());
     for synth in synths {
-        if str_term.contains(synth) {
+        if str_term.ends_with(synth) {
             return true;
         }
     }
