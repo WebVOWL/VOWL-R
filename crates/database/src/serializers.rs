@@ -217,6 +217,10 @@ pub struct SerializationDataBuffer {
     anchor_thing_map: Arc<RwLock<HashMap<usize, usize>>>,
     /// Partially assembled restriction metadata keyed by the restriction node.
     restriction_buffer: Arc<RwLock<HashMap<usize, ArcLockRestrictionState>>>,
+    #[expect(
+        clippy::type_complexity,
+        reason = "Fixed when cardinality is refactored to enum"
+    )]
     /// Final display cardinalities keyed by the concrete edge that will be emitted.
     edge_cardinality_buffer: Arc<RwLock<HashMap<ArcEdge, (String, Option<String>)>>>,
     /// Stores the edges of a property, keyed by the property's corresponding id.
@@ -353,13 +357,13 @@ impl SerializationDataBuffer {
                     }
                 }
                 (None, _) => {
-                    let msg = format!("Domain of edge not found in iricache");
+                    let msg = "Domain of edge not found in iricache".to_string();
                     failed.push(<SerializationError as Into<ErrorRecord>>::into(
                         SerializationErrorKind::MissingDomain(edge.clone(), msg).into(),
                     ));
                 }
                 (_, None) => {
-                    let msg = format!("Range of edge not found in iricache");
+                    let msg = "Range of edge not found in iricache".to_string();
                     failed.push(<SerializationError as Into<ErrorRecord>>::into(
                         SerializationErrorKind::MissingRange(edge.clone(), msg).into(),
                     ));
@@ -429,7 +433,7 @@ impl Display for SerializationDataBuffer {
             "\tdocument_base: {}",
             self.document_base
                 .read()
-                .map_or_else(|e| e.into_inner(), |v| v)
+                .unwrap_or_else(|e| e.into_inner())
                 .clone()
                 .unwrap_or_default()
         )?;
@@ -437,7 +441,7 @@ impl Display for SerializationDataBuffer {
         for (iri, element) in self
             .node_element_buffer
             .read()
-            .map_or_else(|e| e.into_inner(), |v| v)
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
             writeln!(f, "\t\t{} : {}", iri, element)?;
@@ -446,7 +450,7 @@ impl Display for SerializationDataBuffer {
         for (iri, element) in self
             .edge_element_buffer
             .read()
-            .map_or_else(|e| e.into_inner(), |v| v)
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
             writeln!(f, "\t\t{} : {}", iri, element)?;
@@ -455,7 +459,7 @@ impl Display for SerializationDataBuffer {
         for (iri, subject) in self
             .edge_redirection
             .read()
-            .map_or_else(|e| e.into_inner(), |v| v)
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
             writeln!(f, "\t\t{} -> {}", iri, subject)?;
@@ -464,7 +468,7 @@ impl Display for SerializationDataBuffer {
         for (iri, edges) in self
             .edges_include_map
             .read()
-            .map_or_else(|e| e.into_inner(), |v| v)
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
             writeln!(f, "\t\t{} : {{", iri)?;
@@ -477,7 +481,7 @@ impl Display for SerializationDataBuffer {
         for (iri, label) in self
             .label_buffer
             .read()
-            .map_or_else(|e| e.into_inner(), |v| v)
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
             writeln!(f, "\t\t{} : {}", iri, label)?;
@@ -486,7 +490,7 @@ impl Display for SerializationDataBuffer {
         for edge in self
             .edge_buffer
             .read()
-            .map_or_else(|e| e.into_inner(), |v| v)
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
             writeln!(f, "\t\t{}", edge)?;
@@ -502,7 +506,7 @@ impl Display for SerializationDataBuffer {
         for (iri, triples) in self
             .unknown_buffer
             .read()
-            .map_or_else(|e| e.into_inner(), |v| v)
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
             write!(f, "\t\t{} : ", iri)?;
