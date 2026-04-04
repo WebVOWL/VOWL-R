@@ -16,6 +16,7 @@ pub struct TermIndex {
 }
 
 impl TermIndex {
+    #[expect(unused)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -44,8 +45,12 @@ impl TermIndex {
         }
     }
 
+    #[expect(unused)]
     /// Removes a term from the index, returning the term corresponding to the id if
     /// the id was previously in the index.
+    ///
+    /// # Errors
+    /// Returns an error if the underlying lock is poisoned when accessed.
     pub fn remove(&mut self, id: &usize) -> Result<Option<Arc<Term>>, SerializationError> {
         if let Some(term) = self.int_index.write()?.remove(id) {
             self.str_index.write()?.remove(&term);
@@ -100,6 +105,7 @@ impl TermIndex {
         Ok(result)
     }
 
+    #[expect(unused)]
     /// Returns true if the term corresponding to the id exists and is a literal.
     ///
     /// # Errors
