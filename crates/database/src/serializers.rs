@@ -379,13 +379,21 @@ impl SerializationDataBuffer {
                 (None, _) => {
                     let msg = "Domain of edge not found in iricache".to_string();
                     failed.push(<SerializationError as Into<ErrorRecord>>::into(
-                        SerializationErrorKind::MissingDomain(edge.clone(), msg).into(),
+                        SerializationErrorKind::MissingDomain(
+                            self.term_index.display_edge(edge)?,
+                            msg,
+                        )
+                        .into(),
                     ));
                 }
                 (_, None) => {
                     let msg = "Range of edge not found in iricache".to_string();
                     failed.push(<SerializationError as Into<ErrorRecord>>::into(
-                        SerializationErrorKind::MissingRange(edge.clone(), msg).into(),
+                        SerializationErrorKind::MissingRange(
+                            self.term_index.display_edge(edge)?,
+                            msg,
+                        )
+                        .into(),
                     ));
                 }
             }
@@ -458,53 +466,78 @@ impl Display for SerializationDataBuffer {
                 .unwrap_or_default()
         )?;
         writeln!(f, "\tnode_element_buffer:")?;
-        for (iri, element) in self
+        for (term_id, element) in self
             .node_element_buffer
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
-            writeln!(f, "\t\t{} : {}", iri, element)?;
+            let term = self
+                .term_index
+                .get(term_id)
+                .map_or_else(|e| e.to_string(), |term| term.to_string());
+            writeln!(f, "\t\t{} : {}", term, element)?;
         }
         writeln!(f, "\tedge_element_buffer (not used by into()):")?;
-        for (iri, element) in self
+        for (term_id, element) in self
             .edge_element_buffer
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
-            writeln!(f, "\t\t{} : {}", iri, element)?;
+            let term = self
+                .term_index
+                .get(term_id)
+                .map_or_else(|e| e.to_string(), |term| term.to_string());
+            writeln!(f, "\t\t{} : {}", term, element)?;
         }
         writeln!(f, "\tedge_redirection:")?;
-        for (iri, subject) in self
+        for (term_id, subject) in self
             .edge_redirection
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
-            writeln!(f, "\t\t{} -> {}", iri, subject)?;
+            let term = self
+                .term_index
+                .get(term_id)
+                .map_or_else(|e| e.to_string(), |term| term.to_string());
+            writeln!(f, "\t\t{} -> {}", term, subject)?;
         }
         writeln!(f, "\tedges_include_map: ")?;
-        for (iri, edges) in self
+        for (term_id, edges) in self
             .edges_include_map
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
-            writeln!(f, "\t\t{} : {{", iri)?;
+            let term = self
+                .term_index
+                .get(term_id)
+                .map_or_else(|e| e.to_string(), |term| term.to_string());
+            writeln!(f, "\t\t{} : {{", term)?;
             for edge in edges.iter() {
-                writeln!(f, "\t\t\t{}", edge)?;
+                let display_edge = self
+                    .term_index
+                    .display_edge(edge)
+                    .unwrap_or_else(|e| e.to_string());
+
+                writeln!(f, "\t\t\t{}", display_edge)?;
             }
             writeln!(f, "\t\t}}")?;
         }
         writeln!(f, "\tlabel_buffer:")?;
-        for (iri, label) in self
+        for (term_id, label) in self
             .label_buffer
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
-            writeln!(f, "\t\t{} : {}", iri, label)?;
+            let term = self
+                .term_index
+                .get(term_id)
+                .map_or_else(|e| e.to_string(), |term| term.to_string());
+            writeln!(f, "\t\t{} : {}", term, label)?;
         }
         writeln!(f, "\tedge_buffer:")?;
         for edge in self
@@ -513,32 +546,74 @@ impl Display for SerializationDataBuffer {
             .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
-            writeln!(f, "\t\t{}", edge)?;
+            let display_edge = self
+                .term_index
+                .display_edge(edge)
+                .unwrap_or_else(|e| e.to_string());
+            writeln!(f, "\t\t{}", display_edge)?;
         }
-        writeln!(f, "\tedge_characteristics: {:?}", self.edge_characteristics)?;
-        writeln!(f, "\tnode_characteristics: {:?}", self.node_characteristics)?;
-        writeln!(
-            f,
-            "\tindividual_count_buffer: {:?}",
-            self.individual_count_buffer
-        )?;
+
+        writeln!(f, "\tedge_characteristics:")?;
+        for (edge, characteristics) in self
+            .edge_characteristics
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+        {
+            let display_edge = self
+                .term_index
+                .display_edge(edge)
+                .unwrap_or_else(|e| e.to_string());
+            writeln!(f, "{}\n\t{:?}", display_edge, characteristics)?;
+        }
+
+        writeln!(f, "\tnode_characteristics:")?;
+        for (term_id, characteristics) in self
+            .node_characteristics
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+        {
+            let term = self
+                .term_index
+                .get(term_id)
+                .map_or_else(|e| e.to_string(), |term| term.to_string());
+            writeln!(f, "{}\n\t{:?}", term, characteristics)?;
+        }
+
+        writeln!(f, "\tindividual_count_buffer:")?;
+        for (term_id, individual_count) in self
+            .individual_count_buffer
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+        {
+            let term = self
+                .term_index
+                .get(term_id)
+                .map_or_else(|e| e.to_string(), |term| term.to_string());
+            writeln!(f, "{} : {} individuals", term, individual_count)?;
+        }
+
         writeln!(f, "\tunknown_buffer:")?;
-        for (iri, triples) in self
+        for (term_id, triples) in self
             .unknown_buffer
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
         {
-            write!(f, "\t\t{} : ", iri)?;
-            writeln!(
-                f,
-                "{}",
-                triples
-                    .iter()
-                    .map(|t| t.to_string())
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            )?;
+            let term = self
+                .term_index
+                .get(term_id)
+                .map_or_else(|e| e.to_string(), |term| term.to_string());
+            write!(f, "\t\t{} : ", term)?;
+            for triple in triples {
+                let display_triple = self
+                    .term_index
+                    .display_triple(triple)
+                    .unwrap_or_else(|e| e.to_string());
+                writeln!(f, "{}", display_triple)?;
+            }
         }
         // Not needed as it's displayed by the serializer
         // writeln!(f, "\tfailed_buffer:")?;

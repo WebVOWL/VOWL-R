@@ -130,7 +130,7 @@ impl GraphDisplayDataSolutionSerializer {
         {
             for triple in triples {
                 let e: SerializationError = SerializationErrorKind::SerializationFailedTriple(
-                    triple,
+                    data_buffer.term_index.display_triple(&triple)?,
                     format!("Unresolved reference: could not map '{}'", term_id),
                 )
                 .into();
@@ -205,8 +205,11 @@ impl GraphDisplayDataSolutionSerializer {
         {
             for triple in triples {
                 let e: SerializationError = SerializationErrorKind::SerializationFailedTriple(
-                    triple,
-                    format!("Unresolved reference: could not map '{}'", term_id),
+                    data_buffer.term_index.display_triple(&triple)?,
+                    format!(
+                        "Unresolved reference: could not map '{}'",
+                        data_buffer.term_index.get(&term_id)?
+                    ),
                 )
                 .into();
                 data_buffer
@@ -254,10 +257,11 @@ impl GraphDisplayDataSolutionSerializer {
         };
 
         let triple = self.create_triple_from_id(
+            &data_buffer.term_index,
             subject_term_id,
             Some(predicate_term_id),
             object_term_id,
-        );
+        )?;
 
         self.write_node_triple(data_buffer, triple).or_else(|e| {
             data_buffer.failed_buffer.write()?.push(e.into());
@@ -441,12 +445,20 @@ impl GraphDisplayDataSolutionSerializer {
         let resolved = self.follow_redirection(data_buffer, term_id)?;
 
         if let Some(elem) = data_buffer.node_element_buffer.read()?.get(&resolved) {
-            trace!("Resolved: {}: {}", resolved, elem);
+            trace!(
+                "Resolved: {}: {}",
+                data_buffer.term_index.get(&resolved)?,
+                elem
+            );
             return Ok(Some(resolved));
         }
 
         if let Some(elem) = data_buffer.edge_element_buffer.read()?.get(&resolved) {
-            trace!("Resolved: {}: {}", resolved, elem);
+            trace!(
+                "Resolved: {}: {}",
+                data_buffer.term_index.get(&resolved)?,
+                elem
+            );
             return Ok(Some(resolved));
         }
         Ok(None)
@@ -456,13 +468,16 @@ impl GraphDisplayDataSolutionSerializer {
     fn resolve_so(
         &self,
         data_buffer: &SerializationDataBuffer,
-        triple: &Triple,
+        triple: &ArcTriple,
     ) -> Result<(Option<usize>, Option<usize>), SerializationError> {
         let resolved_subject = self.resolve(data_buffer, triple.subject_term_id)?;
         let resolved_object = match &triple.object_term_id {
             Some(target) => self.resolve(data_buffer, *target)?,
             None => {
-                debug!("Cannot resolve object of triple:\n {}", triple);
+                debug!(
+                    "Cannot resolve object of triple:\n {}",
+                    data_buffer.term_index.display_triple(triple)?
+                );
                 None
             }
         };
@@ -475,16 +490,23 @@ impl GraphDisplayDataSolutionSerializer {
     /// identifies itself as multiple elements. E.g. an element is both an rdfs:Class and a owl:class.
     fn add_triple_to_element_buffer(
         &self,
+        term_index: &TermIndex,
         element_buffer: &mut Arc<RwLock<HashMap<usize, ElementType>>>,
         triple: &ArcTriple,
         element_type: ElementType,
     ) -> Result<(), SerializationError> {
-        self.add_term_to_element_buffer(element_buffer, triple.subject_term_id, element_type)
+        self.add_term_to_element_buffer(
+            term_index,
+            element_buffer,
+            triple.subject_term_id,
+            element_type,
+        )
     }
 
     /// Add a term id to a node/edge element buffer.
     fn add_term_to_element_buffer(
         &self,
+        term_index: &TermIndex,
         element_buffer: &mut Arc<RwLock<HashMap<usize, ElementType>>>,
         term_id: usize,
         element_type: ElementType,
@@ -492,10 +514,16 @@ impl GraphDisplayDataSolutionSerializer {
         if let Some(element) = element_buffer.write()?.insert(term_id, element_type) {
             warn!(
                 "Registered '{}' to subject '{}' already registered as '{}'",
-                element_type, term_id, element
+                element_type,
+                term_index.get(&term_id)?,
+                element
             );
         } else {
-            trace!("Adding to element buffer: {}: {}", term_id, element_type);
+            trace!(
+                "Adding to element buffer: {}: {}",
+                term_index.get(&term_id)?,
+                element_type
+            );
         }
         Ok(())
     }
@@ -507,7 +535,11 @@ impl GraphDisplayDataSolutionSerializer {
         term_id: usize,
         triple: ArcTriple,
     ) -> Result<(), SerializationError> {
-        trace!("Adding to unknown buffer: {}: {}", term_id, triple);
+        trace!(
+            "Adding to unknown buffer: {}: {}",
+            data_buffer.term_index.get(&term_id)?,
+            data_buffer.term_index.display_triple(&triple)?
+        );
 
         data_buffer
             .unknown_buffer
@@ -541,7 +573,11 @@ impl GraphDisplayDataSolutionSerializer {
         old_term_id: usize,
         new_term_id: usize,
     ) -> Result<(), SerializationError> {
-        debug!("Redirecting '{}' to '{}'", old_term_id, new_term_id);
+        debug!(
+            "Redirecting '{}' to '{}'",
+            data_buffer.term_index.get(&old_term_id)?,
+            data_buffer.term_index.get(&new_term_id)?
+        );
         {
             data_buffer
                 .edge_redirection
@@ -608,7 +644,7 @@ impl GraphDisplayDataSolutionSerializer {
         {
             debug!(
                 "Skipping insert_node for '{}': already redirected",
-                triple.subject_term_id
+                data_buffer.term_index.get(&triple.subject_term_id)?
             );
             return Ok(());
         }
@@ -622,7 +658,12 @@ impl GraphDisplayDataSolutionSerializer {
             node_type
         };
 
-        self.add_triple_to_element_buffer(&mut data_buffer.node_element_buffer, &triple, new_type)?;
+        self.add_triple_to_element_buffer(
+            &data_buffer.term_index,
+            &mut data_buffer.node_element_buffer,
+            &triple,
+            new_type,
+        )?;
         self.check_unknown_buffer(data_buffer, &triple.subject_term_id)?;
 
         if retry_restrictions {
@@ -684,15 +725,13 @@ impl GraphDisplayDataSolutionSerializer {
                     None
                 };
                 let edge = self.create_edge_from_id(
+                    &data_buffer.term_index,
                     subject_term_id,
                     new_type,
                     object_term_id,
                     property_term_id,
-                );
-                trace!(
-                    "Inserting edge: {} -> {} -> {}",
-                    edge.domain_term_id, edge.edge_type, edge.range_term_id
-                );
+                )?;
+                trace!("Inserting: {}", data_buffer.term_index.display_edge(&edge)?);
 
                 data_buffer
                     .edge_element_buffer
@@ -710,7 +749,10 @@ impl GraphDisplayDataSolutionSerializer {
                 return Ok(Some(edge));
             }
             (None, Some(_)) => {
-                debug!("Cannot resolve subject of triple:\n {}", triple);
+                debug!(
+                    "Cannot resolve subject of triple:\n {}",
+                    data_buffer.term_index.display_triple(&triple)?
+                );
                 self.add_to_unknown_buffer(data_buffer, triple.subject_term_id, triple)?;
             }
             (Some(_), None) => {
@@ -720,7 +762,10 @@ impl GraphDisplayDataSolutionSerializer {
                 }
             }
             _ => {
-                debug!("Cannot resolve subject and object of triple:\n {}", triple);
+                debug!(
+                    "Cannot resolve subject and object of triple:\n {}",
+                    data_buffer.term_index.display_triple(&triple)?
+                );
                 self.add_to_unknown_buffer(data_buffer, triple.subject_term_id, triple)?;
             }
         }
@@ -767,7 +812,11 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(());
         }
 
-        debug!("Merging node '{old_term_id}' into '{new_term_id}'");
+        debug!(
+            "Merging node '{}' into '{}'",
+            data_buffer.term_index.get(&old_term_id)?,
+            data_buffer.term_index.get(&new_term_id)?
+        );
         self.merge_restriction_state(data_buffer, old_term_id, new_term_id)?;
         {
             data_buffer
@@ -832,7 +881,11 @@ impl GraphDisplayDataSolutionSerializer {
     ) -> Result<(), SerializationError> {
         let old_edges = { data_buffer.edges_include_map.write()?.remove(&old_term_id) };
         if let Some(old_edges) = old_edges {
-            debug!("Updating edges from '{}' to '{}'", old_term_id, new_term_id);
+            debug!(
+                "Updating edges from '{}' to '{}'",
+                data_buffer.term_index.get(&old_term_id)?,
+                data_buffer.term_index.get(&new_term_id)?
+            );
             for old_edge in old_edges {
                 let label = { data_buffer.edge_label_buffer.write()?.remove(&old_edge) };
                 let cardinality = {
@@ -864,7 +917,10 @@ impl GraphDisplayDataSolutionSerializer {
                     );
 
                 if is_degenerate_structural_edge {
-                    debug!("Dropping degenerate structural self-edge: {}", old_edge);
+                    debug!(
+                        "Dropping degenerate structural self-edge: {}",
+                        data_buffer.term_index.display_edge(&old_edge)?
+                    );
                     continue;
                 }
 
@@ -879,11 +935,12 @@ impl GraphDisplayDataSolutionSerializer {
                     old_edge.range_term_id
                 };
                 let new_edge = self.create_edge_from_id(
+                    &data_buffer.term_index,
                     new_domain_term_id,
                     old_edge.edge_type,
                     new_range_term_id,
                     old_edge.property_term_id,
-                );
+                )?;
 
                 {
                     data_buffer.edge_buffer.write()?.insert(new_edge.clone());
@@ -938,6 +995,7 @@ impl GraphDisplayDataSolutionSerializer {
             Some(old_elem) => {
                 if can_upgrade_node_type(old_elem, new_element) {
                     self.add_term_to_element_buffer(
+                        &data_buffer.term_index,
                         &mut data_buffer.node_element_buffer,
                         term_id,
                         new_element,
@@ -945,7 +1003,9 @@ impl GraphDisplayDataSolutionSerializer {
                 }
                 debug!(
                     "Upgraded subject '{}' from {} to {}",
-                    term_id, old_elem, new_element
+                    data_buffer.term_index.get(&term_id)?,
+                    old_elem,
+                    new_element
                 )
             }
             None => {
@@ -1000,13 +1060,16 @@ impl GraphDisplayDataSolutionSerializer {
             {
                 let new_element = ElementType::Owl(OwlType::Node(OwlNode::DeprecatedClass));
                 self.add_term_to_element_buffer(
+                    &data_buffer.term_index,
                     &mut data_buffer.node_element_buffer,
                     *term_id,
                     new_element,
                 )?;
                 debug!(
                     "Upgraded deprecated class '{}' from {} to {}",
-                    term_id, old_elem, new_element
+                    data_buffer.term_index.get(term_id)?,
+                    old_elem,
+                    new_element
                 );
             }
             Some(old_elem) => {
@@ -1092,6 +1155,7 @@ impl GraphDisplayDataSolutionSerializer {
         }
 
         self.add_term_to_element_buffer(
+            &data_buffer.term_index,
             &mut data_buffer.edge_element_buffer,
             *property_term_id,
             new_element,
@@ -1107,7 +1171,9 @@ impl GraphDisplayDataSolutionSerializer {
         let Some(old_edge) = maybe_old_edge else {
             debug!(
                 "Upgraded property '{}' from {} to {} before edge materialization",
-                property_term_id, old_elem, new_element
+                data_buffer.term_index.get(property_term_id)?,
+                old_elem,
+                new_element
             );
             return Ok(());
         };
@@ -1115,17 +1181,20 @@ impl GraphDisplayDataSolutionSerializer {
         if old_edge.edge_type == ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf)) {
             debug!(
                 "Keeping merged inverse edge for '{}' as {} instead of downgrading it to {}",
-                property_term_id, old_edge.edge_type, new_element
+                data_buffer.term_index.get(property_term_id)?,
+                old_edge.edge_type,
+                new_element
             );
             return Ok(());
         }
 
         let new_edge = self.create_edge_from_id(
+            &data_buffer.term_index,
             old_edge.domain_term_id,
             new_element,
             old_edge.range_term_id,
             old_edge.property_term_id,
-        );
+        )?;
 
         {
             let mut edge_buffer = data_buffer.edge_buffer.write()?;
@@ -1173,7 +1242,9 @@ impl GraphDisplayDataSolutionSerializer {
         }
         debug!(
             "Upgraded deprecated property '{}' from {} to {}",
-            property_term_id, old_elem, new_element
+            data_buffer.term_index.get(property_term_id)?,
+            old_elem,
+            new_element
         );
         Ok(())
     }
@@ -1200,7 +1271,11 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(());
         }
 
-        debug!("Merging property '{old_term_id}' into '{new_term_id}'");
+        debug!(
+            "Merging property '{}' into '{}'",
+            data_buffer.term_index.get(old_term_id)?,
+            data_buffer.term_index.get(new_term_id)?
+        );
 
         {
             data_buffer.edge_element_buffer.write()?.remove(old_term_id);
@@ -1445,8 +1520,20 @@ impl GraphDisplayDataSolutionSerializer {
         let inverse_property = Some(left_property);
         let edge_type = ElementType::Owl(OwlType::Edge(OwlEdge::InverseOf));
         let inverse_edges = [
-            self.create_edge_from_id(left_subject, edge_type, left_object, inverse_property),
-            self.create_edge_from_id(left_object, edge_type, left_subject, inverse_property),
+            self.create_edge_from_id(
+                &data_buffer.term_index,
+                left_subject,
+                edge_type,
+                left_object,
+                inverse_property,
+            )?,
+            self.create_edge_from_id(
+                &data_buffer.term_index,
+                left_object,
+                edge_type,
+                left_subject,
+                inverse_property,
+            )?,
         ];
 
         let canonical_edge = inverse_edges[0].clone();
@@ -1488,7 +1575,8 @@ impl GraphDisplayDataSolutionSerializer {
     ) -> Result<(), SerializationError> {
         debug!(
             "Extending element '{}' with label '{}'",
-            element_id, label_to_append
+            data_buffer.term_index.get(element_id)?,
+            label_to_append
         );
         let mut label_buffer = data_buffer.label_buffer.write()?;
         if let Some(label) = label_buffer.get_mut(element_id) {
@@ -1532,30 +1620,40 @@ impl GraphDisplayDataSolutionSerializer {
             None => None,
         };
 
-        Ok(self.create_triple_from_id(subject_term_id, predicate_term_id, object_term_id))
+        self.create_triple_from_id(
+            term_index,
+            subject_term_id,
+            Some(predicate_term_id),
+            object_term_id,
+        )
     }
 
     fn create_triple_from_id(
         &self,
+        term_index: &TermIndex,
         subject_term_id: usize,
         predicate_term_id: Option<usize>,
         object_term_id: Option<usize>,
-    ) -> ArcTriple {
+    ) -> Result<ArcTriple, SerializationError> {
         let triple = Triple::new(subject_term_id, predicate_term_id, object_term_id).into();
-        debug!("Created new triple: {}", triple);
-        triple
+        debug!(
+            "Created new triple: {}",
+            term_index.display_triple(&triple)?
+        );
+        Ok(triple)
     }
 
     fn create_edge_from_id(
         &self,
+        term_index: &TermIndex,
         domain_term_id: usize,
         edge_type: ElementType,
         range_term_id: usize,
         property_term_id: Option<usize>,
-    ) -> ArcEdge {
+    ) -> Result<ArcEdge, SerializationError> {
         let edge = Edge::new(domain_term_id, edge_type, range_term_id, property_term_id).into();
-        debug!("Created new edge: {}", edge);
-        edge
+        debug!("Created new edge: {}", term_index.display_edge(&edge)?);
+        Ok(edge)
     }
 
     /// Try to serialize the triples of all unknown terms until a fixpoint is reached (i.e. trying again doesn't change the outcome).
@@ -1648,7 +1746,11 @@ impl GraphDisplayDataSolutionSerializer {
             Term::BlankNode(bnode) => {
                 // The query must never put blank nodes in the ?nodeType variable
                 let msg = format!("Illegal blank node during serialization: '{bnode}'");
-                return Err(SerializationErrorKind::SerializationFailedTriple(triple, msg).into());
+                return Err(SerializationErrorKind::SerializationFailedTriple(
+                    data_buffer.term_index.display_triple(&triple)?,
+                    msg,
+                )
+                .into());
             }
             Term::Literal(literal) => match literal.value() {
                 "blanknode" => {
@@ -1754,7 +1856,7 @@ impl GraphDisplayDataSolutionSerializer {
                     }
                     rdfs::DOMAIN => {
                         return Err(SerializationErrorKind::SerializationFailedTriple(
-                            triple,
+                            data_buffer.term_index.display_triple(&triple)?,
                             "SPARQL query should not have rdfs:domain triples".to_string(),
                         )
                         .into());
@@ -1774,7 +1876,7 @@ impl GraphDisplayDataSolutionSerializer {
                     // rdfs::MEMBER => {}
                     rdfs::RANGE => {
                         return Err(SerializationErrorKind::SerializationFailedTriple(
-                            triple,
+                            data_buffer.term_index.display_triple(&triple)?,
                             "SPARQL query should not have rdfs:range triples".to_string(),
                         )
                         .into());
@@ -1955,6 +2057,7 @@ impl GraphDisplayDataSolutionSerializer {
                     owl::DATATYPE_PROPERTY => {
                         let e = ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty));
                         self.add_triple_to_element_buffer(
+                            &data_buffer.term_index,
                             &mut data_buffer.edge_element_buffer,
                             &triple,
                             e,
@@ -1967,12 +2070,12 @@ impl GraphDisplayDataSolutionSerializer {
                     //TODO: OWL1 (deprecated in OWL2, replaced by rdfs:datatype)
                     // owl::DATA_RANGE => {}
                     owl::DEPRECATED => {
-                        let Some(resolved_iri) =
+                        let Some(resolved_term_id) =
                             self.resolve(data_buffer, triple.subject_term_id)?
                         else {
                             debug!(
                                 "Deferring owl:Deprecated for '{}': subject type unresolved",
-                                triple.subject_term_id
+                                data_buffer.term_index.get(&triple.subject_term_id)?
                             );
                             self.add_to_unknown_buffer(
                                 data_buffer,
@@ -1985,29 +2088,29 @@ impl GraphDisplayDataSolutionSerializer {
                         if data_buffer
                             .node_element_buffer
                             .read()?
-                            .contains_key(&resolved_iri)
+                            .contains_key(&resolved_term_id)
                         {
-                            self.upgrade_deprecated_node_type(data_buffer, &resolved_iri)?;
+                            self.upgrade_deprecated_node_type(data_buffer, &resolved_term_id)?;
                             return Ok(SerializationStatus::Serialized);
                         }
 
                         if data_buffer
                             .edge_element_buffer
                             .read()?
-                            .contains_key(&resolved_iri)
+                            .contains_key(&resolved_term_id)
                         {
                             self.upgrade_property_type(
                                 data_buffer,
-                                &resolved_iri,
+                                &resolved_term_id,
                                 ElementType::Owl(OwlType::Edge(OwlEdge::DeprecatedProperty)),
                             )?;
-                            self.check_unknown_buffer(data_buffer, &resolved_iri)?;
+                            self.check_unknown_buffer(data_buffer, &resolved_term_id)?;
                             return Ok(SerializationStatus::Serialized);
                         }
 
-                        warn!(
+                        debug!(
                             "Skipping owl:Deprecated for '{}': resolved subject has no node/edge entry",
-                            resolved_iri
+                            data_buffer.term_index.get(&resolved_term_id)?
                         );
                         return Ok(SerializationStatus::Deferred);
                     }
@@ -2096,19 +2199,24 @@ impl GraphDisplayDataSolutionSerializer {
                             )?;
 
                             let resolved_subject_element = {
-                                data_buffer
+                                match data_buffer
                                     .node_element_buffer
                                     .read()?
                                     .get(&resolved_subject_term_id)
-                                    .ok_or_else(|| {
+                                    .copied()
+                                {
+                                    Some(elem) => elem,
+                                    None => {
                                         let msg = "subject not present in node_element_buffer"
                                             .to_string();
+                                        return Err(
                                         SerializationErrorKind::SerializationFailedTriple(
-                                            triple.clone(),
+                                                data_buffer.term_index.display_triple(&triple)?,
                                             msg,
-                                        )
-                                    })
-                                    .copied()?
+                                            ),
+                                        )?;
+                                    }
+                                }
                             };
 
                             if resolved_subject_element
@@ -2178,9 +2286,11 @@ impl GraphDisplayDataSolutionSerializer {
                             }
                             None => {
                                 let msg = "Failed to merge object of equivalence relation into subject: object not found".to_string();
-                                return Err(
-                                    SerializationErrorKind::MissingObject(triple, msg).into()
-                                );
+                                return Err(SerializationErrorKind::MissingObject(
+                                    data_buffer.term_index.display_triple(&triple)?,
+                                    msg,
+                                )
+                                .into());
                             }
                         },
                         (None, Some(resolved_object_term_id)) => {
@@ -2383,6 +2493,7 @@ impl GraphDisplayDataSolutionSerializer {
                     //owl::NOTHING => {}
                     owl::OBJECT_PROPERTY => {
                         self.add_triple_to_element_buffer(
+                            &data_buffer.term_index,
                             &mut data_buffer.edge_element_buffer,
                             &triple,
                             ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
@@ -2394,7 +2505,7 @@ impl GraphDisplayDataSolutionSerializer {
                     owl::ONE_OF => {
                         let Some(raw_target) = triple.object_term_id else {
                             return Err(SerializationErrorKind::MissingObject(
-                                triple,
+                                data_buffer.term_index.display_triple(&triple)?,
                                 "owl:oneOf triple is missing a target".to_string(),
                             )
                             .into());
@@ -2407,10 +2518,11 @@ impl GraphDisplayDataSolutionSerializer {
                         )?;
 
                         let edge_triple = self.create_triple_from_id(
+                            &data_buffer.term_index,
                             triple.subject_term_id,
                             triple.predicate_term_id,
                             Some(materialized_target),
-                        );
+                        )?;
 
                         match self.insert_edge(
                             data_buffer,
@@ -2463,7 +2575,7 @@ impl GraphDisplayDataSolutionSerializer {
                     owl::ON_PROPERTY => {
                         let Some(target) = triple.object_term_id else {
                             return Err(SerializationErrorKind::MissingObject(
-                                triple,
+                                data_buffer.term_index.display_triple(&triple)?,
                                 "owl:onProperty triple is missing a target".to_string(),
                             )
                             .into());
@@ -2656,20 +2768,26 @@ impl GraphDisplayDataSolutionSerializer {
                                     ) => {
                                         trace!(
                                             "Resolving object property: range: {}, property: {}, domain: {}",
-                                            range_term_id, property_term_id, domain_term_id
+                                            data_buffer.term_index.get(&range_term_id)?,
+                                            data_buffer.term_index.get(&property_term_id)?,
+                                            data_buffer.term_index.get(&domain_term_id)?
                                         );
 
                                         (
                                             None,
                                             Some(self.create_triple_from_id(
+                                                &data_buffer.term_index,
                                                 domain_term_id,
                                                 Some(property_term_id),
                                                 Some(range_term_id),
-                                            )),
+                                            )?),
                                         )
                                     }
                                     (Some(domain_term_id), Some(property_term_id), None) => {
-                                        trace!("Missing range: {}", triple);
+                                        trace!(
+                                            "Missing range: {}",
+                                            data_buffer.term_index.display_triple(&triple)?
+                                        );
 
                                         let object_term =
                                             data_buffer.term_index.get(&object_term_id)?;
@@ -2682,17 +2800,17 @@ impl GraphDisplayDataSolutionSerializer {
                                             (
                                                 None,
                                                 Some(self.create_triple_from_id(
+                                                    &data_buffer.term_index,
                                                     triple.subject_term_id,
                                                     triple.predicate_term_id,
                                                     Some(thing_term_id),
-                                                )),
+                                                )?),
                                             )
                                         } else if *object_term == rdfs::LITERAL.into() {
                                             let property_term =
                                                 data_buffer.term_index.get(&property_term_id)?;
                                             let target_iri =
                                                 synthetic_iri(&property_term, SYNTH_LITERAL);
-                                            debug!("Creating literal node: {}", target_iri);
                                             let node = self.create_triple_from_iri(
                                                 &mut data_buffer.term_index,
                                                 &target_iri,
@@ -2703,10 +2821,11 @@ impl GraphDisplayDataSolutionSerializer {
                                             (
                                                 Some(vec![node.clone()]),
                                                 Some(self.create_triple_from_id(
+                                                    &data_buffer.term_index,
                                                     triple.subject_term_id,
                                                     triple.predicate_term_id,
                                                     Some(node.subject_term_id),
-                                                )),
+                                                )?),
                                             )
                                         } else {
                                             // Register the property itself as an element so it can be resolved by characteristics
@@ -2714,6 +2833,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                 data_buffer.term_index.get(&property_term_id)?;
                                             if *predicate_term == owl::OBJECT_PROPERTY.into() {
                                                 self.add_triple_to_element_buffer(
+                                                    &data_buffer.term_index,
                                                     &mut data_buffer.edge_element_buffer,
                                                     &triple,
                                                     ElementType::Owl(OwlType::Edge(
@@ -2729,6 +2849,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                 == owl::DATATYPE_PROPERTY.into()
                                             {
                                                 self.add_triple_to_element_buffer(
+                                                    &data_buffer.term_index,
                                                     &mut data_buffer.edge_element_buffer,
                                                     &triple,
                                                     ElementType::Owl(OwlType::Edge(
@@ -2751,7 +2872,10 @@ impl GraphDisplayDataSolutionSerializer {
                                         }
                                     }
                                     (None, Some(property_term_id), Some(range_term_id)) => {
-                                        trace!("Missing domain: {}", triple);
+                                        trace!(
+                                            "Missing domain: {}",
+                                            data_buffer.term_index.display_triple(&triple)?
+                                        );
 
                                         let subject_term =
                                             data_buffer.term_index.get(&triple.subject_term_id)?;
@@ -2764,10 +2888,11 @@ impl GraphDisplayDataSolutionSerializer {
                                             (
                                                 None,
                                                 Some(self.create_triple_from_id(
+                                                    &data_buffer.term_index,
                                                     thing_term_id,
                                                     Some(property_term_id),
                                                     Some(range_term_id),
-                                                )),
+                                                )?),
                                             )
                                         } else if *subject_term == rdfs::LITERAL.into() {
                                             let range_term =
@@ -2784,10 +2909,11 @@ impl GraphDisplayDataSolutionSerializer {
                                             (
                                                 Some(vec![node.clone()]),
                                                 Some(self.create_triple_from_id(
+                                                    &data_buffer.term_index,
                                                     node.subject_term_id,
                                                     Some(property_term_id),
                                                     triple.object_term_id,
-                                                )),
+                                                )?),
                                             )
                                         } else {
                                             self.add_to_unknown_buffer(
@@ -2799,7 +2925,10 @@ impl GraphDisplayDataSolutionSerializer {
                                         }
                                     }
                                     (None, Some(property_term_id), None) => {
-                                        trace!("Missing domain and range: {}", triple);
+                                        trace!(
+                                            "Missing domain and range: {}",
+                                            data_buffer.term_index.display_triple(&triple)?
+                                        );
 
                                         let is_full_query_fallback = {
                                             if let Some(object_term_id) = triple.object_term_id {
@@ -2817,7 +2946,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         if !is_full_query_fallback {
                                             trace!(
                                                 "Deferring property triple with unresolved structural domain/range: {}",
-                                                triple
+                                                data_buffer.term_index.display_triple(&triple)?
                                             );
                                             self.add_to_unknown_buffer(
                                                 data_buffer,
@@ -2853,11 +2982,6 @@ impl GraphDisplayDataSolutionSerializer {
                                                     None,
                                                 )?;
 
-                                                debug!(
-                                                    "Creating literal node: {}",
-                                                    local_literal_iri
-                                                );
-
                                                 let local_thing_iri = synthetic_iri(
                                                     &property_term,
                                                     SYNTH_LOCAL_THING,
@@ -2869,18 +2993,17 @@ impl GraphDisplayDataSolutionSerializer {
                                                     None,
                                                 )?;
 
-                                                debug!("Creating thing node: {}", local_thing_iri);
-
                                                 (
                                                     Some(vec![
                                                         literal_triple.clone(),
                                                         thing_triple.clone(),
                                                     ]),
                                                     Some(self.create_triple_from_id(
+                                                        &data_buffer.term_index,
                                                         thing_triple.subject_term_id,
                                                         Some(property_term_id),
                                                         Some(literal_triple.subject_term_id),
-                                                    )),
+                                                    )?),
                                                 )
                                             }
                                             Some(ElementType::Owl(OwlType::Edge(
@@ -2900,10 +3023,11 @@ impl GraphDisplayDataSolutionSerializer {
                                                 (
                                                     None,
                                                     Some(self.create_triple_from_id(
+                                                        &data_buffer.term_index,
                                                         thing_term_id,
                                                         Some(property_term_id),
                                                         Some(thing_term_id),
-                                                    )),
+                                                    )?),
                                                 )
                                             }
                                             _ => {
@@ -2977,7 +3101,12 @@ impl GraphDisplayDataSolutionSerializer {
                                                 Some(prop) => prop,
                                                 None => {
                                             let msg = "Edge triple not present in edge_element_buffer".to_string();
-                                            SerializationErrorKind::SerializationFailedTriple(edge_triple.clone(), msg)})?
+                                                    let display_edge = data_buffer
+                                                        .term_index
+                                                        .display_triple(&edge_triple)?;
+                                                    return Err(SerializationErrorKind::SerializationFailedTriple(display_edge, msg))?;
+                                                }
+                                            }
                                         };
 
                                         let label = {
@@ -3010,15 +3139,20 @@ impl GraphDisplayDataSolutionSerializer {
                                                     .insert(edge_triple.subject_term_id);
                                             }
                                             {
-                                                let object_term_id = edge_triple
-                                                    .object_term_id
-                                                    .ok_or_else(|| {
-                                                        SerializationErrorKind::MissingObject(
-                                                            edge_triple.clone(),
+                                                let object_term_id = {
+                                                    match edge_triple.object_term_id {
+                                                        Some(id) => id,
+                                                        None => {
+                                                            let msg =
                                                             "Failed to update range for edge"
-                                                                .to_string(),
-                                                        )
-                                                    })?;
+                                                                    .to_string();
+                                                            let display_edge = data_buffer
+                                                                .term_index
+                                                                .display_triple(&edge_triple)?;
+                                                            return Err(SerializationErrorKind::MissingObject(display_edge, msg))?;
+                                                        }
+                                                    }
+                                                };
                                                 data_buffer
                                                     .property_range_map
                                                     .write()?
@@ -3037,7 +3171,7 @@ impl GraphDisplayDataSolutionSerializer {
                                     None => {
                                         return Err(
                                             SerializationErrorKind::SerializationFailedTriple(
-                                                triple,
+                                                data_buffer.term_index.display_triple(&triple)?,
                                                 "Error creating edge".to_string(),
                                             )
                                             .into(),
@@ -3047,7 +3181,7 @@ impl GraphDisplayDataSolutionSerializer {
                             }
                             None => {
                                 return Err(SerializationErrorKind::SerializationFailedTriple(
-                                    triple,
+                                    data_buffer.term_index.display_triple(&triple)?,
                                     "Object property triples should have a target".to_string(),
                                 )
                                 .into());
@@ -3158,7 +3292,8 @@ impl GraphDisplayDataSolutionSerializer {
         else {
             debug!(
                 "Deferring characteristic '{}' for '{}': property unresolved",
-                characteristic, triple.subject_term_id
+                characteristic,
+                data_buffer.term_index.get(&triple.subject_term_id)?
             );
             self.add_to_unknown_buffer(data_buffer, triple.subject_term_id, triple)?;
             return Ok(SerializationStatus::Deferred);
@@ -3175,7 +3310,8 @@ impl GraphDisplayDataSolutionSerializer {
         if let Some(edge) = maybe_edge {
             debug!(
                 "Inserting edge characteristic: {} -> {}",
-                resolved_property_term_id, characteristic
+                data_buffer.term_index.get(&resolved_property_term_id)?,
+                characteristic
             );
 
             let target_edges = if edge.edge_type
@@ -3216,7 +3352,8 @@ impl GraphDisplayDataSolutionSerializer {
         if property_is_known {
             debug!(
                 "Deferring characteristic '{}' for '{}': property known, edge not materialized yet",
-                characteristic, resolved_property_term_id
+                characteristic,
+                data_buffer.term_index.get(&resolved_property_term_id)?
             );
             self.add_to_unknown_buffer(data_buffer, resolved_property_term_id, triple)?;
             return Ok(SerializationStatus::Deferred);
@@ -3225,7 +3362,8 @@ impl GraphDisplayDataSolutionSerializer {
         // No attach point yet
         debug!(
             "Deferring characteristic '{}' for '{}': no attach point available yet",
-            characteristic, resolved_property_term_id
+            characteristic,
+            data_buffer.term_index.get(&resolved_property_term_id)?
         );
         self.add_to_unknown_buffer(data_buffer, resolved_property_term_id, triple)?;
         Ok(SerializationStatus::Deferred)
@@ -3241,7 +3379,8 @@ impl GraphDisplayDataSolutionSerializer {
         if Self::is_consumed_restriction(data_buffer, object_term_id)? {
             debug!(
                 "Skipping {} operand '{}': restriction already materialized",
-                operator, object_term_id
+                operator,
+                data_buffer.term_index.get(object_term_id)?
             );
             return Ok(true);
         }
@@ -3253,7 +3392,9 @@ impl GraphDisplayDataSolutionSerializer {
         {
             debug!(
                 "Skipping {} self-loop after restriction redirection: {} -> {}",
-                operator, resolved_subject, resolved_target
+                operator,
+                data_buffer.term_index.get(&resolved_subject)?,
+                data_buffer.term_index.get(&resolved_target)?
             );
             return Ok(true);
         }
@@ -3267,7 +3408,7 @@ impl GraphDisplayDataSolutionSerializer {
     ) -> Result<String, SerializationError> {
         let Some(object_term_id) = triple.object_term_id else {
             return Err(SerializationErrorKind::MissingObject(
-                triple.clone(),
+                data_buffer.term_index.display_triple(triple)?,
                 "Restriction cardinality triple is missing a target".to_string(),
             )
             .into());
@@ -3277,7 +3418,7 @@ impl GraphDisplayDataSolutionSerializer {
         match object_term.as_ref() {
             Term::Literal(literal) => Ok(literal.value().to_string()),
             other => Err(SerializationErrorKind::SerializationFailedTriple(
-                triple.clone(),
+                data_buffer.term_index.display_triple(triple)?,
                 format!("Expected cardinality literal, got '{other}'"),
             )
             .into()),
@@ -3290,7 +3431,7 @@ impl GraphDisplayDataSolutionSerializer {
     ) -> Result<u32, SerializationError> {
         let Some(object_term_id) = triple.object_term_id else {
             return Err(SerializationErrorKind::MissingObject(
-                triple.clone(),
+                data_buffer.term_index.display_triple(triple)?,
                 "NamedIndividual count triple is missing a target".to_string(),
             )
             .into());
@@ -3298,19 +3439,19 @@ impl GraphDisplayDataSolutionSerializer {
 
         let object_term = data_buffer.term_index.get(&object_term_id)?;
         match object_term.as_ref() {
-            Term::Literal(literal) => literal.value().parse::<u32>().map_err(|e| {
-                SerializationErrorKind::SerializationFailedTriple(
-                    triple.clone(),
+            Term::Literal(literal) => match literal.value().parse::<u32>() {
+                Ok(val) => Ok(val),
+                Err(e) => Err(SerializationErrorKind::SerializationFailedTriple(
+                    data_buffer.term_index.display_triple(triple)?,
                     format!(
                         "Expected individual count literal, got '{}': {}",
                         literal.value(),
                         e
                     ),
-                )
-                .into()
-            }),
+                ))?,
+            },
             other => Err(SerializationErrorKind::SerializationFailedTriple(
-                triple.clone(),
+                data_buffer.term_index.display_triple(triple)?,
                 format!("Expected individual count literal, got '{other}'"),
             )
             .into()),
@@ -3515,11 +3656,12 @@ impl GraphDisplayDataSolutionSerializer {
         cardinality: Option<(String, Option<String>)>,
     ) -> Result<ArcEdge, SerializationError> {
         let edge = self.create_edge_from_id(
+            &data_buffer.term_index,
             subject_term_id,
             ElementType::Owl(OwlType::Edge(OwlEdge::ValuesFrom)),
             object_term_id,
             Some(property_term_id),
-        );
+        )?;
         {
             data_buffer.edge_buffer.write()?.insert(edge.clone());
         }
@@ -4040,11 +4182,12 @@ impl GraphDisplayDataSolutionSerializer {
         }
 
         let new_edge = self.create_edge_from_id(
+            &data_buffer.term_index,
             new_subject_term_id,
             old_edge.edge_type,
             new_object_term_id,
             old_edge.property_term_id,
-        );
+        )?;
 
         let label = { data_buffer.edge_label_buffer.write()?.remove(&old_edge) };
         let characteristics = { data_buffer.edge_characteristics.write()?.remove(&old_edge) };

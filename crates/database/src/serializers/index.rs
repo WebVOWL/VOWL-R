@@ -5,14 +5,17 @@ use std::{
 
 use oxrdf::{Term, TermRef};
 
-use crate::errors::{SerializationError, SerializationErrorKind};
+use crate::{
+    errors::{SerializationError, SerializationErrorKind},
+    serializers::{ArcEdge, ArcTerm, ArcTriple},
+};
 
 #[derive(Debug, Default)]
 pub struct TermIndex {
     /// Maps an RDF term to a corresponding id.
-    str_index: RwLock<HashMap<Arc<Term>, usize>>,
+    str_index: RwLock<HashMap<ArcTerm, usize>>,
     /// Maps an id to a corresponding RDF term.
-    int_index: RwLock<HashMap<usize, Arc<Term>>>,
+    int_index: RwLock<HashMap<usize, ArcTerm>>,
 }
 
 impl TermIndex {
@@ -51,7 +54,7 @@ impl TermIndex {
     ///
     /// # Errors
     /// Returns an error if the underlying lock is poisoned when accessed.
-    pub fn remove(&mut self, term_id: &usize) -> Result<Option<Arc<Term>>, SerializationError> {
+    pub fn remove(&mut self, term_id: &usize) -> Result<Option<ArcTerm>, SerializationError> {
         if let Some(term) = self.int_index.write()?.remove(term_id) {
             self.str_index.write()?.remove(&term);
             return Ok(Some(term));
@@ -129,5 +132,47 @@ impl TermIndex {
         );
 
         Ok(result)
+    }
+
+    /// Returns a pretty-printed version of a triple with term ids translated to
+    /// their corresponding terms.
+    ///
+    /// # Errors
+    /// Returns an error if the underlying lock is poisoned when accessed.
+    pub fn display_triple(&self, triple: &ArcTriple) -> Result<String, SerializationError> {
+        let subject = self.get(&triple.subject_term_id)?.to_string();
+        let predicate = if let Some(predicate_term_id) = triple.predicate_term_id {
+            self.get(&predicate_term_id)?.to_string()
+        } else {
+            String::new()
+        };
+        let object = if let Some(object_term_id) = triple.object_term_id {
+            self.get(&object_term_id)?.to_string()
+        } else {
+            String::new()
+        };
+        Ok(format!(
+            "Triple{{ {} - {} - {} }}",
+            subject, predicate, object
+        ))
+    }
+
+    /// Returns a pretty-printed version of an edge with term ids translated to
+    /// their corresponding terms.
+    ///
+    /// # Errors
+    /// Returns an error if the underlying lock is poisoned when accessed.
+    pub fn display_edge(&self, edge: &ArcEdge) -> Result<String, SerializationError> {
+        let domain = self.get(&edge.domain_term_id)?;
+        let range = self.get(&edge.range_term_id)?;
+        // let property = if let Some(property_term_id) = edge.property_term_id {
+        //     self.get(&property_term_id)?.to_string()
+        // } else {
+        //     String::new()
+        // };
+        Ok(format!(
+            "Edge{{ {} - {} - {} }}",
+            domain, edge.edge_type, range,
+        ))
     }
 }
