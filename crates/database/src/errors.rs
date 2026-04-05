@@ -1,22 +1,40 @@
-use std::{
-    panic::Location,
-    sync::{Arc, PoisonError},
-};
+use std::{panic::Location, sync::PoisonError};
 
-use crate::serializers::{Edge, Triple};
 use oxrdf::{BlankNodeIdParseError, IriParseError};
 use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError, get_timestamp};
 
 #[derive(Debug)]
 pub enum SerializationErrorKind {
     /// An error raised when the object of a triple is required but missing.
-    MissingObject(Arc<Triple>, String),
+    ///
+    /// String #1 is the triple, translated from term ids to terms.
+    ///
+    /// String #2 is the error message.
+    MissingObject(String, String),
     /// An error raised when the subject of a triple is required but missing.
-    MissingSubject(Arc<Triple>, String),
+    ///
+    /// String #1 is the triple, translated from term ids to terms.
+    ///
+    /// String #2 is the error message.
+    MissingSubject(String, String),
+    /// An error raised when the predicate of a triple is required but missing.
+    ///
+    /// String #1 is the triple, translated from term ids to terms.
+    ///
+    /// String #2 is the error message.
+    MissingPredicate(String, String),
     /// An error raised when the range of an edge is required but missing.
-    MissingRange(Arc<Edge>, String),
+    ///
+    /// String #1 is the edge, translated from term ids to terms.
+    ///
+    /// String #2 is the error message.
+    MissingRange(String, String),
     /// An error raised when the domain of an edge is required but missing.
-    MissingDomain(Arc<Edge>, String),
+    ///
+    /// String #1 is the edge, translated from term ids to terms.
+    ///
+    /// String #2 is the error message.
+    MissingDomain(String, String),
     /// An error raised when the label of a term is required but missing.
     MissingLabel(String),
     /// An error raised when the property term of an edge is required but missing.
@@ -25,12 +43,20 @@ pub enum SerializationErrorKind {
     MisisngCharacteristic(String),
     /// An error raised when the individuals count for a node term is required but missing.
     MissingIndividualsCount(String),
+    /// An error raised when the document base is required but missing.
+    MissingDocumentBase(String),
     /// An error raised when the serializer encountered an unrecoverable problem.
     ///
-    /// Includes the problematic triple.
-    SerializationFailedTriple(Arc<Triple>, String),
+    /// String #1 is the triple, translated from term ids to terms.
+    ///
+    /// String #2 is the error message.
+    SerializationFailedTriple(String, String),
     /// An error raised when the serializer encountered an unrecoverable problem.
     SerializationFailed(String),
+    /// A warning emitted when the serializer encountered a recoverable problem.
+    ///
+    /// However, the outcome may not be as expected!
+    SerializationWarning(String),
     /// An error raised during Iri or IriRef validation.
     IriParseError(String, Box<IriParseError>),
     /// An error raised during BlankNode IDs validation.
@@ -94,6 +120,7 @@ impl From<SerializationError> for ErrorRecord {
     fn from(value: SerializationError) -> Self {
         let (message, severity) = match value.inner {
             SerializationErrorKind::MissingObject(triple, e)
+            | SerializationErrorKind::MissingPredicate(triple, e)
             | SerializationErrorKind::MissingSubject(triple, e) => {
                 (format!("{e}:\n{triple}"), ErrorSeverity::Warning)
             }
@@ -104,7 +131,9 @@ impl From<SerializationError> for ErrorRecord {
             SerializationErrorKind::MissingLabel(e)
             | SerializationErrorKind::MissingProperty(e)
             | SerializationErrorKind::MisisngCharacteristic(e)
-            | SerializationErrorKind::MissingIndividualsCount(e) => (e, ErrorSeverity::Warning),
+            | SerializationErrorKind::MissingIndividualsCount(e)
+            | SerializationErrorKind::MissingDocumentBase(e)
+            | SerializationErrorKind::SerializationWarning(e) => (e, ErrorSeverity::Warning),
             SerializationErrorKind::SerializationFailedTriple(triple, e) => {
                 (format!("{e}:\n{triple}"), ErrorSeverity::Critical)
             }

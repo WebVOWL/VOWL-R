@@ -741,7 +741,17 @@ impl GraphDisplayDataSolutionSerializer {
                 || is_reserved(term)
                 || is_synthetic(term))),
             None => {
-                warn!("Cannot determine externals: Missing document base!");
+                let has_fired = { *self.document_base_warning_fired.read()? };
+                if !has_fired {
+                    let msg = "Cannot determine externals: Missing document base!";
+                    let e = SerializationErrorKind::MissingDocumentBase(msg.to_string());
+                    warn!("{msg}");
+                    data_buffer
+                        .failed_buffer
+                        .write()?
+                        .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+                    *self.document_base_warning_fired.write()? = true;
+                }
                 Ok(false)
             }
         }
@@ -939,10 +949,17 @@ impl GraphDisplayDataSolutionSerializer {
                 )
             }
             None => {
-                warn!(
+                let msg = format!(
                     "Upgraded unresolved subject '{}' to {}",
-                    term_id, new_element
-                )
+                    data_buffer.term_index.get(&term_id)?,
+                    new_element
+                );
+                let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+                warn!("{msg}");
+                data_buffer
+                    .failed_buffer
+                    .write()?
+                    .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
             }
         }
         Ok(())
@@ -993,16 +1010,29 @@ impl GraphDisplayDataSolutionSerializer {
                 );
             }
             Some(old_elem) => {
-                warn!(
+                let msg = format!(
                     "Skipping owl:Deprecated node upgrade for '{}': {} is not a class",
-                    term_id, old_elem
+                    data_buffer.term_index.get(term_id)?,
+                    old_elem
                 );
+                let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+                warn!("{msg}");
+                data_buffer
+                    .failed_buffer
+                    .write()?
+                    .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
             }
             None => {
-                warn!(
+                let msg = format!(
                     "Cannot upgrade unresolved subject '{}' to DeprecatedClass",
-                    term_id
+                    data_buffer.term_index.get(term_id)?
                 );
+                let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+                warn!("{msg}");
+                data_buffer
+                    .failed_buffer
+                    .write()?
+                    .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
             }
         }
         Ok(())
@@ -1022,10 +1052,18 @@ impl GraphDisplayDataSolutionSerializer {
                 .copied()
         };
         let Some(old_elem) = old_elem_opt else {
-            warn!(
+            let msg = format!(
                 "Cannot upgrade unresolved property '{}' to {}",
-                property_term_id, new_element
+                data_buffer.term_index.get(property_term_id)?,
+                new_element
             );
+            let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+            warn!("{msg}");
+            data_buffer
+                .failed_buffer
+                .write()?
+                .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+
             return Ok(());
         };
 
@@ -1038,10 +1076,18 @@ impl GraphDisplayDataSolutionSerializer {
                     | OwlEdge::ExternalProperty
             )) | ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty))
         ) {
-            warn!(
+            let msg = format!(
                 "Skipping owl:Deprecated property upgrade for '{}': {} is not a property",
-                property_term_id, old_elem
+                data_buffer.term_index.get(property_term_id)?,
+                old_elem
             );
+            let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+            warn!("{msg}");
+            data_buffer
+                .failed_buffer
+                .write()?
+                .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+
             return Ok(());
         }
 
@@ -1265,7 +1311,17 @@ impl GraphDisplayDataSolutionSerializer {
     ) -> Result<SerializationStatus, SerializationError> {
         let left_property_raw = triple.subject_term_id;
         let Some(right_property_raw) = triple.object_term_id else {
-            warn!("owl:inverseOf triple is missing a target: {}", triple);
+            let msg = format!(
+                "owl:inverseOf triple is missing a target: {}",
+                data_buffer.term_index.display_triple(&triple)?
+            );
+            let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+            warn!("{msg}");
+            data_buffer
+                .failed_buffer
+                .write()?
+                .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+
             return Ok(SerializationStatus::Serialized);
         };
 
@@ -1303,15 +1359,22 @@ impl GraphDisplayDataSolutionSerializer {
 
         let compatible = left_subject == right_object && left_object == right_subject;
         if !compatible {
-            warn!(
+            let msg = format!(
                 "Cannot merge owl:inverseOf '{}'<->'{}': normalized edges do not align ({} -> {}, {} -> {})",
-                left_property,
-                right_property,
-                left_subject,
-                left_object,
-                right_subject,
-                right_object
+                data_buffer.term_index.get(&left_property)?,
+                data_buffer.term_index.get(&right_property)?,
+                data_buffer.term_index.get(&left_subject)?,
+                data_buffer.term_index.get(&left_object)?,
+                data_buffer.term_index.get(&right_subject)?,
+                data_buffer.term_index.get(&right_object)?
             );
+            let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+            warn!("{msg}");
+            data_buffer
+                .failed_buffer
+                .write()?
+                .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+
             return Ok(SerializationStatus::Serialized);
         }
 
@@ -1596,7 +1659,13 @@ impl GraphDisplayDataSolutionSerializer {
                     )?;
                 }
                 other => {
-                    warn!("Visualization of literal '{other}' is not supported");
+                    let msg = format!("Visualization of literal '{other}' is not supported");
+                    let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+                    warn!("{msg}");
+                    data_buffer
+                        .failed_buffer
+                        .write()?
+                        .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
                 }
             },
             Term::NamedNode(uri) => {
@@ -2356,10 +2425,16 @@ impl GraphDisplayDataSolutionSerializer {
                     owl::ONTOLOGY => {
                         let mut document_base = data_buffer.document_base.write()?;
                         if let Some(base) = &*document_base {
-                            warn!(
+                            let msg = format!(
                                 "Attempting to override document base '{base}' with new base '{}'. Skipping",
-                                triple.subject_term_id
+                                base
                             );
+                            let e = SerializationErrorKind::SerializationWarning(msg.to_string());
+                            warn!("{msg}");
+                            data_buffer
+                                .failed_buffer
+                                .write()?
+                                .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
                         } else {
                             let base = trim_tag_circumfix(&triple.subject_term_id.to_string());
                             info!("Using document base: '{}'", base);
