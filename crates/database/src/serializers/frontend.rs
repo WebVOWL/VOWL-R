@@ -1053,9 +1053,12 @@ impl GraphDisplayDataSolutionSerializer {
             Some(old_elem)
                 if matches!(
                     old_elem,
-                    ElementType::Owl(OwlType::Node(OwlNode::Class | OwlNode::AnonymousClass))
-                        | ElementType::Rdfs(RdfsType::Node(RdfsNode::Class))
-                        | ElementType::Owl(OwlType::Node(OwlNode::DeprecatedClass))
+                    ElementType::Owl(OwlType::Node(
+                        OwlNode::Class
+                            | OwlNode::AnonymousClass
+                            | OwlNode::DeprecatedClass
+                            | OwlNode::ExternalClass
+                    )) | ElementType::Rdfs(RdfsType::Node(RdfsNode::Class))
                 ) =>
             {
                 let new_element = ElementType::Owl(OwlType::Node(OwlNode::DeprecatedClass));
