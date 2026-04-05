@@ -3923,14 +3923,23 @@ impl GraphDisplayDataSolutionSerializer {
             | Some(ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty)))
             | Some(ElementType::Owl(OwlType::Edge(OwlEdge::DeprecatedProperty)))
             | Some(ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty))) => {
-                let target_has_label = {data_buffer.label_buffer.read()?.contains_key(target_term_id)};
+                let target_has_label = {
+                    data_buffer
+                        .label_buffer
+                        .read()?
+                        .contains_key(target_term_id)
+                };
                 if !target_has_label {
                     let target_term = data_buffer.term_index.get(target_term_id)?;
                     self.extract_label(data_buffer, None, &target_term, target_term_id)?;
                 }
 
-
-                let node_exists = {data_buffer.node_element_buffer.read()?.contains_key(target_term_id)};
+                let node_exists = {
+                    data_buffer
+                        .node_element_buffer
+                        .read()?
+                        .contains_key(target_term_id)
+                };
                 if !node_exists {
                     let predicate_term_id =
                         { data_buffer.term_index.insert(rdfs::RESOURCE.into())? };
