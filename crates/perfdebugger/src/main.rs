@@ -1,7 +1,9 @@
 //! Run this workspace natively, i.e., without a browser.
 
 use env_logger::Env;
+#[allow(unused)]
 use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
+#[allow(unused)]
 use grapher::run;
 use std::env;
 use std::path::Path;
@@ -22,12 +24,14 @@ async fn main() {
             .await
             .expect("Error inserting file");
 
-        let (data, _) = store.query(DEFAULT_QUERY.to_string(), None).await.unwrap();
+        let (_data, _) = store.query(DEFAULT_QUERY.to_string(), None).await.unwrap();
 
-        EVENT_DISPATCHER
-            .rend_write_chan
-            .send(RenderEvent::LoadGraph(data))
-            .unwrap();
+        // Uncomment to enable rendering
+        // EVENT_DISPATCHER
+        //     .rend_write_chan
+        //     .send(RenderEvent::LoadGraph(_data))
+        //     .unwrap();
     }
-    run().unwrap();
+    // Uncomment to enable rendering
+    // run().unwrap();
 }
