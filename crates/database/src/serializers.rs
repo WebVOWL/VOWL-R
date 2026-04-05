@@ -207,7 +207,7 @@ pub struct SerializationDataBuffer {
     /// Keeps track of edges that should point to a node different
     /// from their definition.
     ///
-    /// This can happen if, e.g., to nodes are merged.
+    /// This can happen if, e.g., two nodes are merged.
     ///
     /// The key is the range term of an edge triple, translated to that term's corresponding id.
     ///
