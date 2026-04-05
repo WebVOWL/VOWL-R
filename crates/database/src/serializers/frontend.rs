@@ -291,6 +291,24 @@ impl GraphDisplayDataSolutionSerializer {
         } else {
             0.0
         };
+        debug!("{}", data_buffer);
+        let serializer_errors = if !data_buffer.failed_buffer.read()?.is_empty() {
+            let mut failed_buffer = data_buffer.failed_buffer.write()?;
+            let total = failed_buffer.len();
+            let err: VOWLRError = take(&mut *failed_buffer).into();
+            error!(
+                "Failed to serialize {} triple{}:\n{}",
+                total,
+                if total != 1 { "s" } else { "" },
+                err
+            );
+            Some(err)
+        } else {
+            None
+        };
+        let (converted, convert_errors) = data_buffer.convert_into()?;
+        *data = converted;
+        debug!("{}", data);
         info!(
             "Serialization completed\n \
             \tQuery execution time: {} s\n \
@@ -311,24 +329,6 @@ impl GraphDisplayDataSolutionSerializer {
             data_buffer.edge_characteristics.read()?.len()
                 + data_buffer.node_characteristics.read()?.len(),
         );
-        debug!("{}", data_buffer);
-        let serializer_errors = if !data_buffer.failed_buffer.read()?.is_empty() {
-            let mut failed_buffer = data_buffer.failed_buffer.write()?;
-            let total = failed_buffer.len();
-            let err: VOWLRError = take(&mut *failed_buffer).into();
-            error!(
-                "Failed to serialize {} triple{}:\n{}",
-                total,
-                if total != 1 { "s" } else { "" },
-                err
-            );
-            Some(err)
-        } else {
-            None
-        };
-        let (converted, convert_errors) = data_buffer.convert_into()?;
-        *data = converted;
-        debug!("{}", data);
 
         let all_errors = match (serializer_errors, convert_errors) {
             (Some(mut e), Some(mut ce)) => {
