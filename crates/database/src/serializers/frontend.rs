@@ -3511,7 +3511,7 @@ impl GraphDisplayDataSolutionSerializer {
         match property_edge_type {
             Some(ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty))) => {
                 let property_term = data_buffer.term_index.get(property_term_id)?;
-                let literal_iri = synthetic_iri(&property_term, "_literal");
+                let literal_iri = synthetic_iri(&property_term, SYNTH_LITERAL);
                 let literal_triple = self.create_triple_from_iri(
                     &mut data_buffer.term_index,
                     &literal_iri,
