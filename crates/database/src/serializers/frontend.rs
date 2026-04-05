@@ -311,8 +311,8 @@ impl GraphDisplayDataSolutionSerializer {
         debug!("{}", data);
         info!(
             "Serialization completed\n \
-            \tQuery execution time: {} s\n \
-            \tSerialization time  : {} s\n \
+            \tQuery execution time: {:.5} s\n \
+            \tSerialization time  : {:.5} s\n \
             \tTotal solutions     : {count}\n \
             \tElements            : {}\n \
             \tEdges               : {}\n \
