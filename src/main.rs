@@ -71,7 +71,7 @@ async fn main() -> std::io::Result<()> {
             .service(Files::new("/", site_root.as_ref()))
             .wrap(middleware::Compress::default())
             .wrap(SessionMiddleware::builder(CookieSessionStore::default(), secret_key.clone())
-                .cookie_secure(false)
+                .cookie_secure(!cfg!(debug_assertions))
                 .build()
             )
             .wrap(

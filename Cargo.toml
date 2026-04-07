@@ -146,10 +146,10 @@
         "dep:vowlr-parser",
         "leptos-use/actix",
         "vowlr-util/server",
+        "dep:actix-session",
     ]
     ssr=[
         "dep:actix-files",
-        "dep:actix-session",
         "dep:actix-web",
         "dep:leptos_actix",
         "leptos/ssr",

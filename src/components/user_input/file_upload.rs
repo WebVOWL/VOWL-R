@@ -5,7 +5,7 @@ use leptos::prelude::*;
 use leptos::server_fn::ServerFnError;
 use leptos::server_fn::codec::{MultipartData, MultipartFormData, StreamingText, TextStream};
 use leptos::task::spawn_local;
-use log::{debug, info};
+use log::{debug, info, trace};
 #[cfg(feature = "server")]
 use reqwest::Client;
 use std::cell::RefCell;
@@ -21,7 +21,7 @@ use crate::errors::ClientErrorKind;
 
 const MAX_FILE_SIZE_BYTES: usize = 50 * 1024 * 1024;
 
-#[cfg(feature = "ssr")]
+#[cfg(feature = "server")]
 /// # Errors
 /// Throws an error if fails to get session
 pub async fn manage_user_id() -> Result<String, ServerFnError> {
@@ -114,7 +114,7 @@ pub async fn ontology_progress(filename: String) -> Result<TextStream, ServerFnE
 )]
 pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), VOWLRError> {
     let user_id = manage_user_id().await?;
-    info!("User {user_id} is uploading a local file");
+    trace!("User {user_id} is uploading a local file");
 
     let mut session = VOWLRStore::default();
     session.user_id = Some(user_id);
@@ -168,7 +168,7 @@ pub async fn handle_local(data: MultipartData) -> Result<(DataType, usize), VOWL
 #[server]
 pub async fn handle_remote(url: String) -> Result<(DataType, usize), VOWLRError> {
     let user_id = manage_user_id().await?;
-    info!("User {user_id} is uploading a remote file");
+    trace!("User {user_id} is uploading a remote file");
 
     debug!("Sending request to remote: '{url}'");
     let client = Client::new();
@@ -223,7 +223,7 @@ pub async fn handle_sparql(
     format: Option<String>,
 ) -> Result<(DataType, usize), VOWLRError> {
     let user_id = manage_user_id().await?;
-    info!("User {user_id} is quering SPARQL");
+    trace!("User {user_id} is quering SPARQL");
 
     let client = Client::new();
 

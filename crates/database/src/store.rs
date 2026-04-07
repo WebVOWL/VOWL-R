@@ -36,7 +36,8 @@ impl VOWLRStore {
         }
     }
 
-    pub fn new_for_user(session: Store, user_id: String) -> Self {
+    pub fn new_for_user(user_id: String) -> Self {
+        let session = GLOBAL_STORE.get_or_init(Store::default).clone();
         Self {
             session,
             user_id: Some(user_id),
