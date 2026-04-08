@@ -1,5 +1,4 @@
 use super::WorkbenchMenuItems;
-// use crate::components::tooltip::{ToolTip, ToolTipPosition};
 use crate::components::user_input::range_select::Slider;
 use crate::errors::{ClientErrorKind, ErrorLogContext};
 use grapher::prelude::*;
