@@ -16,6 +16,10 @@ pub enum VOWLRStoreErrorKind {
     ///
     /// Example: server only supports `.owl` and is given `.png`
     InvalidFileType(String),
+    /// User uploads file with wrong file extension but it can still be parsed.
+    ///
+    /// Example: User uploads `.ttl` file but it is in fact an `.owl` file.
+    IncorrectFileExtension(String),
     /// An error raised by Horned-OWL during parsing (of OWL files).
     HornedError(HornedError),
     /// Generic IO error.
@@ -153,6 +157,7 @@ impl std::error::Error for VOWLRStoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.inner {
             VOWLRStoreErrorKind::InvalidFileType(_) => None,
+            VOWLRStoreErrorKind::IncorrectFileExtension(_) => None,
             VOWLRStoreErrorKind::HornedError(e) => Some(e),
             VOWLRStoreErrorKind::IOError(e) => Some(e),
             VOWLRStoreErrorKind::IriParseError(e) => Some(e),
@@ -166,33 +171,52 @@ impl std::error::Error for VOWLRStoreError {
 
 impl From<VOWLRStoreError> for ErrorRecord {
     fn from(value: VOWLRStoreError) -> Self {
-        let (message, error_type) = match value.inner {
-            VOWLRStoreErrorKind::InvalidFileType(e) => (e, ErrorType::Parser),
-            VOWLRStoreErrorKind::HornedError(horned_error) => {
-                (horned_error.to_string(), ErrorType::Parser)
+        let (message, severity, error_type) = match value.inner {
+            VOWLRStoreErrorKind::InvalidFileType(e) => {
+                (e, ErrorSeverity::Critical, ErrorType::Parser)
             }
-            VOWLRStoreErrorKind::IOError(error) => {
-                (error.to_string(), ErrorType::InternalServerError)
+            VOWLRStoreErrorKind::IncorrectFileExtension(e) => {
+                (e, ErrorSeverity::Warning, ErrorType::Parser)
             }
-            VOWLRStoreErrorKind::IriParseError(iri_parse_error) => {
-                (iri_parse_error.to_string(), ErrorType::Parser)
-            }
-            VOWLRStoreErrorKind::LoaderError(loader_error) => {
-                (loader_error.to_string(), ErrorType::Database)
-            }
-            VOWLRStoreErrorKind::QueryEvaluationError(query_evaluation_error) => {
-                (query_evaluation_error.to_string(), ErrorType::Database)
-            }
-            VOWLRStoreErrorKind::JoinError(join_error) => {
-                (join_error.to_string(), ErrorType::InternalServerError)
-            }
-            VOWLRStoreErrorKind::StorageError(storage_error) => {
-                (storage_error.to_string(), ErrorType::Database)
-            }
+            VOWLRStoreErrorKind::HornedError(horned_error) => (
+                horned_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Parser,
+            ),
+            VOWLRStoreErrorKind::IOError(error) => (
+                error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::InternalServerError,
+            ),
+            VOWLRStoreErrorKind::IriParseError(iri_parse_error) => (
+                iri_parse_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Parser,
+            ),
+            VOWLRStoreErrorKind::LoaderError(loader_error) => (
+                loader_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Database,
+            ),
+            VOWLRStoreErrorKind::QueryEvaluationError(query_evaluation_error) => (
+                query_evaluation_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Database,
+            ),
+            VOWLRStoreErrorKind::JoinError(join_error) => (
+                join_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::InternalServerError,
+            ),
+            VOWLRStoreErrorKind::StorageError(storage_error) => (
+                storage_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Database,
+            ),
         };
         ErrorRecord::new(
             value.timestamp,
-            ErrorSeverity::Critical,
+            severity,
             error_type,
             message,
             #[cfg(debug_assertions)]

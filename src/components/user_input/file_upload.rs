@@ -143,7 +143,7 @@ pub async fn handle_local(
         && parsed_dtype != DataType::UNKNOWN
         && dtype != DataType::UNKNOWN
     {
-        Some(<VOWLRStoreError as Into<VOWLRError>>::into((format!(
+        Some(<VOWLRStoreError as Into<VOWLRError>>::into(VOWLRStoreErrorKind::IncorrectFileExtension(format!(
             "The uploaded file had an incorrect file extension. It was parsed as {parsed_dtype} instead of {dtype}."
         )).into()))
     } else {
@@ -201,7 +201,7 @@ pub async fn handle_remote(
         && parsed_dtype != DataType::UNKNOWN
         && dtype != DataType::UNKNOWN
     {
-        Some(<VOWLRStoreError as Into<VOWLRError>>::into(VOWLRStoreErrorKind::InvalidFileType(format!(
+        Some(<VOWLRStoreError as Into<VOWLRError>>::into(VOWLRStoreErrorKind::IncorrectFileExtension(format!(
             "The uploaded file had an incorrect file extension. It was parsed as {parsed_dtype} instead of {dtype}."
         )).into()))
     } else {
