@@ -1308,6 +1308,46 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(())
     }
 
+    fn preferred_property_endpoint(candidates: Option<&HashSet<Term>>) -> Option<Term> {
+        let candidates = candidates?;
+
+        candidates
+            .iter()
+            .find(|term| !is_synthetic(term))
+            .cloned()
+            .or_else(|| candidates.iter().next().cloned())
+    }
+
+    fn canonical_property_endpoints(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        property_iri: &Term,
+    ) -> Result<Option<(Term, Term)>, SerializationError> {
+        if let Some(edge) = data_buffer.property_edge_map.get(property_iri).cloned()
+            && !Self::is_synthetic_property_fallback(&edge)
+        {
+            let subject =
+                self.normalize_inverse_endpoint(data_buffer, &edge.subject, &edge.object)?;
+            let object =
+                self.normalize_inverse_endpoint(data_buffer, &edge.object, &edge.subject)?;
+            return Ok(Some((subject, object)));
+        }
+
+        let domain =
+            Self::preferred_property_endpoint(data_buffer.property_domain_map.get(property_iri));
+        let range =
+            Self::preferred_property_endpoint(data_buffer.property_range_map.get(property_iri));
+
+        match (domain, range) {
+            (Some(domain), Some(range)) => {
+                let subject = self.normalize_inverse_endpoint(data_buffer, &domain, &range)?;
+                let object = self.normalize_inverse_endpoint(data_buffer, &range, &domain)?;
+                Ok(Some((subject, object)))
+            }
+            _ => Ok(None),
+        }
+    }
+
     fn normalize_inverse_endpoint(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -1404,7 +1444,7 @@ impl GraphDisplayDataSolutionSerializer {
         }
 
         let (left_subject, left_object) =
-            match self.inverse_edge_endpoints(data_buffer, &left_property)? {
+            match self.canonical_property_endpoints(data_buffer, &left_property)? {
                 Some(endpoints) => endpoints,
                 None => {
                     self.add_to_unknown_buffer(data_buffer, left_property, triple)?;
@@ -1413,7 +1453,7 @@ impl GraphDisplayDataSolutionSerializer {
             };
 
         let (right_subject, right_object) =
-            match self.inverse_edge_endpoints(data_buffer, &right_property)? {
+            match self.canonical_property_endpoints(data_buffer, &right_property)? {
                 Some(endpoints) => endpoints,
                 None => {
                     self.add_to_unknown_buffer(data_buffer, right_property, triple)?;
@@ -1421,8 +1461,28 @@ impl GraphDisplayDataSolutionSerializer {
                 }
             };
 
+        let left_edge = data_buffer.property_edge_map.get(&left_property).cloned();
+        let right_edge = data_buffer.property_edge_map.get(&right_property).cloned();
+
+        let left_is_fallback = left_edge
+            .as_ref()
+            .is_some_and(Self::is_synthetic_property_fallback);
+        let right_is_fallback = right_edge
+            .as_ref()
+            .is_some_and(Self::is_synthetic_property_fallback);
+
         let compatible = left_subject == right_object && left_object == right_subject;
         if !compatible {
+            if left_is_fallback || right_is_fallback {
+                debug!(
+                    "Deferring owl:inverseOf '{}'<->'{}': at least one side is still using a synthetic fallback edge",
+                    left_property, right_property
+                );
+                self.add_to_unknown_buffer(data_buffer, left_property.clone(), triple.clone());
+                self.add_to_unknown_buffer(data_buffer, right_property.clone(), triple);
+                return SerializationStatus::Deferred;
+            }
+
             let msg = format!(
                 "Cannot merge owl:inverseOf '{}'<->'{}': normalized edges do not align ({} -> {}, {} -> {})",
                 data_buffer.term_index.get(&left_property)?,
@@ -3086,6 +3146,77 @@ impl GraphDisplayDataSolutionSerializer {
 
                                 match edge_triple {
                                     Some(edge_triple) => {
+                                        let property_iri = edge_triple.element_type.clone();
+                                        let subject = edge_triple.id.clone();
+                                        let object =
+                                            edge_triple.target.clone().ok_or_else(|| {
+                                                SerializationErrorKind::SerializationFailed(
+                                                    edge_triple.clone(),
+                                                    "target should be a string".to_string(),
+                                                )
+                                            })?;
+
+                                        let property_type = *data_buffer
+                                            .edge_element_buffer
+                                            .get(&property_iri)
+                                            .ok_or_else(|| {
+                                                SerializationErrorKind::SerializationFailed(edge_triple.clone(),
+                                                "Edge triple not present in edge_element_buffer".to_string())
+                                            })?;
+
+                                        let edge = match data_buffer
+                                            .property_edge_map
+                                            .get(&property_iri)
+                                            .cloned()
+                                        {
+                                            Some(existing_edge)
+                                                if Self::is_synthetic_property_fallback(
+                                                    &existing_edge,
+                                                ) =>
+                                            {
+                                                self.rewrite_property_edge(
+                                                    data_buffer,
+                                                    &property_iri,
+                                                    subject.clone(),
+                                                    object.clone(),
+                                                )
+                                                .ok_or_else(|| {
+                                                    SerializationErrorKind::SerializationFailed(edge_triple.clone(), "Failed to rewrite synthetic fallback property edge".to_string())
+                                                })?
+                                            }
+                                            Some(existing_edge)
+                                                if existing_edge.subject == subject
+                                                    && existing_edge.object == object =>
+                                            {
+                                                existing_edge
+                                            }
+                                            _ => self
+                                                .insert_edge(
+                                                    data_buffer,
+                                                    &edge_triple,
+                                                    property_type,
+                                                    data_buffer
+                                                        .label_buffer
+                                                        .get(&property_iri)
+                                                        .cloned(),
+                                                )
+                                                .ok_or_else(|| {
+                                                    SerializationErrorKind::SerializationFailed(
+                                                        edge_triple.clone(),
+                                                        "Error creating edge".to_string(),
+                                                    )
+                                                })?,
+                                        };
+
+                                        data_buffer.add_property_edge(property_iri.clone(), edge);
+                                        data_buffer
+                                            .property_domain_map
+                                            .insert(property_iri.clone(), HashSet::from([subject]));
+                                        data_buffer
+                                            .property_range_map
+                                            .insert(property_iri.clone(), HashSet::from([object]));
+
+                                        self.check_unknown_buffer(data_buffer, &property_iri)?;
                                         let edge_triple_predicate_term_id =
                                             data_buffer.get_predicate(&edge_triple)?;
                                         let property = {
@@ -3315,6 +3446,107 @@ impl GraphDisplayDataSolutionSerializer {
 
     fn is_query_fallback_endpoint(term: &Term) -> bool {
         *term == owl::THING.into() || *term == rdfs::LITERAL.into()
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "fixed when serializer is refactored to use pointers instead of values"
+    )]
+    fn ensure_implied_object_property(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        property_iri: &Term,
+    ) -> Result<(), SerializationError> {
+        match data_buffer.edge_element_buffer.get(property_iri).copied() {
+            Some(ElementType::Owl(OwlType::Edge(
+                OwlEdge::ObjectProperty
+                | OwlEdge::ExternalProperty
+                | OwlEdge::DeprecatedProperty
+                | OwlEdge::InverseOf,
+            )))
+            | Some(ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty))) => {
+                return Ok(());
+            }
+            Some(ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty))) => {
+                warn!(
+                    "Cannot infer owl:ObjectProperty for '{}': already registered as DatatypeProperty",
+                    property_iri
+                );
+                return Ok(());
+            }
+            Some(other) => {
+                warn!(
+                    "Cannot infer owl:ObjectProperty for '{}': already registered as {}",
+                    property_iri, other
+                );
+                return Ok(());
+            }
+            None => {}
+        }
+
+        debug!(
+            "Registering '{}' as implied owl:ObjectProperty",
+            property_iri
+        );
+        data_buffer.edge_element_buffer.insert(
+            property_iri.clone(),
+            ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+        );
+
+        self.check_unknown_buffer(data_buffer, property_iri)?;
+        Ok(())
+    }
+
+    #[expect(
+        clippy::result_large_err,
+        reason = "fixed when serializer is refactored to use pointers instead of values"
+    )]
+    fn materialize_implied_object_property_edge(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        property_iri: &Term,
+        hinted_range: Option<&Term>,
+    ) -> Result<(), SerializationError> {
+        if let Some(edge) = data_buffer.property_edge_map.get(property_iri)
+            && !Self::is_synthetic_property_fallback(edge)
+        {
+            return Ok(());
+        }
+        if data_buffer.property_edge_map.contains_key(property_iri) {
+            return Ok(());
+        }
+
+        let subject_anchor: Term = owl::THING.into();
+        let subject = self.get_or_create_anchor_thing(data_buffer, &subject_anchor)?;
+
+        let object = match hinted_range {
+            Some(range_term) => self
+                .resolve(data_buffer, range_term.clone())
+                .unwrap_or_else(|| self.follow_redirection(data_buffer, range_term)),
+            None => subject.clone(),
+        };
+
+        let edge_triple = Triple::new(subject.clone(), property_iri.clone(), Some(object.clone()));
+
+        let edge = self
+            .insert_edge(
+                data_buffer,
+                &edge_triple,
+                ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)),
+                data_buffer.label_buffer.get(property_iri).cloned(),
+            )
+            .ok_or_else(|| {
+                SerializationErrorKind::SerializationFailed(
+                    edge_triple.clone(),
+                    "Failed to materialize implied object property edge".to_string(),
+                )
+            })?;
+
+        data_buffer.add_property_edge(property_iri.clone(), edge);
+        data_buffer.add_property_domain(property_iri.clone(), subject);
+        data_buffer.add_property_range(property_iri.clone(), object);
+
+        Ok(())
     }
 
     fn insert_characteristic(

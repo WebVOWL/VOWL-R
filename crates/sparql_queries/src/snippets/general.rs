@@ -98,6 +98,13 @@ pub const DOMAIN_RANGES: &str = r#"{
                 owl:DatatypeProperty
                 owl:ObjectProperty
                 rdf:Property
+                owl:FunctionalProperty
+                owl:InverseFunctionalProperty
+                owl:ReflexiveProperty
+                owl:IrreflexiveProperty
+                owl:SymmetricProperty
+                owl:AsymmetricProperty
+                owl:TransitiveProperty
             }
             ?nodeType a ?property .
             ?nodeType rdfs:range ?target .
@@ -108,6 +115,13 @@ pub const DOMAIN_RANGES: &str = r#"{
                 owl:DatatypeProperty
                 owl:ObjectProperty
                 rdf:Property
+                owl:FunctionalProperty
+                owl:InverseFunctionalProperty
+                owl:ReflexiveProperty
+                owl:IrreflexiveProperty
+                owl:SymmetricProperty
+                owl:AsymmetricProperty
+                owl:TransitiveProperty
             }
             ?nodeType a ?property .
             ?nodeType rdfs:range ?target .
@@ -119,6 +133,13 @@ pub const DOMAIN_RANGES: &str = r#"{
                 owl:DatatypeProperty
                 owl:ObjectProperty
                 rdf:Property
+                owl:FunctionalProperty
+                owl:InverseFunctionalProperty
+                owl:ReflexiveProperty
+                owl:IrreflexiveProperty
+                owl:SymmetricProperty
+                owl:AsymmetricProperty
+                owl:TransitiveProperty
             }
             ?nodeType a ?property .
             ?nodeType rdfs:domain ?id .
@@ -130,6 +151,13 @@ pub const DOMAIN_RANGES: &str = r#"{
                 owl:DatatypeProperty
                 owl:ObjectProperty
                 rdf:Property
+                owl:FunctionalProperty
+                owl:InverseFunctionalProperty
+                owl:ReflexiveProperty
+                owl:IrreflexiveProperty
+                owl:SymmetricProperty
+                owl:AsymmetricProperty
+                owl:TransitiveProperty
             }
             ?nodeType a ?property .
             FILTER NOT EXISTS { ?nodeType rdfs:range ?x }
