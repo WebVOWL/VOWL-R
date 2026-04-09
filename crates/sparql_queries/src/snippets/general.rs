@@ -3,23 +3,23 @@
 /// Flatten collections.
 pub const COLLECTIONS: &str = r#"{
     {
-        ?owner owl:oneOf ?list .
+    ?id owl:oneOf ?list .
     }
     UNION
     {
-        ?owner ?connector ?expr .
+        ?owner ?connector ?id .
         FILTER(?connector IN (
             owl:equivalentClass,
             rdfs:subClassOf,
             rdfs:range
         ))
-        ?expr owl:oneOf ?list .
+        FILTER(!isIRI(?id))
+        ?id owl:oneOf ?list .
     }
 
     ?list rdf:rest*/rdf:first ?target .
     FILTER(?target != rdf:nil)
 
-    BIND(?owner AS ?id)
     BIND(owl:oneOf AS ?nodeType)
     }"#;
 

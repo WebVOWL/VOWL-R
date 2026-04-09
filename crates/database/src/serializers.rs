@@ -228,6 +228,8 @@ pub struct SerializationDataBuffer {
         clippy::type_complexity,
         reason = "Fixed when cardinality is refactored to enum"
     )]
+    /// Track restriction ownership for OWL restriction blank nodes.
+    restriction_owner_map: HashMap<Term, Term>,
     /// Final display cardinalities keyed by the concrete edge that will be emitted.
     edge_cardinality_buffer: Arc<RwLock<HashMap<ArcEdge, (String, Option<String>)>>>,
     /// Stores the edges of a property, keyed by the property's corresponding id.
