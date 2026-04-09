@@ -179,29 +179,47 @@ impl std::error::Error for VOWLRStoreError {
 impl From<VOWLRStoreError> for ErrorRecord {
     fn from(value: VOWLRStoreError) -> Self {
         let (message, severity, error_type) = match value.inner {
-            VOWLRStoreErrorKind::InvalidFileType(e) => (e, ErrorSeverity::Critical, ErrorType::Parser),
-            VOWLRStoreErrorKind::IncorrectFileExtension(e) => (e, ErrorSeverity::Warning, ErrorType::Parser),
-            VOWLRStoreErrorKind::HornedError(horned_error) => {
-                (horned_error.to_string(), ErrorSeverity::Critical, ErrorType::Parser)
+            VOWLRStoreErrorKind::InvalidFileType(e) => {
+                (e, ErrorSeverity::Critical, ErrorType::Parser)
             }
-            VOWLRStoreErrorKind::IOError(error) => {
-                (error.to_string(), ErrorSeverity::Critical, ErrorType::InternalServerError)
+            VOWLRStoreErrorKind::IncorrectFileExtension(e) => {
+                (e, ErrorSeverity::Warning, ErrorType::Parser)
             }
-            VOWLRStoreErrorKind::IriParseError(iri_parse_error) => {
-                (iri_parse_error.to_string(), ErrorSeverity::Critical, ErrorType::Parser)
-            }
-            VOWLRStoreErrorKind::LoaderError(loader_error) => {
-                (loader_error.to_string(), ErrorSeverity::Critical, ErrorType::Database)
-            }
-            VOWLRStoreErrorKind::QueryEvaluationError(query_evaluation_error) => {
-                (query_evaluation_error.to_string(), ErrorSeverity::Critical, ErrorType::Database)
-            }
-            VOWLRStoreErrorKind::JoinError(join_error) => {
-                (join_error.to_string(), ErrorSeverity::Critical, ErrorType::InternalServerError)
-            }
-            VOWLRStoreErrorKind::StorageError(storage_error) => {
-                (storage_error.to_string(), ErrorSeverity::Critical, ErrorType::Database)
-            }
+            VOWLRStoreErrorKind::HornedError(horned_error) => (
+                horned_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Parser,
+            ),
+            VOWLRStoreErrorKind::IOError(error) => (
+                error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::InternalServerError,
+            ),
+            VOWLRStoreErrorKind::IriParseError(iri_parse_error) => (
+                iri_parse_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Parser,
+            ),
+            VOWLRStoreErrorKind::LoaderError(loader_error) => (
+                loader_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Database,
+            ),
+            VOWLRStoreErrorKind::QueryEvaluationError(query_evaluation_error) => (
+                query_evaluation_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Database,
+            ),
+            VOWLRStoreErrorKind::JoinError(join_error) => (
+                join_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::InternalServerError,
+            ),
+            VOWLRStoreErrorKind::StorageError(storage_error) => (
+                storage_error.to_string(),
+                ErrorSeverity::Critical,
+                ErrorType::Database,
+            ),
         };
         ErrorRecord::new(
             value.timestamp,

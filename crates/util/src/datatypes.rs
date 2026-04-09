@@ -14,7 +14,6 @@ use std::path::Path;
     strum::Display,
     strum::EnumIter,
     PartialEq,
-    
 )]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum DataType {
