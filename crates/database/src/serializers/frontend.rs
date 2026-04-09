@@ -3882,6 +3882,10 @@ impl GraphDisplayDataSolutionSerializer {
             self.redirect_iri(data_buffer, *restriction_term_id, subject_term_id)?;
         }
 
+        trace!(
+            "Succesfully materialized restriction '{}'",
+            data_buffer.term_index.get(restriction_term_id)?
+        );
         Ok(SerializationStatus::Serialized)
     }
 
