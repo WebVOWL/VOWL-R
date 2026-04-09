@@ -6,7 +6,8 @@ PREFIX vowlr: <http://www.example.com/iri#>
 PREFIX xml: <http://www.w3.org/XML/1998/namespace>
             SELECT DISTINCT ?id ?nodeType ?target ?label
             WHERE {
-                {
+                 {
+                    {
                 # AnonymousClass
                 {
                     ?id a owl:Class .
@@ -235,17 +236,26 @@ PREFIX xml: <http://www.w3.org/XML/1998/namespace>
             ?id xml:base ?base .
             BIND(xml:base AS ?nodeType)
             } UNION {
-            # Flatten collections. Currently only supports select OWL types.
-            ?id ?nodeType ?intermediate .
-            ?intermediate rdf:first ?firstItem .
-            ?intermediate rdf:rest*/rdf:first ?target .
-            FILTER(?nodeType IN (
-                owl:oneOf
-            ))
+    {
+        ?owner owl:oneOf ?list .
+    }
+    UNION
+    {
+        ?owner ?connector ?expr .
+        FILTER(?connector IN (
+            owl:equivalentClass,
+            rdfs:subClassOf,
+            rdfs:range
+        ))
+        ?expr owl:oneOf ?list .
+    }
 
-            # 6. Safety: Remove nil to avoid phantom edges
-            # FILTER(?label != rdf:nil)
-            } UNION {
+    ?list rdf:rest*/rdf:first ?target .
+    FILTER(?target != rdf:nil)
+
+    BIND(?owner AS ?id)
+    BIND(owl:oneOf AS ?nodeType)
+    } UNION {
         # Find the domain and range of any property, and restructure so they appear as singular triples
         {
             VALUES ?property {
@@ -298,6 +308,19 @@ PREFIX xml: <http://www.w3.org/XML/1998/namespace>
             FILTER(?target = "true"^^xsd:boolean || lcase(str(?target)) = "true")
             BIND(owl:deprecated AS ?nodeType)
             } UNION {
+    {
+        SELECT ?id (COUNT(DISTINCT ?individual) AS ?target)
+        WHERE {
+            ?individual a owl:NamedIndividual .
+            ?individual a ?id .
+            FILTER(isIRI(?id))
+            FILTER(?id != owl:NamedIndividual)
+        }
+        GROUP BY ?id
+    }
+
+    BIND(owl:NamedIndividual AS ?nodeType)
+} UNION {
             # Find labels for elements.
             OPTIONAL { ?id rdfs:label ?theLabel }
             OPTIONAL { ?id rdf:resource ?resLabel }
@@ -311,11 +334,13 @@ PREFIX xml: <http://www.w3.org/XML/1998/namespace>
                 ) AS ?label
             )
             }
-                BIND(
-                    IF(?nodeType = owl:Ontology, 0,
-                        IF(?nodeType = owl:Class, 1, 2)
+                    BIND(
+                        IF(?nodeType = owl:Ontology, 0,
+                            IF(?nodeType = owl:Class, 1, 2)
+                        )
+                        AS ?weight
                     )
-                    AS ?weight
-                )
+                }
             }
             ORDER BY ?weight
+        

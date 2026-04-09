@@ -6,9 +6,10 @@ use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
 
 /// Writes the default query to a file.
 fn main() -> std::io::Result<()> {
+    let query = DEFAULT_QUERY.replace("GRAPH <{GRAPH_IRI}>", "");
     fs::write(
         "crates/sparql_queries/src/reference/default.rq",
-        DEFAULT_QUERY.as_bytes(),
+        query.as_bytes(),
     )?;
     Ok(())
 }
