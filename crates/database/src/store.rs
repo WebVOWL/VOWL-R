@@ -37,7 +37,7 @@ impl VOWLRStore {
         }
     }
 
-    /// Create a new database instance with user_id. 
+    /// Create a new database instance with user_id.
     pub fn new_for_user(user_id: String) -> Self {
         let session = GLOBAL_STORE.get_or_init(Store::default).clone();
         Self {
@@ -187,7 +187,6 @@ impl VOWLRStore {
         }
     }
 
-    
     /// Inserts a file into the store.
     ///
     /// Files are automatically parsed.
