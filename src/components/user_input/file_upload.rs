@@ -23,30 +23,6 @@ use crate::errors::ClientErrorKind;
 
 const MAX_FILE_SIZE_BYTES: usize = 50 * 1024 * 1024;
 
-#[cfg(feature = "server")]
-/// # Errors
-/// Throws an error if fails to get session
-pub async fn manage_user_id() -> Result<String, ServerFnError> {
-    use actix_session::Session;
-    use leptos_actix::extract;
-    use uuid::Uuid;
-    let user_session = extract::<Session>()
-        .await
-        .map_err(|e| ServerFnError::new(format!("Failed to extract session: {}", e)))?;
-
-    if let Ok(Some(user_id)) = user_session.get::<String>("user_id") {
-        return Ok(user_id);
-    }
-
-    let new_user_id = Uuid::new_v4().to_string();
-
-    user_session
-        .insert("user_id", &new_user_id)
-        .map_err(|e| ServerFnError::new(format!("Failed to save session: {}", e)))?;
-
-    Ok(new_user_id)
-}
-
 #[cfg(feature = "ssr")]
 mod progress {
     use async_broadcast::{Receiver, Sender, broadcast};
@@ -227,8 +203,7 @@ pub async fn handle_sparql(
 
     let client = Client::new();
 
-    let mut session = VOWLRStore::default();
-    session.user_id = Some(user_id);
+    let mut session = VOWLRStore::new_for_user(user_id);
 
     let accept_type = match format.as_deref() {
         Some("xml") => DataType::SPARQLXML.mime_type(),

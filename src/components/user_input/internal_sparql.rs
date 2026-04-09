@@ -13,12 +13,12 @@ use vowlr_util::prelude::manage_user_id;
 #[server (input = Rkyv, output = Rkyv)]
 pub async fn handle_internal_sparql(
     query: String,
+    graph_name: String,
 ) -> Result<(GraphDisplayData, Option<VOWLRError>), VOWLRError> {
     let store = VOWLRStore::new_for_user(manage_user_id().await?);
     store.query(query, Some(graph_name)).await
 }
 
-pub async fn load_graph(query: String, clean_load: bool) {
 pub async fn load_graph(query: String, clean_load: bool) {
     let error_context = expect_context::<ErrorLogContext>();
     let GraphDataContext {
@@ -60,10 +60,11 @@ pub async fn load_graph(query: String, clean_load: bool) {
 pub struct GraphDataContext {
     pub element_counts: RwSignal<HashMap<ElementType, usize>>,
     pub element_checks: RwSignal<HashMap<ElementType, bool>>,
+    pub active_graph_name: RwSignal<String>,
 }
 
 impl GraphDataContext {
-    pub fn new(graph_data: &GraphDisplayData) -> Self {
+    pub fn new(graph_data: &GraphDisplayData, graph_name: String) -> Self {
         let mut element_counts: HashMap<ElementType, usize> = HashMap::new();
         let mut element_checks: HashMap<ElementType, bool> = HashMap::new();
         for element in &graph_data.elements {
@@ -75,6 +76,7 @@ impl GraphDataContext {
         Self {
             element_counts: RwSignal::new(element_counts),
             element_checks: RwSignal::new(element_checks),
+            active_graph_name: RwSignal::new(graph_name),
         }
     }
 }

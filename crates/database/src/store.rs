@@ -83,7 +83,7 @@ impl VOWLRStore {
         let solution_serializer = GraphDisplayDataSolutionSerializer::new();
         let query_stream = self
             .session
-            .query(query.as_str())
+            .query(&user_query)
             .await
             .map_err(|e| <VOWLRStoreError as Into<VOWLRError>>::into(e.into()))?;
 
