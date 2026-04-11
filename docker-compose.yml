@@ -1,7 +1,7 @@
 services:
-    vowlr:
-        image: ghcr.io/webvowl/vowl-r:latest
-        container_name: vowl-r
+    vowlgrapher:
+        image: ghcr.io/webvowl/VOWLGrapher:latest
+        container_name: VOWLGrapher
         ports:
             - 8080:8080
         restart: unless-stopped

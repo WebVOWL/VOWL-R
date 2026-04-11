@@ -5353,8 +5353,8 @@ dependencies = [
  "grapher",
  "log",
  "tokio",
- "vowlr-database",
- "vowlr-sparql-queries",
+ "vowlgrapher-database",
+ "vowlgrapher-sparql-queries",
 ]
 
 [[package]]
@@ -7890,7 +7890,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
-name = "vowlr"
+name = "vowlgrapher"
 version = "0.1.0-alpha"
 dependencies = [
  "actix-files",
@@ -7924,10 +7924,10 @@ dependencies = [
  "strum 0.27.2",
  "tokio",
  "uuid",
- "vowlr-database",
- "vowlr-parser",
- "vowlr-sparql-queries",
- "vowlr-util",
+ "vowlgrapher-database",
+ "vowlgrapher-parser",
+ "vowlgrapher-sparql-queries",
+ "vowlgrapher-util",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-rayon",
@@ -7935,7 +7935,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vowlr-database"
+name = "vowlgrapher-database"
 version = "0.1.0-alpha"
 dependencies = [
  "env_logger",
@@ -7954,13 +7954,13 @@ dependencies = [
  "test-generator",
  "tokio",
  "unescape_zero_copy",
- "vowlr-parser",
- "vowlr-sparql-queries",
- "vowlr-util",
+ "vowlgrapher-parser",
+ "vowlgrapher-sparql-queries",
+ "vowlgrapher-util",
 ]
 
 [[package]]
-name = "vowlr-parser"
+name = "vowlgrapher-parser"
 version = "0.1.0-alpha"
 dependencies = [
  "env_logger",
@@ -7973,19 +7973,19 @@ dependencies = [
  "strum 0.27.2",
  "tokio",
  "tokio-stream",
- "vowlr-util",
+ "vowlgrapher-util",
 ]
 
 [[package]]
-name = "vowlr-sparql-queries"
+name = "vowlgrapher-sparql-queries"
 version = "0.1.0-alpha"
 dependencies = [
  "grapher",
- "vowlr-util",
+ "vowlgrapher-util",
 ]
 
 [[package]]
-name = "vowlr-util"
+name = "vowlgrapher-util"
 version = "0.1.0-alpha"
 dependencies = [
  "actix-session",

@@ -13,14 +13,14 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "server")]
-use vowlr_database::prelude::VOWLRStore;
+use vowlgrapher_database::prelude::VOWLGrapherStore;
 #[cfg(feature = "server")]
-use vowlr_parser::errors::VOWLRStoreError;
+use vowlgrapher_parser::errors::VOWLGrapherStoreError;
 #[cfg(feature = "server")]
-use vowlr_parser::errors::VOWLRStoreErrorKind;
+use vowlgrapher_parser::errors::VOWLGrapherStoreErrorKind;
 #[cfg(feature = "ssr")]
-use vowlr_util::prelude::manage_user_id;
-use vowlr_util::prelude::{DataType, VOWLRError};
+use vowlgrapher_util::prelude::manage_user_id;
+use vowlgrapher_util::prelude::{DataType, VOWLGrapherError};
 use web_sys::{FileList, FormData};
 
 #[cfg(feature = "server")]
@@ -96,11 +96,11 @@ pub async fn ontology_progress(filename: String) -> Result<TextStream, ServerFnE
 )]
 pub async fn handle_local(
     data: MultipartData,
-) -> Result<(DataType, usize, Option<VOWLRError>), VOWLRError> {
+) -> Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError> {
     let user_id = manage_user_id().await?;
     trace!("User {user_id} is uploading a local file");
 
-    let mut session = VOWLRStore::new_for_user(user_id);
+    let mut session = VOWLGrapherStore::new_for_user(user_id);
 
     let mut data = data
         .into_inner()
@@ -149,7 +149,7 @@ pub async fn handle_local(
         && parsed_dtype != DataType::UNKNOWN
         && dtype != DataType::UNKNOWN
     {
-        Some(<VOWLRStoreError as Into<VOWLRError>>::into(VOWLRStoreErrorKind::IncorrectFileExtension(format!(
+        Some(<VOWLGrapherStoreError as Into<VOWLGrapherError>>::into(VOWLGrapherStoreErrorKind::IncorrectFileExtension(format!(
             "The uploaded file had an incorrect file extension. It was parsed as {parsed_dtype} instead of {dtype}"
         )).into()))
     } else {
@@ -162,7 +162,7 @@ pub async fn handle_local(
 #[server]
 pub async fn handle_remote(
     url: String,
-) -> Result<(DataType, usize, Option<VOWLRError>), VOWLRError> {
+) -> Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError> {
     let user_id = manage_user_id().await?;
     trace!("User {user_id} is uploading a remote file");
 
@@ -186,7 +186,7 @@ pub async fn handle_remote(
         }
     }
 
-    let mut session = VOWLRStore::new_for_user(user_id);
+    let mut session = VOWLGrapherStore::new_for_user(user_id);
 
     let progress_key = url.clone();
     progress::reset(&progress_key);
@@ -210,7 +210,7 @@ pub async fn handle_remote(
         && parsed_dtype != DataType::UNKNOWN
         && dtype != DataType::UNKNOWN
     {
-        Some(<VOWLRStoreError as Into<VOWLRError>>::into(VOWLRStoreErrorKind::IncorrectFileExtension(format!(
+        Some(<VOWLGrapherStoreError as Into<VOWLGrapherError>>::into(VOWLGrapherStoreErrorKind::IncorrectFileExtension(format!(
             "The uploaded file had an incorrect file extension. It was parsed as {parsed_dtype} instead of {dtype}"
         )).into()))
     } else {
@@ -225,13 +225,13 @@ pub async fn handle_sparql(
     endpoint: String,
     query: String,
     format: Option<String>,
-) -> Result<(DataType, usize, Option<VOWLRError>), VOWLRError> {
+) -> Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError> {
     let user_id = manage_user_id().await?;
     trace!("User {user_id} is quering SPARQL");
 
     let client = Client::new();
 
-    let mut session = VOWLRStore::new_for_user(user_id);
+    let mut session = VOWLGrapherStore::new_for_user(user_id);
 
     let accept_type = match format.as_deref() {
         Some("xml") => DataType::SPARQLXML.mime_type(),
@@ -375,7 +375,7 @@ impl UploadProgress {
         clippy::missing_errors_doc,
         reason = "why does clippy only complain about this method? (TODO: Add docs to all functions)"
     )]
-    pub fn upload_files<F>(&self, file_list: &FileList, dispatch: F) -> Result<(), VOWLRError>
+    pub fn upload_files<F>(&self, file_list: &FileList, dispatch: F) -> Result<(), VOWLGrapherError>
     where
         F: FnOnce(FormData) + 'static,
     {
@@ -436,13 +436,15 @@ impl Default for UploadProgress {
 pub struct FileUpload {
     pub mode: RwSignal<String>,
     #[expect(clippy::type_complexity)]
-    pub local_action: Action<FormData, Result<(DataType, usize, Option<VOWLRError>), VOWLRError>>,
+    pub local_action:
+        Action<FormData, Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError>>,
     #[expect(clippy::type_complexity)]
-    pub remote_action: Action<String, Result<(DataType, usize, Option<VOWLRError>), VOWLRError>>,
+    pub remote_action:
+        Action<String, Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError>>,
     #[expect(clippy::type_complexity)]
     pub sparql_action: Action<
         (String, String, Option<String>),
-        Result<(DataType, usize, Option<VOWLRError>), VOWLRError>,
+        Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError>,
     >,
     pub tracker: Rc<UploadProgress>,
 }
@@ -453,17 +455,17 @@ impl FileUpload {
 
         let local_action = Action::<
             FormData,
-            Result<(DataType, usize, Option<VOWLRError>), VOWLRError>,
+            Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError>,
         >::new_local(|data| handle_local(data.clone().into()));
 
         let remote_action = Action::<
             String,
-            Result<(DataType, usize, Option<VOWLRError>), VOWLRError>,
+            Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError>,
         >::new(|url| handle_remote(url.clone()));
 
         let sparql_action = Action::<
             (String, String, Option<String>),
-            Result<(DataType, usize, Option<VOWLRError>), VOWLRError>,
+            Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError>,
         >::new(|(endpoint, query, format)| {
             handle_sparql(endpoint.clone(), query.clone(), format.clone())
         });
@@ -480,7 +482,9 @@ impl FileUpload {
     }
 
     #[expect(clippy::type_complexity)]
-    pub fn get_result(&self) -> Option<Result<(DataType, usize, Option<VOWLRError>), VOWLRError>> {
+    pub fn get_result(
+        &self,
+    ) -> Option<Result<(DataType, usize, Option<VOWLGrapherError>), VOWLGrapherError>> {
         match self.mode.get().as_str() {
             "local" => self.local_action.value().get(),
             "remote" => self.remote_action.value().get(),

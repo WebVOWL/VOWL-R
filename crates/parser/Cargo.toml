@@ -1,10 +1,10 @@
 [package]
     authors.workspace=true
-    description="Parsers for various OWL and RDF formats supported by VOWL-R"
+    description="Parsers for various OWL and RDF formats supported by VOWLGrapher"
     edition.workspace=true
     keywords=["parser", "owl", "rdf"]
     license-file.workspace=true
-    name="vowlr-parser"
+    name="vowlgrapher-parser"
     readme="README.md"
     repository.workspace=true
     version.workspace=true
@@ -25,7 +25,7 @@
     strum.workspace=true
     tokio.workspace=true
     tokio-stream="0.1.17"
-    vowlr-util={path="../util"}
+    vowlgrapher-util={path="../util"}
 
 [dev-dependencies]
     env_logger.workspace=true

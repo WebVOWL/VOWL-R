@@ -7,8 +7,8 @@ use grapher::prelude::{EVENT_DISPATCHER, RenderEvent};
 use grapher::run;
 use std::env;
 use std::path::Path;
-use vowlr_database::prelude::VOWLRStore;
-use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
+use vowlgrapher_database::prelude::VOWLGrapherStore;
+use vowlgrapher_sparql_queries::prelude::DEFAULT_QUERY;
 
 #[tokio::main]
 async fn main() {
@@ -18,7 +18,7 @@ async fn main() {
     if args.len() > 1 {
         let path = Path::new(&args[1]);
 
-        let store = VOWLRStore::default();
+        let store = VOWLGrapherStore::default();
         store
             .insert_file(path, false)
             .await

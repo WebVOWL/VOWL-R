@@ -4,10 +4,10 @@ use leptos::server_fn::codec::Rkyv;
 use std::fmt::Display;
 use std::path::Path;
 #[cfg(feature = "server")]
-use vowlr_database::prelude::VOWLRStore;
-use vowlr_util::prelude::VOWLRError;
+use vowlgrapher_database::prelude::VOWLGrapherStore;
+use vowlgrapher_util::prelude::VOWLGrapherError;
 #[cfg(feature = "ssr")]
-use vowlr_util::prelude::manage_user_id;
+use vowlgrapher_util::prelude::manage_user_id;
 
 #[derive(
     Debug,
@@ -50,7 +50,7 @@ impl StoredOntology {
         match self {
             Self::FriendOfAFriend => "src/assets/data/foaf.ttl",
             Self::ClinicalTrialsOntology => "src/assets/data/ClinicalTrialOntology-merged.owl",
-            Self::RenderingBenchmark => "src/assets/data/vowlr-benchmark-2500.ofn",
+            Self::RenderingBenchmark => "src/assets/data/vowlgrapher-benchmark-2500.ofn",
             Self::EnvironmentOntology => "src/assets/data/envo.owl",
         }
     }
@@ -101,9 +101,9 @@ impl TryFrom<String> for StoredOntology {
 }
 
 #[server(input = Rkyv, output = Rkyv)]
-pub async fn load_stored_ontology(ontology: StoredOntology) -> Result<(), VOWLRError> {
+pub async fn load_stored_ontology(ontology: StoredOntology) -> Result<(), VOWLGrapherError> {
     let path = Path::new(ontology.path());
-    let store = VOWLRStore::new_for_user(manage_user_id().await?);
+    let store = VOWLGrapherStore::new_for_user(manage_user_id().await?);
 
     store.insert_file(path, false).await?;
     Ok(())

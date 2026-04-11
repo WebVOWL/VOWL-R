@@ -1,4 +1,4 @@
-//! Utility code used by the entire VOWL-R workspace
+//! Utility code used by the entire VOWLGrapher workspace
 
 mod datatypes;
 mod error_handler;
@@ -8,7 +8,7 @@ mod time;
 pub mod prelude {
     //! Export all types of the crate.
     pub use crate::datatypes::DataType;
-    pub use crate::error_handler::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError};
+    pub use crate::error_handler::{ErrorRecord, ErrorSeverity, ErrorType, VOWLGrapherError};
     pub use crate::layout::TableHTML;
     pub use crate::time::get_timestamp;
 

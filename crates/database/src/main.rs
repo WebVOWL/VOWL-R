@@ -5,8 +5,8 @@
 use env_logger::Env;
 use std::env;
 use std::path::Path;
-use vowlr_database::prelude::VOWLRStore;
-use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
+use vowlgrapher_database::prelude::VOWLGrapherStore;
+use vowlgrapher_sparql_queries::prelude::DEFAULT_QUERY;
 
 /// Entrypoint
 #[tokio::main]
@@ -18,7 +18,7 @@ pub async fn main() {
     } else {
         Path::new("crates/database/owl1-unions-simple.owl")
     };
-    let store = VOWLRStore::default();
+    let store = VOWLGrapherStore::default();
     store
         .insert_file(path, false)
         .await

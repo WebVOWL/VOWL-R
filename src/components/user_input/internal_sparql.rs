@@ -5,17 +5,17 @@ use grapher::prelude::{EVENT_DISPATCHER, ElementType, GraphDisplayData, RenderEv
 use leptos::{prelude::*, server_fn::codec::Rkyv};
 use log::debug;
 #[cfg(feature = "server")]
-use vowlr_database::prelude::VOWLRStore;
-use vowlr_util::prelude::VOWLRError;
+use vowlgrapher_database::prelude::VOWLGrapherStore;
+use vowlgrapher_util::prelude::VOWLGrapherError;
 #[cfg(feature = "ssr")]
-use vowlr_util::prelude::manage_user_id;
+use vowlgrapher_util::prelude::manage_user_id;
 
 #[server (input = Rkyv, output = Rkyv)]
 pub async fn handle_internal_sparql(
     query: String,
     graph_name: String,
-) -> Result<(GraphDisplayData, Option<VOWLRError>), VOWLRError> {
-    let store = VOWLRStore::new_for_user(manage_user_id().await?);
+) -> Result<(GraphDisplayData, Option<VOWLGrapherError>), VOWLGrapherError> {
+    let store = VOWLGrapherStore::new_for_user(manage_user_id().await?);
     store.query(query, Some(graph_name)).await
 }
 

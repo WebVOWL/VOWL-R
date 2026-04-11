@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use leptos::prelude::*;
-use vowlr_util::prelude::TableHTML;
+use vowlgrapher_util::prelude::TableHTML;
 
 /// A table
 #[component]

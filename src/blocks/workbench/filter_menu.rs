@@ -13,7 +13,7 @@ use super::WorkbenchMenuItems;
 use grapher::prelude::ElementType;
 use leptos::{prelude::*, task::spawn_local_scoped_with_cancellation};
 
-use vowlr_sparql_queries::prelude::QueryAssembler;
+use vowlgrapher_sparql_queries::prelude::QueryAssembler;
 
 use classes::{is_owl_class, is_rdf_class};
 use filtergroup::FilterGroup;

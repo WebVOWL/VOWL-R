@@ -2,13 +2,13 @@
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::path::Path;
-use vowlr_database::prelude::VOWLRStore;
-use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
+use vowlgrapher_database::prelude::VOWLGrapherStore;
+use vowlgrapher_sparql_queries::prelude::DEFAULT_QUERY;
 
 /// Parallel serialization.
 fn par_serialize(c: &mut Criterion) {
     let path = Path::new("crates/database/data/owl-rdf/envo.owl");
-    let store = VOWLRStore::default();
+    let store = VOWLGrapherStore::default();
 
     pollster::block_on(async {
         store

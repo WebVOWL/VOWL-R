@@ -4,7 +4,7 @@
     edition.workspace=true
     keywords.workspace=true
     license-file.workspace=true
-    name="vowlr"
+    name="vowlgrapher"
     readme="README.md"
     repository.workspace=true
     version.workspace=true
@@ -38,7 +38,7 @@
             "web",
         ]
         license-file="LICENSE"
-        repository="https://github.com/WebVOWL/VOWL-R"
+        repository="https://github.com/WebVOWL/VOWLGrapher"
         version="0.1.0-alpha"
 
     [workspace.lints.rust]
@@ -100,10 +100,10 @@
     strum.workspace=true
     tokio={workspace=true, optional=true}
     uuid={version="1.22.0", features=["v4"]}
-    vowlr-database={path="crates/database", optional=true}
-    vowlr-parser={path="crates/parser", optional=true}
-    vowlr-sparql-queries={path="crates/sparql_queries"}
-    vowlr-util={path="crates/util"}
+    vowlgrapher-database={path="crates/database", optional=true}
+    vowlgrapher-parser={path="crates/parser", optional=true}
+    vowlgrapher-sparql-queries={path="crates/sparql_queries"}
+    vowlgrapher-util={path="crates/util"}
     wasm-bindgen={version="=0.2.112", optional=true}
     wasm-bindgen-futures={version="0.4.50", optional=true}
     wasm-bindgen-rayon={version="1.3.0", optional=true, features=["no-bundler"]}
@@ -156,10 +156,10 @@
         "dep:env_logger",
         "dep:reqwest",
         "dep:tokio",
-        "dep:vowlr-database",
-        "dep:vowlr-parser",
+        "dep:vowlgrapher-database",
+        "dep:vowlgrapher-parser",
         "leptos-use/actix",
-        "vowlr-util/server",
+        "vowlgrapher-util/server",
         "dep:actix-session",
     ]
     ssr=[
@@ -170,7 +170,7 @@
         "leptos_meta/ssr",
         "leptos_router/ssr",
         "leptos-use/ssr",
-        "vowlr-util/ssr",
+        "vowlgrapher-util/ssr",
     ]
     wasm=[
         "dep:console_error_panic_hook",
@@ -178,7 +178,7 @@
         "dep:wasm-bindgen",
         "dep:wasm-bindgen-futures",
         "dep:wasm-bindgen-rayon",
-        "vowlr-util/wasm",
+        "vowlgrapher-util/wasm",
     ]
 
 
@@ -267,7 +267,7 @@
             "--enable-threads",
         ]
         # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
-        output-name="vowlr"
+        output-name="vowlgrapher"
         # The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
         site-root="target/site"
         # The site-root relative folder where all compiled output (JS, WASM and CSS) is written

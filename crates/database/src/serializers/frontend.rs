@@ -40,8 +40,8 @@ use rdf_fusion::{
 };
 
 use unescape_zero_copy::unescape_default;
-use vowlr_parser::errors::VOWLRStoreError;
-use vowlr_util::prelude::{ErrorRecord, VOWLRError};
+use vowlgrapher_parser::errors::VOWLGrapherStoreError;
+use vowlgrapher_util::prelude::{ErrorRecord, VOWLGrapherError};
 
 pub enum SerializationStatus {
     Serialized,
@@ -68,7 +68,7 @@ impl GraphDisplayDataSolutionSerializer {
         &self,
         data: &mut GraphDisplayData,
         mut solution_stream: QuerySolutionStream,
-    ) -> Result<Option<VOWLRError>, VOWLRError> {
+    ) -> Result<Option<VOWLGrapherError>, VOWLGrapherError> {
         let thread_count = available_parallelism()
             .unwrap_or(NonZero::new(1).unwrap())
             .into();
@@ -98,8 +98,10 @@ impl GraphDisplayDataSolutionSerializer {
                     data_buffer
                         .failed_buffer
                         .write()
-                        .map_err(|pe| <SerializationError as Into<VOWLRError>>::into(pe.into()))?
-                        .push(<VOWLRStoreError as Into<ErrorRecord>>::into(e.into()));
+                        .map_err(|pe| {
+                            <SerializationError as Into<VOWLGrapherError>>::into(pe.into())
+                        })?
+                        .push(<VOWLGrapherStoreError as Into<ErrorRecord>>::into(e.into()));
                     continue;
                 }
             };
@@ -114,16 +116,16 @@ impl GraphDisplayDataSolutionSerializer {
             data_buffer
                 .failed_buffer
                 .write()
-                .map_err(|pe| <SerializationError as Into<VOWLRError>>::into(pe.into()))?
+                .map_err(|pe| <SerializationError as Into<VOWLGrapherError>>::into(pe.into()))?
                 .push(e.into());
-            Ok::<(), VOWLRError>(())
+            Ok::<(), VOWLGrapherError>(())
         })?;
 
         // Catch permanently unresolved triples
         for (term_id, triples) in data_buffer
             .unknown_buffer
             .write()
-            .map_err(|pe| <SerializationError as Into<VOWLRError>>::into(pe.into()))?
+            .map_err(|pe| <SerializationError as Into<VOWLGrapherError>>::into(pe.into()))?
             .drain()
         {
             for triple in triples {
@@ -135,14 +137,14 @@ impl GraphDisplayDataSolutionSerializer {
                 data_buffer
                     .failed_buffer
                     .write()
-                    .map_err(|pe| <SerializationError as Into<VOWLRError>>::into(pe.into()))?
+                    .map_err(|pe| <SerializationError as Into<VOWLGrapherError>>::into(pe.into()))?
                     .push(e.into());
             }
         }
 
         let all_errors = self
             .post_serialization_cleanup(data, &mut data_buffer, start_time, query_time, count)
-            .map_err(<SerializationError as Into<VOWLRError>>::into)?;
+            .map_err(<SerializationError as Into<VOWLGrapherError>>::into)?;
 
         Ok(all_errors)
     }
@@ -156,7 +158,7 @@ impl GraphDisplayDataSolutionSerializer {
         &self,
         data: &mut GraphDisplayData,
         mut solution_stream: QuerySolutionStream,
-    ) -> Result<Option<VOWLRError>, VOWLRError> {
+    ) -> Result<Option<VOWLGrapherError>, VOWLGrapherError> {
         info!("Serializing query solution stream...");
         let mut count: u64 = 0;
         let mut data_buffer = SerializationDataBuffer::new();
@@ -174,8 +176,10 @@ impl GraphDisplayDataSolutionSerializer {
                     data_buffer
                         .failed_buffer
                         .write()
-                        .map_err(|pe| <SerializationError as Into<VOWLRError>>::into(pe.into()))?
-                        .push(<VOWLRStoreError as Into<ErrorRecord>>::into(e.into()));
+                        .map_err(|pe| {
+                            <SerializationError as Into<VOWLGrapherError>>::into(pe.into())
+                        })?
+                        .push(<VOWLGrapherStoreError as Into<ErrorRecord>>::into(e.into()));
                     continue;
                 }
             };
@@ -189,16 +193,16 @@ impl GraphDisplayDataSolutionSerializer {
             data_buffer
                 .failed_buffer
                 .write()
-                .map_err(|pe| <SerializationError as Into<VOWLRError>>::into(pe.into()))?
+                .map_err(|pe| <SerializationError as Into<VOWLGrapherError>>::into(pe.into()))?
                 .push(e.into());
-            Ok::<(), VOWLRError>(())
+            Ok::<(), VOWLGrapherError>(())
         })?;
 
         // Catch permanently unresolved triples
         for (term_id, triples) in data_buffer
             .unknown_buffer
             .write()
-            .map_err(|pe| <SerializationError as Into<VOWLRError>>::into(pe.into()))?
+            .map_err(|pe| <SerializationError as Into<VOWLGrapherError>>::into(pe.into()))?
             .drain()
         {
             for triple in triples {
@@ -213,14 +217,14 @@ impl GraphDisplayDataSolutionSerializer {
                 data_buffer
                     .failed_buffer
                     .write()
-                    .map_err(|pe| <SerializationError as Into<VOWLRError>>::into(pe.into()))?
+                    .map_err(|pe| <SerializationError as Into<VOWLGrapherError>>::into(pe.into()))?
                     .push(e.into());
             }
         }
 
         let all_errors = self
             .post_serialization_cleanup(data, &mut data_buffer, start_time, query_time, count)
-            .map_err(<SerializationError as Into<VOWLRError>>::into)?;
+            .map_err(<SerializationError as Into<VOWLGrapherError>>::into)?;
 
         Ok(all_errors)
     }
@@ -278,7 +282,7 @@ impl GraphDisplayDataSolutionSerializer {
         start_time: Instant,
         query_time: Option<Instant>,
         count: u64,
-    ) -> Result<Option<VOWLRError>, SerializationError> {
+    ) -> Result<Option<VOWLGrapherError>, SerializationError> {
         let (element_count, edge_count, label_count, cardinality_count, characteristics_count) = {
             (
                 data_buffer.node_element_buffer.read()?.len(),
@@ -294,7 +298,7 @@ impl GraphDisplayDataSolutionSerializer {
         let serializer_errors = if !data_buffer.failed_buffer.read()?.is_empty() {
             let mut failed_buffer = data_buffer.failed_buffer.write()?;
             let total = failed_buffer.len();
-            let err: VOWLRError = take(&mut *failed_buffer).into();
+            let err: VOWLGrapherError = take(&mut *failed_buffer).into();
             error!(
                 "Failed to serialize {} triple{}:\n{}",
                 total,
@@ -315,7 +319,7 @@ impl GraphDisplayDataSolutionSerializer {
                     .into_iter()
                     .chain(take(&mut ce.records))
                     .collect::<Vec<_>>();
-                Some(<Vec<ErrorRecord> as Into<VOWLRError>>::into(ue))
+                Some(<Vec<ErrorRecord> as Into<VOWLGrapherError>>::into(ue))
             }
             (Some(e), None) => Some(e),
             (None, Some(ce)) => Some(ce),

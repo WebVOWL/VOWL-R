@@ -28,7 +28,7 @@ RUN ./build_mimalloc.sh
 # Override bin-target-triple defined in Cargo.toml
 ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 
-# Build VOWL-R
+# Build VOWLGrapher
 RUN ./build.sh binary
 
 FROM scratch AS runner
@@ -41,8 +41,8 @@ COPY --chown=10001 --from=builder --exclude=/tmp/* /tmp /tmp
 
 WORKDIR /app
 
-# Import VOWL-R from the build stage
-COPY --chown=10001 --from=builder /build/target/x86_64-unknown-linux-musl/release/vowlr /app/
+# Import VOWLGrapher from the build stage
+COPY --chown=10001 --from=builder /build/target/x86_64-unknown-linux-musl/release/vowlgrapher /app/
 COPY --chown=10001 --from=builder /build/target/site /app/site
 
 # Import the CAcertificates from the build stage to enable HTTPS
@@ -75,4 +75,4 @@ ENV VOWLGRAPHER_MAX_INPUT_SIZE_BYTES=52428800
 EXPOSE 8080
 
 # Must match your final server executable name
-CMD ["/app/vowlr"]
+CMD ["/app/vowlgrapher"]

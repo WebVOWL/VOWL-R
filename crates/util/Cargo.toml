@@ -1,10 +1,10 @@
 [package]
     authors.workspace=true
-    description="Utility code used by the entire VOWL-R workspace"
+    description="Utility code used by the entire VOWLGrapher workspace"
     edition.workspace=true
     keywords.workspace=true
     license-file.workspace=true
-    name="vowlr-util"
+    name="vowlgrapher-util"
     readme="README.md"
     repository.workspace=true
     version.workspace=true

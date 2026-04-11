@@ -10,16 +10,16 @@ use std::path::Path;
 use std::time::Duration;
 use std::{fs::File, time::Instant};
 use strum::IntoEnumIterator;
-use vowlr_parser::{
-    errors::{VOWLRStoreError, VOWLRStoreErrorKind},
+use vowlgrapher_parser::{
+    errors::{VOWLGrapherStoreError, VOWLGrapherStoreErrorKind},
     parser_util::{parse_stream_to, parser_from_path, path_type},
 };
-use vowlr_util::prelude::{DataType, VOWLRError};
+use vowlgrapher_util::prelude::{DataType, VOWLGrapherError};
 
 static GLOBAL_STORE: std::sync::OnceLock<Store> = std::sync::OnceLock::new();
 
 /// The graph database.
-pub struct VOWLRStore {
+pub struct VOWLGrapherStore {
     /// The store is the quad database and SPARQL engine.
     pub session: Store,
     /// The unique ID for the current user.
@@ -27,7 +27,7 @@ pub struct VOWLRStore {
     upload_handle: Option<tempfile::NamedTempFile>,
 }
 
-impl VOWLRStore {
+impl VOWLGrapherStore {
     /// Create a new database instance.
     pub fn new(session: Store) -> Self {
         Self {
@@ -57,9 +57,9 @@ impl VOWLRStore {
             .replace("]", "");
 
         if let Some(ref uid) = self.user_id {
-            format!("urn:vowlr:user:{}:graph:{}", uid, filename)
+            format!("urn:vowlgrapher:user:{}:graph:{}", uid, filename)
         } else {
-            format!("urn:vowlr:graph:{}", filename)
+            format!("urn:vowlgrapher:graph:{}", filename)
         }
     }
 
@@ -71,7 +71,7 @@ impl VOWLRStore {
         &self,
         query: String,
         graph_name: Option<String>,
-    ) -> Result<(GraphDisplayData, Option<VOWLRError>), VOWLRError> {
+    ) -> Result<(GraphDisplayData, Option<VOWLGrapherError>), VOWLGrapherError> {
         debug!("Querying with graph_name: {:#?}", graph_name);
         let user_query = if let Some(name) = graph_name {
             let graph_iri = self.get_graph_iri(&name);
@@ -85,7 +85,7 @@ impl VOWLRStore {
             .session
             .query(&user_query)
             .await
-            .map_err(|e| <VOWLRStoreError as Into<VOWLRError>>::into(e.into()))?;
+            .map_err(|e| <VOWLGrapherStoreError as Into<VOWLGrapherError>>::into(e.into()))?;
 
         match query_stream {
             QueryResults::Solutions(query_solution_stream) => {
@@ -114,10 +114,11 @@ impl VOWLRStore {
     /// Inserts a file into the store.
     ///
     /// Files are automatically parsed.
-    pub async fn insert_file(&self, fs: &Path, lenient: bool) -> Result<(), VOWLRStoreError> {
+    pub async fn insert_file(&self, fs: &Path, lenient: bool) -> Result<(), VOWLGrapherStoreError> {
         let graph_iri = self.get_graph_iri(&fs.to_string_lossy());
-        let format = path_type(fs)
-            .ok_or_else(|| VOWLRStoreErrorKind::InvalidFileType("Unknown file extension".into()))?;
+        let format = path_type(fs).ok_or_else(|| {
+            VOWLGrapherStoreErrorKind::InvalidFileType("Unknown file extension".into())
+        })?;
         let quads = parser_from_path(fs, format, lenient, &graph_iri)?;
         info!("Loading graph '{}' into database...", graph_iri);
         let start_time = Instant::now();
@@ -138,7 +139,7 @@ impl VOWLRStore {
         path: &Path,
         lenient: bool,
         graph_iri: &str,
-    ) -> Result<(Vec<Quad>, DataType), VOWLRStoreError> {
+    ) -> Result<(Vec<Quad>, DataType), VOWLGrapherStoreError> {
         let dtype = path.into();
         match dtype {
             DataType::UNKNOWN => self.try_load_fallback(path, lenient, None, graph_iri).await,
@@ -162,7 +163,7 @@ impl VOWLRStore {
         lenient: bool,
         skip_format: Option<DataType>,
         graph_iri: &str,
-    ) -> Result<(Vec<Quad>, DataType), VOWLRStoreError> {
+    ) -> Result<(Vec<Quad>, DataType), VOWLGrapherStoreError> {
         for format in DataType::iter().filter(|f| *f != DataType::UNKNOWN) {
             if Some(format) == skip_format {
                 continue;
@@ -176,7 +177,7 @@ impl VOWLRStore {
             }
         }
 
-        Err(VOWLRStoreErrorKind::InvalidFileType(format!(
+        Err(VOWLGrapherStoreErrorKind::InvalidFileType(format!(
             "Could not parse file. Tried with the following formats: {:?}",
             DataType::iter()
                 .filter(|f| *f != DataType::UNKNOWN)
@@ -186,7 +187,7 @@ impl VOWLRStore {
     }
 
     /// Serializes the store into a file, located at the path.
-    pub async fn serialize_to_file(&self, path: &Path) -> Result<(), VOWLRStoreError> {
+    pub async fn serialize_to_file(&self, path: &Path) -> Result<(), VOWLGrapherStoreError> {
         let mut file = File::create(path)?;
         let mut results = parse_stream_to(self.session.stream().await?, DataType::OWL).await?;
         while let Some(result) = results.next().await {
@@ -200,7 +201,8 @@ impl VOWLRStore {
     pub async fn serialize_stream(
         &self,
         resource_type: DataType,
-    ) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLRStoreError>>, VOWLRStoreError> {
+    ) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLGrapherStoreError>>, VOWLGrapherStoreError>
+    {
         debug!(
             "Store size before export: {}",
             self.session.len().await.unwrap_or(0)
@@ -212,7 +214,7 @@ impl VOWLRStore {
     /// Create a temporary file on the server to upload user input into.
     ///
     /// TODO: Ensure this can handle multiple users.
-    pub async fn start_upload(&mut self, filename: &str) -> Result<(), VOWLRStoreError> {
+    pub async fn start_upload(&mut self, filename: &str) -> Result<(), VOWLGrapherStoreError> {
         let extension = Path::new(filename)
             .extension()
             .and_then(|e| e.to_str())
@@ -227,7 +229,7 @@ impl VOWLRStore {
     /// Insert a chunk of data into the file currently in use.
     ///
     /// TODO: Ensure this can handle multiple users.
-    pub async fn upload_chunk(&mut self, data: &[u8]) -> Result<(), VOWLRStoreError> {
+    pub async fn upload_chunk(&mut self, data: &[u8]) -> Result<(), VOWLGrapherStoreError> {
         if let Some(file) = &mut self.upload_handle {
             std::io::Write::write_all(file, data)?;
             Ok(())
@@ -240,15 +242,19 @@ impl VOWLRStore {
     /// Inserts a file into the store.
     ///
     /// Files are automatically parsed.
-    pub async fn complete_upload(&mut self, filename: &str) -> Result<DataType, VOWLRStoreError> {
+    pub async fn complete_upload(
+        &mut self,
+        filename: &str,
+    ) -> Result<DataType, VOWLGrapherStoreError> {
         let graph_iri = self.get_graph_iri(filename);
         let path = if let Some(file) = &mut self.upload_handle {
             std::io::Write::flush(file)?;
             file.path().to_path_buf()
         } else {
-            return Err(
-                VOWLRStoreErrorKind::InvalidFileType("No upload handle found".to_string()).into(),
-            );
+            return Err(VOWLGrapherStoreErrorKind::InvalidFileType(
+                "No upload handle found".to_string(),
+            )
+            .into());
         };
         let (quads, loaded_format) = self.load_file(&path, false, &graph_iri).await?;
         info!("Loading graph '{}' into database...", graph_iri);
@@ -268,7 +274,7 @@ impl VOWLRStore {
     }
 }
 
-impl Default for VOWLRStore {
+impl Default for VOWLGrapherStore {
     fn default() -> Self {
         let session = GLOBAL_STORE.get_or_init(Store::default).clone();
         Self::new(session)
@@ -282,8 +288,8 @@ mod test {
     use test_generator::test_resources;
 
     #[test_resources("crates/database/data/owl-functional/*.ofn")]
-    async fn test_ofn_parser_format(resource: &str) -> Result<(), VOWLRStoreError> {
-        let store = VOWLRStore::default();
+    async fn test_ofn_parser_format(resource: &str) -> Result<(), VOWLGrapherStoreError> {
+        let store = VOWLGrapherStore::default();
         store
             .insert_file(Path::new(&resource), false)
             .await
@@ -298,8 +304,8 @@ mod test {
         Ok(())
     }
     #[test_resources("crates/database/data/owl-rdf/*.owl")]
-    async fn test_owl_parser_format(resource: &str) -> Result<(), VOWLRStoreError> {
-        let store = VOWLRStore::default();
+    async fn test_owl_parser_format(resource: &str) -> Result<(), VOWLGrapherStoreError> {
+        let store = VOWLGrapherStore::default();
         store
             .insert_file(Path::new(&resource), false)
             .await
@@ -314,8 +320,8 @@ mod test {
         Ok(())
     }
     #[test_resources("crates/database/data/owl-ttl/*.ttl")]
-    async fn test_ttl_parser_format(resource: &str) -> Result<(), VOWLRStoreError> {
-        let store = VOWLRStore::default();
+    async fn test_ttl_parser_format(resource: &str) -> Result<(), VOWLGrapherStoreError> {
+        let store = VOWLGrapherStore::default();
         store
             .insert_file(Path::new(&resource), false)
             .await
@@ -330,8 +336,8 @@ mod test {
         Ok(())
     }
     #[test_resources("crates/database/data/owl-xml/*.owx")]
-    async fn test_owx_parser_format(resource: &str) -> Result<(), VOWLRStoreError> {
-        let store = VOWLRStore::default();
+    async fn test_owx_parser_format(resource: &str) -> Result<(), VOWLGrapherStoreError> {
+        let store = VOWLGrapherStore::default();
         store
             .insert_file(Path::new(&resource), false)
             .await
@@ -347,9 +353,9 @@ mod test {
     }
 
     #[test_resources("crates/database/data/owl-functional/*.ofn")]
-    async fn test_ofn_parser_stream(resource: &str) -> Result<(), VOWLRStoreError> {
+    async fn test_ofn_parser_stream(resource: &str) -> Result<(), VOWLGrapherStoreError> {
         let mut out = vec![];
-        let store = VOWLRStore::default();
+        let store = VOWLGrapherStore::default();
         store.insert_file(Path::new(&resource), false).await?;
         let mut results = parse_stream_to(store.session.stream().await?, DataType::OWL).await?;
         while let Some(result) = results.next().await {
@@ -361,9 +367,9 @@ mod test {
         Ok(())
     }
     #[test_resources("crates/database/data/owl-rdf/*.owl")]
-    async fn test_owl_parser_stream(resource: &str) -> Result<(), VOWLRStoreError> {
+    async fn test_owl_parser_stream(resource: &str) -> Result<(), VOWLGrapherStoreError> {
         let mut out = vec![];
-        let store = VOWLRStore::default();
+        let store = VOWLGrapherStore::default();
         store.insert_file(Path::new(&resource), false).await?;
         let mut results = parse_stream_to(store.session.stream().await?, DataType::OWL).await?;
         while let Some(result) = results.next().await {
@@ -375,9 +381,9 @@ mod test {
         Ok(())
     }
     #[test_resources("crates/database/data/owl-ttl/*.ttl")]
-    async fn test_ttl_parser_stream(resource: &str) -> Result<(), VOWLRStoreError> {
+    async fn test_ttl_parser_stream(resource: &str) -> Result<(), VOWLGrapherStoreError> {
         let mut out = vec![];
-        let store = VOWLRStore::default();
+        let store = VOWLGrapherStore::default();
         store.insert_file(Path::new(&resource), false).await?;
         let mut results = parse_stream_to(store.session.stream().await?, DataType::OWL).await?;
         while let Some(result) = results.next().await {
@@ -389,9 +395,9 @@ mod test {
         Ok(())
     }
     #[test_resources("crates/database/data/owl-xml/*.owx")]
-    async fn test_owx_parser_stream(resource: &str) -> Result<(), VOWLRStoreError> {
+    async fn test_owx_parser_stream(resource: &str) -> Result<(), VOWLGrapherStoreError> {
         let mut out = vec![];
-        let store = VOWLRStore::default();
+        let store = VOWLGrapherStore::default();
         store.insert_file(Path::new(&resource), false).await?;
         let mut results = parse_stream_to(store.session.stream().await?, DataType::OWL).await?;
         while let Some(result) = results.next().await {

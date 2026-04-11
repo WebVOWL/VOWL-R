@@ -1,7 +1,9 @@
 use std::{panic::Location, sync::PoisonError};
 
 use oxrdf::{BlankNodeIdParseError, IriParseError};
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError, get_timestamp};
+use vowlgrapher_util::prelude::{
+    ErrorRecord, ErrorSeverity, ErrorType, VOWLGrapherError, get_timestamp,
+};
 
 #[derive(Debug)]
 pub enum SerializationErrorKind {
@@ -72,9 +74,9 @@ pub enum SerializationErrorKind {
     LockPoisoned(String),
 }
 
-impl From<SerializationErrorKind> for VOWLRError {
+impl From<SerializationErrorKind> for VOWLGrapherError {
     fn from(value: SerializationErrorKind) -> Self {
-        <SerializationError as Into<VOWLRError>>::into(value.into())
+        <SerializationError as Into<VOWLGrapherError>>::into(value.into())
     }
 }
 
@@ -161,8 +163,8 @@ impl From<SerializationError> for ErrorRecord {
     }
 }
 
-impl From<SerializationError> for VOWLRError {
+impl From<SerializationError> for VOWLGrapherError {
     fn from(value: SerializationError) -> Self {
-        <ErrorRecord as Into<VOWLRError>>::into(value.into())
+        <ErrorRecord as Into<VOWLGrapherError>>::into(value.into())
     }
 }
