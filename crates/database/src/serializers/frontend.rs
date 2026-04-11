@@ -1690,6 +1690,15 @@ impl GraphDisplayDataSolutionSerializer {
                         self.create_triple_from_id(&data_buffer.term_index, term_id, None, None)?;
 
                     self.insert_node(data_buffer, reserved_triple, element_type)?;
+                } else if term.is_blank_node() {
+                    let anonymous_triple =
+                        self.create_triple_from_id(&data_buffer.term_index, term_id, None, None)?;
+
+                    self.insert_node(
+                        data_buffer,
+                        anonymous_triple,
+                        ElementType::Owl(OwlType::Node(OwlNode::AnonymousClass)),
+                    )?;
                 }
 
                 for triple in triples {
