@@ -1,3 +1,3 @@
-# Parsers for VOWL-R
+# Parsers for VOWLGrapher
 
 Work in progress

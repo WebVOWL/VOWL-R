@@ -8,7 +8,7 @@ use std::{
 
 use grapher::prelude::{Characteristic, ElementType, GraphDisplayData, OwlEdge, OwlType};
 use oxrdf::Term;
-use vowlr_util::prelude::{ErrorRecord, VOWLRError};
+use vowlgrapher_util::prelude::{ErrorRecord, VOWLGrapherError};
 
 use crate::{
     errors::{SerializationError, SerializationErrorKind},
@@ -282,7 +282,7 @@ impl SerializationDataBuffer {
     /// Works like [`TryFrom`] except it also returns non-critical errors in [`Result::Ok`].
     pub fn convert_into(
         &self,
-    ) -> Result<(GraphDisplayData, Option<VOWLRError>), SerializationError> {
+    ) -> Result<(GraphDisplayData, Option<VOWLGrapherError>), SerializationError> {
         let mut display_data = GraphDisplayData::new();
         let mut failed: Vec<ErrorRecord> = Vec::new();
 

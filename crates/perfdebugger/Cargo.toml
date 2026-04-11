@@ -17,5 +17,5 @@
     grapher={workspace=true, features=["native", "static"]}
     log="0.4"
     tokio="1.48.0"
-    vowlr-database={path="../database"}
-    vowlr-sparql-queries={path="../sparql_queries"}
+    vowlgrapher-database={path="../database"}
+    vowlgrapher-sparql-queries={path="../sparql_queries"}

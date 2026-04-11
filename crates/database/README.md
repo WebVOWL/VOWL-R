@@ -1,3 +1,3 @@
-# Database crate for VOWL-R
+# Database crate for VOWLGrapher
 
 Work in progress

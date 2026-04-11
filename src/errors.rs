@@ -1,6 +1,8 @@
 use leptos::prelude::*;
 use std::{collections::VecDeque, panic::Location};
-use vowlr_util::prelude::{ErrorRecord, ErrorSeverity, ErrorType, VOWLRError, get_timestamp};
+use vowlgrapher_util::prelude::{
+    ErrorRecord, ErrorSeverity, ErrorType, VOWLGrapherError, get_timestamp,
+};
 
 #[derive(Debug)]
 pub enum ClientErrorKind {
@@ -46,7 +48,7 @@ impl From<ClientErrorKind> for ErrorRecord {
     }
 }
 
-impl From<ClientErrorKind> for VOWLRError {
+impl From<ClientErrorKind> for VOWLGrapherError {
     fn from(value: ClientErrorKind) -> Self {
         let a: ErrorRecord = value.into();
         a.into()
@@ -118,8 +120,8 @@ impl Default for ErrorLogContext {
     }
 }
 
-impl From<VOWLRError> for ErrorLogContext {
-    fn from(value: VOWLRError) -> Self {
+impl From<VOWLGrapherError> for ErrorLogContext {
+    fn from(value: VOWLGrapherError) -> Self {
         Self::new(value.records)
     }
 }

@@ -1,10 +1,10 @@
 [package]
     authors.workspace=true
-    description="Database code for VOWL-R"
+    description="Database code for VOWLGrapher"
     edition.workspace=true
     keywords=["rdf", "graph", "sparql", "datafusion"]
     license-file.workspace=true
-    name="vowlr-database"
+    name="vowlgrapher-database"
     readme="README.md"
     repository.workspace=true
     version.workspace=true
@@ -27,11 +27,11 @@
     rayon.workspace=true
     rdf-fusion={workspace=true}
     smallvec={workspace=true}
+    strum.workspace=true
     tempfile="3.10"
     test-generator="^0.3"
     tokio={workspace=true}
     unescape_zero_copy="2.3.1"
-    vowlr-parser={path="../parser"}
-    vowlr-sparql-queries={path="../sparql_queries"}
-    vowlr-util={path="../util"}
-    strum.workspace=true
+    vowlgrapher-parser={path="../parser"}
+    vowlgrapher-sparql-queries={path="../sparql_queries"}
+    vowlgrapher-util={path="../util"}

@@ -1,6 +1,6 @@
 //! Various utility functions which collectively makes up the parser.
 
-use crate::errors::{VOWLRStoreError, VOWLRStoreErrorKind};
+use crate::errors::{VOWLGrapherStoreError, VOWLGrapherStoreErrorKind};
 use futures::{StreamExt, stream::BoxStream};
 use horned_owl::{
     io::{rdf::reader::ConcreteRDFOntology, *},
@@ -23,7 +23,7 @@ use std::{
 };
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use vowlr_util::prelude::DataType;
+use vowlgrapher_util::prelude::DataType;
 
 /// Returns the datatype of the path, if it's supported by the parser.
 pub fn path_type(path: &Path) -> Option<DataType> {
@@ -65,14 +65,14 @@ pub fn format_from_resource_type(resource_type: &DataType) -> Option<RdfFormat> 
 pub async fn parse_stream_to(
     mut stream: QuadStream,
     output_type: DataType,
-) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLRStoreError>>, VOWLRStoreError> {
+) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLGrapherStoreError>>, VOWLGrapherStoreError> {
     match output_type {
         DataType::OFN | DataType::OWX | DataType::OWL => {
             let (tx, rx) = mpsc::unbounded_channel();
             let mut buf = Vec::new();
             let mut serializer =
                 RdfSerializer::from_format(format_from_resource_type(&DataType::OWL).ok_or(
-                    VOWLRStoreErrorKind::InvalidFileType(format!(
+                    VOWLGrapherStoreErrorKind::InvalidFileType(format!(
                         "Unsupported output type: {:?}",
                         output_type
                     )),
@@ -108,9 +108,12 @@ pub async fn parse_stream_to(
                         writer.flush()?;
                         Ok(writer)
                     }
-                    _ => Err(VOWLRStoreError::from(VOWLRStoreErrorKind::InvalidFileType(
-                        format!("Unsupported output type: {:?}", output_type),
-                    ))),
+                    _ => Err(VOWLGrapherStoreError::from(
+                        VOWLGrapherStoreErrorKind::InvalidFileType(format!(
+                            "Unsupported output type: {:?}",
+                            output_type
+                        )),
+                    )),
                 })();
 
                 if let Err(e) = result {
@@ -118,7 +121,7 @@ pub async fn parse_stream_to(
                 }
             });
             Ok(UnboundedReceiverStream::new(rx)
-                .map(|result| result.map_err(VOWLRStoreError::from))
+                .map(|result| result.map_err(VOWLGrapherStoreError::from))
                 .boxed())
         }
         _ => {
@@ -128,7 +131,7 @@ pub async fn parse_stream_to(
                 let result = async {
                     let mut serializer =
                         RdfSerializer::from_format(format_from_resource_type(&output_type).ok_or(
-                            VOWLRStoreErrorKind::InvalidFileType(format!(
+                            VOWLGrapherStoreErrorKind::InvalidFileType(format!(
                                 "Unsupported output type: {:?}",
                                 output_type
                             )),
@@ -138,7 +141,7 @@ pub async fn parse_stream_to(
                         serializer.serialize_quad(&quad?)?;
                     }
                     serializer.finish()?;
-                    Ok::<ChannelWriter, VOWLRStoreError>(writer)
+                    Ok::<ChannelWriter, VOWLGrapherStoreError>(writer)
                 };
 
                 if let Err(e) = result.await {
@@ -146,7 +149,7 @@ pub async fn parse_stream_to(
                 }
             });
             Ok(UnboundedReceiverStream::new(rx)
-                .map(|result| result.map_err(VOWLRStoreError::from))
+                .map(|result| result.map_err(VOWLGrapherStoreError::from))
                 .boxed())
         }
     }
@@ -158,7 +161,7 @@ pub fn parser_from_path(
     format: DataType,
     lenient: bool,
     graph_iri: &str,
-) -> Result<Vec<Quad>, VOWLRStoreError> {
+) -> Result<Vec<Quad>, VOWLGrapherStoreError> {
     let reader = std::fs::File::open(path)?;
     let reader = BufReader::new(reader);
     parser_from_reader(reader, path, format, lenient, graph_iri)
@@ -171,20 +174,21 @@ pub fn parser_from_reader(
     format: DataType,
     lenient: bool,
     graph_iri: &str,
-) -> Result<Vec<Quad>, VOWLRStoreError> {
+) -> Result<Vec<Quad>, VOWLGrapherStoreError> {
     let make_parser = |fmt| {
         let graph_node = NamedNodeRef::new(graph_iri).expect("Failed to parse graph IRI in parser");
         let parser = RdfParser::from_format(fmt).with_default_graph(graph_node);
         if lenient { parser.lenient() } else { parser }
     };
 
-    let collect_quads = |parser: RdfParser, bytes: &[u8]| -> Result<Vec<Quad>, VOWLRStoreError> {
-        parser
-            .rename_blank_nodes()
-            .for_reader(bytes)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| VOWLRStoreError::from(LoaderError::from(e)))
-    };
+    let collect_quads =
+        |parser: RdfParser, bytes: &[u8]| -> Result<Vec<Quad>, VOWLGrapherStoreError> {
+            parser
+                .rename_blank_nodes()
+                .for_reader(bytes)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| VOWLGrapherStoreError::from(LoaderError::from(e)))
+        };
 
     match format {
         DataType::OFN => {
@@ -297,11 +301,13 @@ pub fn parser_from_reader(
             let mut input = Vec::new();
             reader.read_to_end(&mut input)?;
             let format = format_from_resource_type(&f).ok_or_else(|| {
-                VOWLRStoreErrorKind::InvalidFileType(format!("could not convert {f:?} to format"))
+                VOWLGrapherStoreErrorKind::InvalidFileType(format!(
+                    "could not convert {f:?} to format"
+                ))
             })?;
             collect_quads(make_parser(format), &input)
         }
-        _ => Err(VOWLRStoreErrorKind::InvalidFileType(format!(
+        _ => Err(VOWLGrapherStoreErrorKind::InvalidFileType(format!(
             "Unsupported parser: {}",
             format.mime_type()
         ))
@@ -374,7 +380,8 @@ mod test {
             }
             let dt = path_type(resource.as_ref()).unwrap();
             let quads =
-                parser_from_path(resource.as_ref(), dt, false, "urn:vowlr:test_graph").unwrap();
+                parser_from_path(resource.as_ref(), dt, false, "urn:vowlgrapher:test_graph")
+                    .unwrap();
             let _ = session.extend(quads).await;
             assert_ne!(
                 session.len().await.unwrap(),

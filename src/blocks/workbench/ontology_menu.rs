@@ -13,7 +13,7 @@ use leptos::task::spawn_local_scoped_with_cancellation;
 use log::info;
 use std::iter::once;
 use strum::IntoEnumIterator;
-use vowlr_sparql_queries::prelude::DEFAULT_QUERY;
+use vowlgrapher_sparql_queries::prelude::DEFAULT_QUERY;
 use web_sys::Event;
 use web_sys::HtmlInputElement;
 

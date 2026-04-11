@@ -1,3 +1,3 @@
-# Utility code used by the entire VOWL-R workspace
+# Utility code used by the entire VOWLGrapher workspace
 
 Work in progress

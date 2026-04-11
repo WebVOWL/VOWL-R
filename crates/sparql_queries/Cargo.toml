@@ -1,10 +1,10 @@
 [package]
     authors.workspace=true
-    description="Shared SPARQL query strings for VOWL-R (WASM-safe)."
+    description="Shared SPARQL query strings for VOWLGrapher (WASM-safe)."
     edition.workspace=true
     keywords.workspace=true
     license-file.workspace=true
-    name="vowlr-sparql-queries"
+    name="vowlgrapher-sparql-queries"
     readme="README.md"
     repository.workspace=true
     version.workspace=true
@@ -17,4 +17,4 @@
 
 [dependencies]
     grapher={workspace=true}
-    vowlr-util={path="../util"}
+    vowlgrapher-util={path="../util"}

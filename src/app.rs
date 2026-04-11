@@ -37,7 +37,7 @@ pub fn App() -> impl IntoView {
     });
 
     view! {
-        <Stylesheet id="vowlr" href="/pkg/vowlr.css" />
+        <Stylesheet id="vowlgrapher" href="/pkg/vowlgrapher.css" />
         <Link rel="shortcut icon" type_="image/ico" href="/favicon.ico" />
         <Router>
             <FlatRoutes fallback=|| "404 - Page not found.">
