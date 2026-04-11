@@ -12,7 +12,7 @@ use rdf_fusion::{
     error::LoaderError,
     execution::results::QuadStream,
     io::{JsonLdProfileSet, RdfFormat, RdfParser, RdfSerializer},
-    model::NamedNodeRef,
+    model::{NamedNodeRef, Quad},
 };
 use std::io;
 use std::io::BufRead;
@@ -24,39 +24,6 @@ use std::{
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use vowlr_util::prelude::DataType;
-
-/// Encapsulates the input of the parser.
-pub enum ParserInput {
-    /// The input as a byte vector of a file's contents.
-    File(Vec<u8>),
-    /// A buffer of the inputThe file is read into this buffer.
-    Buffer(Cursor<Vec<u8>>),
-}
-
-impl ParserInput {
-    /// Reads the entire file at `path` and returns the contents as a byte vector.
-    pub fn from_path(path: &Path) -> Result<Self, VOWLRStoreError> {
-        std::fs::read(path)
-            .map(ParserInput::File)
-            .map_err(VOWLRStoreError::from)
-    }
-
-    /// Returns [`self`] as a slice.
-    pub fn as_slice(&self) -> &[u8] {
-        match self {
-            ParserInput::Buffer(cursor) => cursor.get_ref().as_slice(),
-            ParserInput::File(bytes) => bytes.as_slice(),
-        }
-    }
-}
-
-/// Encapsulates the various parsers in use into a parse implementation usable by RDF-Fusion.
-pub struct PreparedParser {
-    /// The parser to use.
-    pub parser: RdfParser,
-    /// The input to parse.
-    pub input: ParserInput,
-}
 
 /// Returns the datatype of the path, if it's supported by the parser.
 pub fn path_type(path: &Path) -> Option<DataType> {
@@ -185,33 +152,49 @@ pub async fn parse_stream_to(
     }
 }
 
-/// Returns the parser compatible with the file at the path.
+/// Returns the quads from parsing the file at the path.
+#[expect(
+    clippy::result_large_err,
+    reason = "fixed if VOWLRStoreErrorKind contains String instead of full error types"
+)]
 pub fn parser_from_path(
     path: &Path,
     format: DataType,
     lenient: bool,
     graph_iri: &str,
-) -> Result<PreparedParser, VOWLRStoreError> {
+) -> Result<Vec<Quad>, VOWLRStoreError> {
     let reader = std::fs::File::open(path)?;
     let reader = BufReader::new(reader);
     parser_from_reader(reader, path, format, lenient, graph_iri)
 }
 
-/// Returns the parser compatible with the reader, reading from the path.
+/// Returns the quads from parsing the reader, reading from the path.
+#[expect(
+    clippy::result_large_err,
+    reason = "fixed if VOWLRStoreErrorKind contains String instead of full error types"
+)]
 pub fn parser_from_reader(
     mut reader: impl BufRead,
     path: &Path,
     format: DataType,
     lenient: bool,
     graph_iri: &str,
-) -> Result<PreparedParser, VOWLRStoreError> {
+) -> Result<Vec<Quad>, VOWLRStoreError> {
     let make_parser = |fmt| {
         let graph_node = NamedNodeRef::new(graph_iri).expect("Failed to parse graph IRI in parser");
         let parser = RdfParser::from_format(fmt).with_default_graph(graph_node);
         if lenient { parser.lenient() } else { parser }
     };
 
-    let prepared = match format {
+    let collect_quads = |parser: RdfParser, bytes: &[u8]| -> Result<Vec<Quad>, VOWLRStoreError> {
+        parser
+            .rename_blank_nodes()
+            .for_reader(bytes)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| VOWLRStoreError::from(LoaderError::from(e)))
+    };
+
+    match format {
         DataType::OFN => {
             info!("Parsing OFN input...");
             let start_time = Instant::now();
@@ -241,10 +224,7 @@ pub fn parser_from_reader(
                     .as_secs_f32()
             );
 
-            Ok(PreparedParser {
-                parser: make_parser(RdfFormat::RdfXml),
-                input: ParserInput::Buffer(Cursor::new(buf)),
-            })
+            collect_quads(make_parser(RdfFormat::RdfXml), &buf)
         }
         DataType::OWX => {
             info!("Parsing OWX input...");
@@ -277,10 +257,8 @@ pub fn parser_from_reader(
                     .unwrap_or(Duration::new(0, 0))
                     .as_secs_f32()
             );
-            Ok(PreparedParser {
-                parser: make_parser(RdfFormat::RdfXml),
-                input: ParserInput::Buffer(Cursor::new(buf)),
-            })
+
+            collect_quads(make_parser(RdfFormat::RdfXml), &buf)
         }
         DataType::OWL => {
             info!("Parsing OWL input...");
@@ -316,10 +294,7 @@ pub fn parser_from_reader(
                     .as_secs_f32()
             );
 
-            Ok(PreparedParser {
-                parser: make_parser(RdfFormat::RdfXml),
-                input: ParserInput::Buffer(Cursor::new(buf)),
-            })
+            collect_quads(make_parser(RdfFormat::RdfXml), &buf)
         }
         f @ DataType::TTL
         | f @ DataType::NTriples
@@ -329,26 +304,17 @@ pub fn parser_from_reader(
         | f @ DataType::N3 => {
             let mut input = Vec::new();
             reader.read_to_end(&mut input)?;
-            let input = ParserInput::File(input);
             let format = format_from_resource_type(&f).ok_or_else(|| {
                 VOWLRStoreErrorKind::InvalidFileType(format!("could not convert {f:?} to format"))
             })?;
-            // Not optimal should be changed.
-            let parser = make_parser(format);
-            for quad_result in parser.for_reader(input.as_slice()) {
-                quad_result.map_err(LoaderError::from)?;
-            }
-            Ok(PreparedParser {
-                parser: make_parser(format),
-                input,
-            })
+            collect_quads(make_parser(format), &input)
         }
         _ => Err(VOWLRStoreErrorKind::InvalidFileType(format!(
             "Unsupported parser: {}",
             format.mime_type()
-        ))),
-    };
-    Ok(prepared?)
+        ))
+        .into()),
+    }
 }
 struct ChannelWriter {
     sender: UnboundedSender<Result<Vec<u8>, io::Error>>,
@@ -415,11 +381,9 @@ mod test {
                 continue;
             }
             let dt = path_type(resource.as_ref()).unwrap();
-            let parser =
+            let quads =
                 parser_from_path(resource.as_ref(), dt, false, "urn:vowlr:test_graph").unwrap();
-            let _ = session
-                .load_from_reader(parser.parser, parser.input.as_slice())
-                .await;
+            let _ = session.extend(quads).await;
             assert_ne!(
                 session.len().await.unwrap(),
                 0,

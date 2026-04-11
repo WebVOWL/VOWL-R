@@ -1,21 +1,20 @@
+use crate::errors::SerializationErrorKind;
+use crate::serializers::frontend::GraphDisplayDataSolutionSerializer;
 use futures::{StreamExt, stream::BoxStream};
 use grapher::prelude::GraphDisplayData;
 use log::{debug, info, warn};
 use rdf_fusion::execution::results::QueryResults;
+use rdf_fusion::model::Quad;
 use rdf_fusion::store::Store;
 use std::path::Path;
 use std::time::Duration;
 use std::{fs::File, time::Instant};
 use strum::IntoEnumIterator;
-
 use vowlr_parser::{
     errors::{VOWLRStoreError, VOWLRStoreErrorKind},
-    parser_util::{PreparedParser, parse_stream_to, parser_from_path, path_type},
+    parser_util::{parse_stream_to, parser_from_path, path_type},
 };
 use vowlr_util::prelude::{DataType, VOWLRError};
-
-use crate::errors::SerializationErrorKind;
-use crate::serializers::frontend::GraphDisplayDataSolutionSerializer;
 
 static GLOBAL_STORE: std::sync::OnceLock<Store> = std::sync::OnceLock::new();
 
@@ -119,13 +118,10 @@ impl VOWLRStore {
         let graph_iri = self.get_graph_iri(&fs.to_string_lossy());
         let format = path_type(fs)
             .ok_or_else(|| VOWLRStoreErrorKind::InvalidFileType("Unknown file extension".into()))?;
-        let parser = parser_from_path(fs, format, lenient, &graph_iri)?;
+        let quads = parser_from_path(fs, format, lenient, &graph_iri)?;
         info!("Loading graph '{}' into database...", graph_iri);
         let start_time = Instant::now();
-
-        self.session
-            .load_from_reader(parser.parser, parser.input.as_slice())
-            .await?;
+        self.session.extend(quads).await?;
         info!(
             "Loaded {} quads in {} s",
             self.session.len().await?,
@@ -142,7 +138,7 @@ impl VOWLRStore {
         path: &Path,
         lenient: bool,
         graph_iri: &str,
-    ) -> Result<(PreparedParser, DataType), VOWLRStoreError> {
+    ) -> Result<(Vec<Quad>, DataType), VOWLRStoreError> {
         let dtype = path.into();
         match dtype {
             DataType::UNKNOWN => self.try_load_fallback(path, lenient, None, graph_iri).await,
@@ -150,7 +146,7 @@ impl VOWLRStore {
                 let result =
                     std::panic::catch_unwind(|| parser_from_path(path, dtype, lenient, graph_iri));
                 match result {
-                    Ok(Ok(parser)) => Ok((parser, dtype)),
+                    Ok(Ok(quads)) => Ok((quads, dtype)),
                     _ => {
                         self.try_load_fallback(path, lenient, Some(dtype), graph_iri)
                             .await
@@ -166,7 +162,7 @@ impl VOWLRStore {
         lenient: bool,
         skip_format: Option<DataType>,
         graph_iri: &str,
-    ) -> Result<(PreparedParser, DataType), VOWLRStoreError> {
+    ) -> Result<(Vec<Quad>, DataType), VOWLRStoreError> {
         for format in DataType::iter().filter(|f| *f != DataType::UNKNOWN) {
             if Some(format) == skip_format {
                 continue;
@@ -174,14 +170,14 @@ impl VOWLRStore {
 
             let result =
                 std::panic::catch_unwind(|| parser_from_path(path, format, lenient, graph_iri));
-            if let Ok(Ok(result)) = result {
+            if let Ok(Ok(quads)) = result {
                 info!("Parsed file as {:?}", format);
-                return Ok((result, format));
+                return Ok((quads, format));
             }
         }
 
         Err(VOWLRStoreErrorKind::InvalidFileType(format!(
-            "Could not parse file with the following formats: {:?}",
+            "Could not parse file. Tried with the following formats: {:?}",
             DataType::iter()
                 .filter(|f| *f != DataType::UNKNOWN)
                 .collect::<Vec<_>>()
@@ -254,13 +250,11 @@ impl VOWLRStore {
                 VOWLRStoreErrorKind::InvalidFileType("No upload handle found".to_string()).into(),
             );
         };
-        let (parser, loaded_format) = self.load_file(&path, false, &graph_iri).await?;
+        let (quads, loaded_format) = self.load_file(&path, false, &graph_iri).await?;
         info!("Loading input into database for graph {}...", graph_iri);
         let start_time = Instant::now();
 
-        self.session
-            .load_from_reader(parser.parser, parser.input.as_slice())
-            .await?;
+        self.session.extend(quads).await?;
         info!(
             "Loaded {} quads in {} s",
             self.session.len().await?,
