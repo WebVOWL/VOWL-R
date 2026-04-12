@@ -64,7 +64,6 @@ pub struct VOWLGrapherEnviron {
 
 impl VOWLGrapherEnviron {
     pub fn new() -> Self {
-        // Default is 50 MB
         let max_input_size_bytes =
             Self::parse_environment("VOWLGRAPHER_MAX_INPUT_SIZE_BYTES", ByteSize::mb(50));
 
@@ -73,7 +72,7 @@ impl VOWLGrapherEnviron {
         }
     }
 
-    /// Returns the value of key from the environment, if found, otherwise returns the provided default.
+    /// Returns the value of a key from the environment, if found, otherwise returns the provided default.
     fn parse_environment<T, K>(key: &K, default: T) -> T
     where
         K: ToString + ?Sized,
