@@ -24,7 +24,7 @@ pub async fn environ() -> Result<VOWLGrapherEnviron, ServerFnError> {
     Ok(*VOWLGRAPHER_ENVIRONMENT)
 }
 
-/// Wrapper type to remotely derive impls of rkyv and serde.
+/// Wrapper type to remotely derive impls for rkyv and serde.
 #[derive(
     rkyv::Archive, rkyv::Deserialize, rkyv::Serialize, serde::Deserialize, serde::Serialize,
 )]
