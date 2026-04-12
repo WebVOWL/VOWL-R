@@ -25,7 +25,7 @@ pub fn App() -> impl IntoView {
             Err(e) => {
                 error_context.push(
                     ClientErrorKind::EnvironmentFetchError(
-                        "Failed to fetch server environment".to_string(),
+                        "Failed to fetch server environment. Using the default environment, which most likely differs from the server".to_string(),
                         e.into(),
                     )
                     .into(),
