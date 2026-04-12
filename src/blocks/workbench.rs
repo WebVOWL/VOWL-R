@@ -33,9 +33,7 @@ fn WorkbenchMenuItems(#[prop(into)] title: String, children: Children) -> impl I
 
 #[component]
 pub fn NewWorkbench() -> impl IntoView {
-    let error_context = ErrorLogContext::default();
-    provide_context(error_context);
-
+    let error_context = expect_context::<ErrorLogContext>();
     let graph_context = GraphDataContext::default();
     provide_context(graph_context);
 
