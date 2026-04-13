@@ -1970,8 +1970,8 @@ impl GraphDisplayDataSolutionSerializer {
                                 .or_default()
                                 .write()?;
                             state.filler = triple.object_term_id;
-                            // TODO: Make cardinality enum in grapher.
                             state.cardinality = Some(("∀".to_string(), None));
+                            state.requires_filler = true;
                         }
 
                         return self
@@ -2641,6 +2641,7 @@ impl GraphDisplayDataSolutionSerializer {
                                 .write()?;
                             state.filler = triple.object_term_id;
                             state.cardinality = Some(("∃".to_string(), None));
+                            state.requires_filler = true;
                         }
 
                         return self
@@ -3612,8 +3613,79 @@ impl GraphDisplayDataSolutionSerializer {
                 .get(property_term_id)
                 .copied()
         };
+
         match property_edge_type {
             Some(ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty))) => {
+                let preferred_range_term_id = {
+                    data_buffer
+                        .property_range_map
+                        .read()?
+                        .get(property_term_id)
+                        .and_then(|ranges| ranges.iter().next())
+                        .copied()
+                };
+
+                if let Some(range_term_id) = preferred_range_term_id {
+                    let range_term = data_buffer.term_index.get(&range_term_id)?;
+
+                    if !is_query_fallback_endpoint(&range_term) {
+                        if let Some(resolved_range_term_id) =
+                            self.resolve(data_buffer, range_term_id)?
+                        {
+                            return Ok(resolved_range_term_id);
+                        }
+
+                        let node_exists = {
+                            data_buffer
+                                .node_element_buffer
+                                .read()?
+                                .contains_key(&range_term_id)
+                        };
+
+                        if !node_exists {
+                            let predicate_term_id = {
+                                if let Some(element_type) = try_resolve_reserved(&range_term) {
+                                    let predicate = match element_type {
+                                        ElementType::Rdfs(RdfsType::Node(RdfsNode::Datatype)) => {
+                                            data_buffer.term_index.insert(rdfs::DATATYPE.into())?
+                                        }
+                                        _ => {
+                                            data_buffer.term_index.insert(rdfs::RESOURCE.into())?
+                                        }
+                                    };
+
+                                    let range_triple = self.create_triple_from_id(
+                                        &data_buffer.term_index,
+                                        range_term_id,
+                                        Some(predicate),
+                                        None,
+                                    )?;
+
+                                    self.insert_node(data_buffer, range_triple, element_type)?;
+                                    return Ok(range_term_id);
+                                }
+
+                                data_buffer.term_index.insert(rdfs::DATATYPE.into())?
+                            };
+
+                            let range_triple = self.create_triple_from_id(
+                                &data_buffer.term_index,
+                                range_term_id,
+                                Some(predicate_term_id),
+                                None,
+                            )?;
+
+                            self.insert_node(
+                                data_buffer,
+                                range_triple,
+                                ElementType::Rdfs(RdfsType::Node(RdfsNode::Datatype)),
+                            )?;
+                        }
+
+                        return Ok(range_term_id);
+                    }
+                }
+
                 let property_term = data_buffer.term_index.get(property_term_id)?;
                 let literal_iri = synthetic_iri(&property_term, SYNTH_LITERAL);
                 let literal_triple = self.create_triple_from_iri(
@@ -3640,6 +3712,7 @@ impl GraphDisplayDataSolutionSerializer {
                         .write()?
                         .insert(literal_triple.subject_term_id, element_type.to_string());
                 }
+
                 Ok(literal_triple.subject_term_id)
             }
             _ => self.get_or_create_domain_thing(data_buffer, owner_term_id),
@@ -3784,6 +3857,17 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(edge)
     }
 
+    fn is_numeric_cardinality(cardinality: &(String, Option<String>)) -> bool {
+        let (min, max) = cardinality;
+
+        let min_ok = min.is_empty() || min.chars().all(|c| c.is_ascii_digit());
+        let max_ok = max
+            .as_ref()
+            .is_none_or(|value| value.is_empty() || value.chars().all(|c| c.is_ascii_digit()));
+
+        min_ok && max_ok
+    }
+
     fn try_materialize_restriction(
         &self,
         data_buffer: &mut SerializationDataBuffer,
@@ -3828,6 +3912,16 @@ impl GraphDisplayDataSolutionSerializer {
             );
             return Ok(SerializationStatus::Deferred);
         };
+        let has_restriction_payload =
+            state.self_restriction || state.filler.is_some() || state.cardinality.is_some();
+
+        if !has_restriction_payload {
+            debug!(
+                "Deferring restriction for term '{}': only owl:onProperty is available so far",
+                data_buffer.term_index.get(restriction_term_id)?
+            );
+            return Ok(SerializationStatus::Deferred);
+        }
         if state.requires_filler && !state.self_restriction && state.filler.is_none() {
             debug!(
                 "Deferring restriction for term '{}': filler is required, but not available",
@@ -3974,6 +4068,54 @@ impl GraphDisplayDataSolutionSerializer {
         } else {
             self.default_restriction_target(data_buffer, &subject_term_id, &property_term_id)?
         };
+
+        let maybe_numeric_cardinality = state
+            .cardinality
+            .as_ref()
+            .filter(|cardinality| Self::is_numeric_cardinality(cardinality))
+            .cloned();
+
+        if let Some(cardinality) = maybe_numeric_cardinality {
+            let maybe_existing_edge = {
+                data_buffer
+                    .property_edge_map
+                    .read()?
+                    .get(&property_term_id)
+                    .cloned()
+            };
+
+            if let Some(existing_edge) = maybe_existing_edge {
+                self.remove_property_fallback_edge(data_buffer, &property_term_id)?;
+
+                let edge = match self.rewrite_property_edge(
+                    data_buffer,
+                    &property_term_id,
+                    subject_term_id,
+                    object_term_id,
+                )? {
+                    Some(edge) => edge,
+                    None => existing_edge,
+                };
+
+                data_buffer
+                    .edge_cardinality_buffer
+                    .write()?
+                    .insert(edge, cardinality);
+
+                self.remove_restriction_stub(data_buffer, restriction_term_id)?;
+                self.remove_restriction_node(data_buffer, restriction_term_id)?;
+
+                if subject_term_id != *restriction_term_id {
+                    self.redirect_iri(data_buffer, *restriction_term_id, subject_term_id)?;
+                }
+
+                trace!(
+                    "Successfully materialized numeric cardinality restriction '{}' on existing property edge",
+                    data_buffer.term_index.get(restriction_term_id)?
+                );
+                return Ok(SerializationStatus::Serialized);
+            }
+        }
 
         self.remove_property_fallback_edge(data_buffer, &property_term_id)?;
 
