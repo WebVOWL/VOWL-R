@@ -2,7 +2,7 @@ use super::WorkbenchMenuItems;
 use crate::components::icon::Icon;
 use leptos::prelude::*;
 
-pub fn VowlrDesc() -> impl IntoView {
+pub fn VOWLGrapherDesc() -> impl IntoView {
     let description = include_str!("../../assets/about_description.txt");
     view! {
         <p>{description}</p>
@@ -38,7 +38,7 @@ pub fn AboutMenu() -> impl IntoView {
     view! {
         <WorkbenchMenuItems title="About">
             <Version />
-            <VowlrDesc />
+            <VOWLGrapherDesc />
         </WorkbenchMenuItems>
     }
 }
