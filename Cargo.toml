@@ -80,6 +80,7 @@
         strum={version="0.27", features=["derive"]}
         tokio="1.48.0"
         web-sys="0.3.77"
+        anyhow = "1.0.102"
 
 
 [dependencies]
@@ -90,6 +91,7 @@
         "compress-brotli",
         "compress-gzip",
     ]}
+    anyhow={workspace=true}
     async-broadcast="0.7.2"
     bytes="1.9"
     bytesize.workspace=true

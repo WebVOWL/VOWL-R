@@ -28,6 +28,7 @@
     time={version="0.3.47", features=["formatting", "macros"]}
     uuid={version="1.22.0", features=["v4"], optional=true}
     web-sys={workspace=true, features=["Window", "Performance"], optional=true}
+    humantime = "2.3.0"
 
 [features]
     server=["dep:tabled"]

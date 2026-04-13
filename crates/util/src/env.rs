@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use std::str::FromStr;
 #[cfg(feature = "server")]
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use bytesize::ByteSize;
 use leptos::prelude::*;
@@ -62,6 +63,10 @@ pub struct VOWLGrapherEnviron {
     pub max_input_size_bytes: ByteSize,
     /// Whether owl:imports should be fetched and loaded recursively.
     pub resolve_imports: bool,
+    /// The amount of time between database cleanups
+    pub database_cleanup_interval: Duration,
+    /// The duration of a session. Once a session expires, it will be removed at the next cleanup
+    pub session_duration: Duration,
 }
 
 impl VOWLGrapherEnviron {
@@ -70,9 +75,22 @@ impl VOWLGrapherEnviron {
         let max_input_size_bytes =
             Self::parse_environment("VOWLGRAPHER_MAX_INPUT_SIZE_BYTES", ByteSize::mb(50));
         let resolve_imports = Self::parse_environment("VOWLGRAPHER_RESOLVE_IMPORTS", true);
+        let database_cleanup_interval = Self::parse_environment(
+            "VOWLGRAPHER_DATABASE_CLEANUP_INTERVAL",
+            humantime::Duration::from(Duration::from_mins(10)),
+        )
+        .into();
+        let session_duration = Self::parse_environment(
+            "VOWLGRAPHER_SESSION_DURATION",
+            humantime::Duration::from(Duration::from_hours(6)),
+        )
+        .into();
+
         Self {
             max_input_size_bytes,
             resolve_imports,
+            database_cleanup_interval,
+            session_duration,
         }
     }
 

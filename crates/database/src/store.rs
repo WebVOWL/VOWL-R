@@ -18,7 +18,7 @@ use vowlgrapher_parser::parser_util::{
 use vowlgrapher_serializer::prelude::GraphDisplayDataSolutionSerializer;
 use vowlgrapher_util::prelude::{DataType, ErrorRecord, VOWLGRAPHER_ENVIRONMENT, VOWLGrapherError};
 
-static GLOBAL_STORE: std::sync::OnceLock<Store> = std::sync::OnceLock::new();
+pub static GLOBAL_STORE: std::sync::LazyLock<Store> = std::sync::LazyLock::new(Store::default);
 
 /// The graph database.
 pub struct VOWLGrapherStore {
@@ -41,7 +41,7 @@ impl VOWLGrapherStore {
 
     /// Create a new database instance with a user id.
     pub fn new_for_user(user_id: String) -> Self {
-        let session = GLOBAL_STORE.get_or_init(Store::default).clone();
+        let session = GLOBAL_STORE.clone();
         Self {
             session,
             user_id: Some(user_id),
@@ -433,7 +433,7 @@ impl VOWLGrapherStore {
 
 impl Default for VOWLGrapherStore {
     fn default() -> Self {
-        let session = GLOBAL_STORE.get_or_init(Store::default).clone();
+        let session = GLOBAL_STORE.clone();
         Self::new(session)
     }
 }
