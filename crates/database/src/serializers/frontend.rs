@@ -693,9 +693,12 @@ impl GraphDisplayDataSolutionSerializer {
             &triple.subject_term_id
         };
 
-        // Skip external check for NoDraw edges - they should always retain their type
-        let new_type = if edge_type != ElementType::NoDraw
-            && self.is_external(data_buffer, &data_buffer.term_index.get(external_probe)?)?
+        // Skip external check for NoDraw and SubClassOf edges - they should always retain their type
+        let new_type = if !matches!(
+            edge_type,
+            ElementType::NoDraw | ElementType::Rdfs(RdfsType::Edge(RdfsEdge::SubclassOf))
+        ) && self
+            .is_external(data_buffer, &data_buffer.term_index.get(external_probe)?)?
         {
             ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty))
         } else {
