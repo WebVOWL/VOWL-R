@@ -1,18 +1,18 @@
 use crate::errors::SerializationErrorKind;
 use crate::serializers::frontend::GraphDisplayDataSolutionSerializer;
-use futures::{StreamExt, stream::BoxStream};
+use futures::stream::{BoxStream, StreamExt};
 use grapher::prelude::GraphDisplayData;
 use log::{debug, info, warn};
 use rdf_fusion::execution::results::QueryResults;
-use rdf_fusion::model::Quad;
+use rdf_fusion::model::{NamedNodeRef, Quad};
 use rdf_fusion::store::Store;
 use std::path::Path;
 use std::time::Duration;
-use std::{fs::File, time::Instant};
+use std::time::Instant;
 use strum::IntoEnumIterator;
 use vowlgrapher_parser::{
     errors::{VOWLGrapherStoreError, VOWLGrapherStoreErrorKind},
-    parser_util::{parse_stream_to, parser_from_path, path_type},
+    parser_util::{format_from_resource_type, parse_quads_to_format, parser_from_path, path_type},
 };
 use vowlgrapher_util::prelude::{DataType, VOWLGrapherError};
 
@@ -186,29 +186,44 @@ impl VOWLGrapherStore {
         .into())
     }
 
-    /// Serializes the store into a file, located at the path.
-    pub async fn serialize_to_file(&self, path: &Path) -> Result<(), VOWLGrapherStoreError> {
-        let mut file = File::create(path)?;
-        let mut results = parse_stream_to(self.session.stream().await?, DataType::OWL).await?;
-        while let Some(result) = results.next().await {
-            std::io::Write::write_all(&mut file, &result?)?;
-        }
-
-        Ok(())
-    }
-
     /// Serializes the store into a stream of the specified resource type.
     pub async fn serialize_stream(
         &self,
         resource_type: DataType,
+        graph_name: &str,
     ) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLGrapherStoreError>>, VOWLGrapherStoreError>
     {
         debug!(
             "Store size before export: {}",
             self.session.len().await.unwrap_or(0)
         );
-        let results = parse_stream_to(self.session.stream().await?, resource_type).await?;
-        Ok(results)
+        let graph_iri = self.get_graph_iri(graph_name);
+        let graph_ref = NamedNodeRef::new(&graph_iri)?;
+
+        if matches!(resource_type, DataType::OWL | DataType::OFN | DataType::OWX) {
+            info!("Exporting graph '{}' as {:?}...", graph_iri, resource_type);
+            let quads_stream = self
+                .session
+                .quads_for_pattern(None, None, None, Some(graph_ref.into()))
+                .await?;
+            return parse_quads_to_format(quads_stream, resource_type).await;
+        }
+
+        if let Some(format) = format_from_resource_type(&resource_type) {
+            info!("Exporting graph '{}' as {:?}...", graph_iri, format);
+            let buf = self
+                .session
+                .dump_graph_to_writer(graph_ref, format, Vec::new())
+                .await
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
+            return Ok(futures::stream::once(async move { Ok(buf) }).boxed());
+        }
+        Err(VOWLGrapherStoreError::from(
+            VOWLGrapherStoreErrorKind::InvalidFileType(format!(
+                "Unsupported output type: {:?}",
+                resource_type
+            )),
+        ))
     }
 
     /// Create a temporary file on the server to upload user input into.
@@ -357,8 +372,8 @@ mod test {
         let mut out = vec![];
         let store = VOWLGrapherStore::default();
         store.insert_file(Path::new(&resource), false).await?;
-        let mut results = parse_stream_to(store.session.stream().await?, DataType::OWL).await?;
-        while let Some(result) = results.next().await {
+        let mut results = store.serialize_stream(DataType::OWL, resource).await?;
+        while let Some(result) = futures::StreamExt::next(&mut results).await {
             out.extend(result?);
         }
 
@@ -371,8 +386,8 @@ mod test {
         let mut out = vec![];
         let store = VOWLGrapherStore::default();
         store.insert_file(Path::new(&resource), false).await?;
-        let mut results = parse_stream_to(store.session.stream().await?, DataType::OWL).await?;
-        while let Some(result) = results.next().await {
+        let mut results = store.serialize_stream(DataType::OWL, resource).await?;
+        while let Some(result) = futures::StreamExt::next(&mut results).await {
             out.extend(result?);
         }
 
@@ -385,8 +400,8 @@ mod test {
         let mut out = vec![];
         let store = VOWLGrapherStore::default();
         store.insert_file(Path::new(&resource), false).await?;
-        let mut results = parse_stream_to(store.session.stream().await?, DataType::OWL).await?;
-        while let Some(result) = results.next().await {
+        let mut results = store.serialize_stream(DataType::OWL, resource).await?;
+        while let Some(result) = futures::StreamExt::next(&mut results).await {
             out.extend(result?);
         }
 
@@ -399,8 +414,8 @@ mod test {
         let mut out = vec![];
         let store = VOWLGrapherStore::default();
         store.insert_file(Path::new(&resource), false).await?;
-        let mut results = parse_stream_to(store.session.stream().await?, DataType::OWL).await?;
-        while let Some(result) = results.next().await {
+        let mut results = store.serialize_stream(DataType::OWL, resource).await?;
+        while let Some(result) = futures::StreamExt::next(&mut results).await {
             out.extend(result?);
         }
 

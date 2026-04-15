@@ -1,16 +1,16 @@
 //! Various utility functions which collectively makes up the parser.
 
 use crate::errors::{VOWLGrapherStoreError, VOWLGrapherStoreErrorKind};
-use futures::{StreamExt, stream::BoxStream};
+use futures::{Stream, StreamExt, stream::BoxStream};
 use horned_owl::{
     io::{rdf::reader::ConcreteRDFOntology, *},
     model::{RcAnnotatedComponent, RcStr},
     ontology::component_mapped::RcComponentMappedOntology,
 };
 use log::info;
+use rdf_fusion::model::GraphName;
 use rdf_fusion::{
     error::LoaderError,
-    execution::results::QuadStream,
     io::{JsonLdProfileSet, RdfFormat, RdfParser, RdfSerializer},
     model::{NamedNodeRef, Quad},
 };
@@ -24,6 +24,15 @@ use std::{
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use vowlgrapher_util::prelude::DataType;
+
+fn to_default_graph_quad(quad: Quad) -> Quad {
+    Quad::new(
+        quad.subject,
+        quad.predicate,
+        quad.object,
+        GraphName::DefaultGraph,
+    )
+}
 
 /// Returns the datatype of the path, if it's supported by the parser.
 pub fn path_type(path: &Path) -> Option<DataType> {
@@ -59,13 +68,25 @@ pub fn format_from_resource_type(resource_type: &DataType) -> Option<RdfFormat> 
     }
 }
 
-/// Serializes a stream into an output type.
-///
-/// Useful for exporting a graph from the database.
-pub async fn parse_stream_to(
-    mut stream: QuadStream,
+/// Converts a stream of quads to the target output format.
+/// Used for OWL/OFN/OWX formats that require horned-owl conversion.
+pub async fn parse_quads_to_format<E>(
+    mut quads_stream: impl Stream<Item = Result<Quad, E>> + Unpin,
     output_type: DataType,
-) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLGrapherStoreError>>, VOWLGrapherStoreError> {
+) -> Result<BoxStream<'static, Result<Vec<u8>, VOWLGrapherStoreError>>, VOWLGrapherStoreError>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    let mut quads = Vec::new();
+    while let Some(result) = futures::stream::StreamExt::next(&mut quads_stream).await {
+        let quad = result.map_err(|_e| {
+            VOWLGrapherStoreError::from(VOWLGrapherStoreErrorKind::InvalidFileType(
+                "Failed to read quad from stream".to_string(),
+            ))
+        })?;
+        quads.push(quad);
+    }
+
     match output_type {
         DataType::OFN | DataType::OWX | DataType::OWL => {
             let (tx, rx) = mpsc::unbounded_channel();
@@ -78,8 +99,9 @@ pub async fn parse_stream_to(
                     )),
                 )?)
                 .for_writer(&mut buf);
-            while let Some(quad) = stream.next().await {
-                serializer.serialize_quad(&quad?)?;
+            for quad in quads {
+                let q = to_default_graph_quad(quad);
+                serializer.serialize_quad(&q)?;
             }
             serializer.finish()?;
 
@@ -88,16 +110,18 @@ pub async fn parse_stream_to(
                 let mut writer = ChannelWriter { sender: tx.clone() };
                 let result = (|| match output_type {
                     DataType::OFN => {
-                        let (ont, prefix): (RcComponentMappedOntology, _) =
-                            ofn::reader::read(&mut reader, ParserConfiguration::default())?;
-                        ofn::writer::write(&mut writer, &ont, Some(&prefix))?;
+                        let (ont, _): (ConcreteRDFOntology<RcStr, RcAnnotatedComponent>, _) =
+                            rdf::reader::read(&mut reader, ParserConfiguration::default())?;
+                        let ont: RcComponentMappedOntology = ont.into();
+                        ofn::writer::write(&mut writer, &ont, None)?;
                         writer.flush()?;
                         Ok(writer)
                     }
                     DataType::OWX => {
-                        let (ont, prefix): (RcComponentMappedOntology, _) =
-                            owx::reader::read(&mut reader, ParserConfiguration::default())?;
-                        owx::writer::write(&mut writer, &ont, Some(&prefix))?;
+                        let (ont, _): (ConcreteRDFOntology<RcStr, RcAnnotatedComponent>, _) =
+                            rdf::reader::read(&mut reader, ParserConfiguration::default())?;
+                        let ont: RcComponentMappedOntology = ont.into();
+                        owx::writer::write(&mut writer, &ont, None)?;
                         writer.flush()?;
                         Ok(writer)
                     }
@@ -124,34 +148,11 @@ pub async fn parse_stream_to(
                 .map(|result| result.map_err(VOWLGrapherStoreError::from))
                 .boxed())
         }
-        _ => {
-            let (tx, rx) = mpsc::unbounded_channel();
-            tokio::task::spawn(async move {
-                let mut writer = ChannelWriter { sender: tx.clone() };
-                let result = async {
-                    let mut serializer =
-                        RdfSerializer::from_format(format_from_resource_type(&output_type).ok_or(
-                            VOWLGrapherStoreErrorKind::InvalidFileType(format!(
-                                "Unsupported output type: {:?}",
-                                output_type
-                            )),
-                        )?)
-                        .for_writer(&mut writer);
-                    while let Some(quad) = stream.next().await {
-                        serializer.serialize_quad(&quad?)?;
-                    }
-                    serializer.finish()?;
-                    Ok::<ChannelWriter, VOWLGrapherStoreError>(writer)
-                };
-
-                if let Err(e) = result.await {
-                    let _ = tx.send(Err(e.into()));
-                }
-            });
-            Ok(UnboundedReceiverStream::new(rx)
-                .map(|result| result.map_err(VOWLGrapherStoreError::from))
-                .boxed())
-        }
+        _ => Err(VOWLGrapherStoreErrorKind::InvalidFileType(format!(
+            "parse_quads_to_format only supports OFN/OWX/OWL, got {:?}",
+            output_type
+        ))
+        .into()),
     }
 }
 
