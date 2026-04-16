@@ -3927,6 +3927,29 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(subject_term_id)
     }
 
+    fn register_property_endpoints(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        property_term_id: usize,
+        edge: &ArcEdge,
+    ) -> Result<(), SerializationError> {
+        data_buffer
+            .property_domain_map
+            .write()?
+            .entry(property_term_id)
+            .or_default()
+            .insert(edge.domain_term_id);
+
+        data_buffer
+            .property_range_map
+            .write()?
+            .entry(property_term_id)
+            .or_default()
+            .insert(edge.range_term_id);
+
+        Ok(())
+    }
+
     #[expect(clippy::too_many_arguments)]
     fn insert_restriction_edge(
         &self,
@@ -4241,6 +4264,8 @@ impl GraphDisplayDataSolutionSerializer {
                     None => existing_edge,
                 };
 
+                self.register_property_endpoints(data_buffer, property_term_id, &edge)?;
+
                 {
                     data_buffer
                         .edge_cardinality_buffer
@@ -4274,6 +4299,8 @@ impl GraphDisplayDataSolutionSerializer {
             restriction_label,
             state.cardinality.clone(),
         )?;
+
+        self.register_property_endpoints(data_buffer, property_term_id, &edge)?;
 
         {
             data_buffer
