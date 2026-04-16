@@ -17,6 +17,7 @@ use crate::{
         util::{PROPERTY_EDGE_TYPES, SYMMETRIC_EDGE_TYPES},
     },
 };
+use log::debug;
 
 pub mod frontend;
 pub mod index;
@@ -316,9 +317,7 @@ impl SerializationDataBuffer {
                         format!("Label not found for term '{}'. Using None", e)
                     }
                 };
-                failed.push(<SerializationError as Into<ErrorRecord>>::into(
-                    SerializationErrorKind::MissingLabel(msg).into(),
-                ));
+                debug!("{msg}");
             }
             iricache.insert(term_id, display_data.elements.len());
             display_data.labels.push(label.flatten());
@@ -426,9 +425,7 @@ impl SerializationDataBuffer {
                             format!("Characteristic not found for term '{}' in iricache", e)
                         }
                     };
-                    failed.push(<SerializationError as Into<ErrorRecord>>::into(
-                        SerializationErrorKind::MisisngCharacteristic(msg).into(),
-                    ));
+                    debug!("{msg}");
                 }
             }
         }

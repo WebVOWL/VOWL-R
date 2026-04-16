@@ -1019,12 +1019,7 @@ impl GraphDisplayDataSolutionSerializer {
                     data_buffer.term_index.get(&term_id)?,
                     new_element
                 );
-                let e = SerializationErrorKind::SerializationWarning(msg.to_string());
-                warn!("{msg}");
-                data_buffer
-                    .failed_buffer
-                    .write()?
-                    .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+                debug!("{msg}");
             }
         }
         Ok(())
@@ -1086,24 +1081,14 @@ impl GraphDisplayDataSolutionSerializer {
                     data_buffer.term_index.get(term_id)?,
                     old_elem
                 );
-                let e = SerializationErrorKind::SerializationWarning(msg.to_string());
-                warn!("{msg}");
-                data_buffer
-                    .failed_buffer
-                    .write()?
-                    .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+                debug!("{msg}");
             }
             None => {
                 let msg = format!(
                     "Cannot upgrade unresolved subject '{}' to DeprecatedClass",
                     data_buffer.term_index.get(term_id)?
                 );
-                let e = SerializationErrorKind::SerializationWarning(msg.to_string());
-                warn!("{msg}");
-                data_buffer
-                    .failed_buffer
-                    .write()?
-                    .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+                debug!("{msg}");
             }
         }
         Ok(())
@@ -1128,12 +1113,7 @@ impl GraphDisplayDataSolutionSerializer {
                 data_buffer.term_index.get(property_term_id)?,
                 new_element
             );
-            let e = SerializationErrorKind::SerializationWarning(msg.to_string());
-            warn!("{msg}");
-            data_buffer
-                .failed_buffer
-                .write()?
-                .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+            debug!("{msg}");
 
             return Ok(());
         };
@@ -1152,12 +1132,7 @@ impl GraphDisplayDataSolutionSerializer {
                 data_buffer.term_index.get(property_term_id)?,
                 old_elem
             );
-            let e = SerializationErrorKind::SerializationWarning(msg.to_string());
-            warn!("{msg}");
-            data_buffer
-                .failed_buffer
-                .write()?
-                .push(<SerializationError as Into<ErrorRecord>>::into(e.into()));
+            debug!("{msg}");
 
             return Ok(());
         }
