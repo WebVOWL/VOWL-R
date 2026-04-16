@@ -6,8 +6,8 @@ use std::{
 use oxrdf::{Term, TermRef};
 
 use crate::{
+    datastructures::{ArcEdge, ArcTerm, ArcTriple},
     errors::{SerializationError, SerializationErrorKind},
-    serializers::{ArcEdge, ArcTerm, ArcTriple},
 };
 
 #[derive(Debug, Default)]
@@ -69,7 +69,7 @@ impl TermIndex {
     /// Returns an error if no term corresponding to the id was found in the index.
     ///
     /// Returns an error if the underlying lock is poisoned when accessed.
-    pub fn get(&self, id: usize) -> Result<Arc<Term>, SerializationError> {
+    pub fn get(&self, id: usize) -> Result<ArcTerm, SerializationError> {
         let term = self
             .int_index
             .read()?

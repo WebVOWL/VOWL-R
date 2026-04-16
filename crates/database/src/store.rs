@@ -17,6 +17,7 @@ use vowlgrapher_parser::parser_util::{
     format_from_resource_type, parse_quads_to_format, parser_from_bytes, parser_from_path,
     path_type,
 };
+use vowlgrapher_serializer::prelude::GraphDisplayDataSolutionSerializer;
 use vowlgrapher_util::prelude::{DataType, ErrorRecord, VOWLGRAPHER_ENVIRONMENT, VOWLGrapherError};
 
 static GLOBAL_STORE: std::sync::OnceLock<Store> = std::sync::OnceLock::new();
@@ -97,13 +98,13 @@ impl VOWLGrapherStore {
                     .await?;
                 Ok((data_buffer, maybe_errors))
             }
-            QueryResults::Boolean(_result) => Err(SerializationErrorKind::UnsupportedQueryType(
+            QueryResults::Boolean(_result) => Err(VOWLGrapherStoreErrorKind::UnsupportedQueryType(
                 "Query stream is not a SELECT query".to_string(),
             )
             .into()),
             QueryResults::Graph(_query_triple_stream) => {
                 // TODO: Implement to support user-defined SPARQL queries
-                Err(SerializationErrorKind::UnsupportedQueryType(
+                Err(VOWLGrapherStoreErrorKind::UnsupportedQueryType(
                     "Query stream is not a SELECT query".to_string(),
                 )
                 .into())

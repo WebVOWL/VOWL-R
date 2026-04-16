@@ -46,6 +46,10 @@ pub enum VOWLGrapherStoreErrorKind {
     JoinError(Box<JoinError>),
     /// An error related to (database) storage operations (reads, writes...).
     StorageError(Box<StorageError>),
+    /// An error raised if the query type is not supported.
+    ///
+    /// Some types are: SELECT, ASK, CONSTRUCT.
+    UnsupportedQueryType(String),
     /// Seralizer error
     SerializerError(Box<SerializerError>),
 }
@@ -193,6 +197,7 @@ impl std::error::Error for VOWLGrapherStoreError {
             VOWLGrapherStoreErrorKind::QueryEvaluationError(e) => Some(e),
             VOWLGrapherStoreErrorKind::JoinError(e) => Some(e),
             VOWLGrapherStoreErrorKind::StorageError(e) => Some(e),
+            VOWLGrapherStoreErrorKind::UnsupportedQueryType(_) => None,
             VOWLGrapherStoreErrorKind::SerializerError(e) => Some(e),
         }
     }
@@ -244,6 +249,9 @@ impl From<VOWLGrapherStoreError> for ErrorRecord {
                 ErrorSeverity::Critical,
                 ErrorType::Database,
             ),
+            VOWLGrapherStoreErrorKind::UnsupportedQueryType(e) => {
+                (e, ErrorSeverity::Critical, ErrorType::Database)
+            }
             VOWLGrapherStoreErrorKind::SerializerError(serializer_error) => (
                 serializer_error.to_string(),
                 ErrorSeverity::Critical,

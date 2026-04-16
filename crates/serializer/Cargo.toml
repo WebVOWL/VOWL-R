@@ -1,10 +1,9 @@
 [package]
     authors.workspace=true
-    description="Database code for VOWLGrapher"
+    description="Serializer code for VOWLGrapher"
     edition.workspace=true
-    keywords=["rdf", "graph", "sparql", "datafusion"]
     license-file.workspace=true
-    name="vowlgrapher-database"
+    name="vowlgrapher-serializer"
     readme="README.md"
     repository.workspace=true
     version.workspace=true
@@ -20,26 +19,14 @@
     fluent-uri="0.4.1"
     futures={workspace=true}
     grapher={workspace=true}
-    horned-owl={workspace=true}
     log={workspace=true}
-    memchr="2.7.6"
     oxrdf="0.3.1"
     rayon.workspace=true
     rdf-fusion={workspace=true}
-    reqwest={version="0.12.24", features=["stream"]}
     smallvec={workspace=true}
     strum.workspace=true
-    tempfile="3.10"
-    test-generator="^0.3"
     tokio={workspace=true}
     unescape_zero_copy="2.3.1"
     vowlgrapher-parser={path="../parser"}
-    vowlgrapher-serializer={path="../serializer"}
     vowlgrapher-sparql-queries={path="../sparql_queries"}
     vowlgrapher-util={path="../util"}
-    # strum.workspace=true
-
-[dev-dependencies]
-    sovs-parser = { git = "https://github.com/WebVOWL/sovs-parser", version = "0.1.0", features = ["test-suite"] }
-    grapher={workspace=true, features = ["test-utils"]}
-    anyhow = "1.0.102"

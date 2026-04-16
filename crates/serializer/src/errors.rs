@@ -70,15 +70,17 @@ pub enum SerializationErrorKind {
     IriParseError(String, Box<IriParseError>),
     /// An error raised during `BlankNode` IDs validation.
     BlankNodeParseError(String, Box<BlankNodeIdParseError>),
-    /// An error raised if the query type is not supported.
-    ///
-    /// Some types are: SELECT, ASK, CONSTRUCT.
-    UnsupportedQueryType(String),
     /// Errors related to the term index.
     TermIndexError(String),
     /// An error raised if a lock becomes poisoned, e.g., if a thread panics
     /// while holding a write lock.
     LockPoisoned(String),
+    /// A warning emitted when a triple is not supported by the serializer.
+    ///
+    /// String #1 is the triple, translated from term ids to terms.
+    ///
+    /// String #2 is the error message.
+    SerialiationNotSupported(String, String),
     /// An error raised if the threadpool fails to build.
     ThreadPoolFailure(String),
 }
@@ -86,6 +88,12 @@ pub enum SerializationErrorKind {
 impl From<SerializationErrorKind> for VOWLGrapherError {
     fn from(value: SerializationErrorKind) -> Self {
         <SerializationError as Into<Self>>::into(value.into())
+    }
+}
+
+impl From<SerializationErrorKind> for ErrorRecord {
+    fn from(value: SerializationErrorKind) -> Self {
+        <SerializationError as Into<ErrorRecord>>::into(value.into())
     }
 }
 
@@ -159,7 +167,8 @@ impl From<SerializationError> for ErrorRecord {
             SerializationErrorKind::SerializationFailedTriple(triple, e) => {
                 (format!("{e}:\n{triple}"), ErrorSeverity::Critical)
             }
-            SerializationErrorKind::SerializationWarningTriple(triple, e) => {
+            SerializationErrorKind::SerializationWarningTriple(triple, e)
+            | SerializationErrorKind::SerialiationNotSupported(triple, e) => {
                 (format!("{e}:\n{triple}"), ErrorSeverity::Warning)
             }
             SerializationErrorKind::IriParseError(iri, iri_parse_error) => (
@@ -171,7 +180,6 @@ impl From<SerializationError> for ErrorRecord {
                 ErrorSeverity::Error,
             ),
             SerializationErrorKind::SerializationFailed(e)
-            | SerializationErrorKind::UnsupportedQueryType(e)
             | SerializationErrorKind::TermIndexError(e)
             | SerializationErrorKind::LockPoisoned(e)
             | SerializationErrorKind::ThreadPoolFailure(e) => (e, ErrorSeverity::Critical),

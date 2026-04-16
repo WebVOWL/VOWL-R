@@ -8234,6 +8234,7 @@ dependencies = [
  "tokio",
  "unescape_zero_copy",
  "vowlgrapher-parser",
+ "vowlgrapher-serializer",
  "vowlgrapher-sparql-queries",
  "vowlgrapher-util",
 ]
@@ -8252,6 +8253,27 @@ dependencies = [
  "strum 0.27.2",
  "tokio",
  "tokio-stream",
+ "vowlgrapher-util",
+]
+
+[[package]]
+name = "vowlgrapher-serializer"
+version = "0.1.0-alpha"
+dependencies = [
+ "env_logger",
+ "fluent-uri",
+ "futures",
+ "grapher",
+ "log",
+ "oxrdf",
+ "rayon",
+ "rdf-fusion",
+ "smallvec",
+ "strum 0.27.2",
+ "tokio",
+ "unescape_zero_copy",
+ "vowlgrapher-parser",
+ "vowlgrapher-sparql-queries",
  "vowlgrapher-util",
 ]
 

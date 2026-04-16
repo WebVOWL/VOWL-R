@@ -2,22 +2,19 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
-    hash::{Hash, Hasher},
     mem::take,
     sync::{Arc, RwLock},
 };
 
 use grapher::prelude::{Characteristic, ElementType, GraphDisplayData, OwlEdge, OwlType};
-use oxrdf::Term;
 use vowlgrapher_util::prelude::{ErrorRecord, VOWLGrapherError};
 
-use crate::{
-    errors::{SerializationError, SerializationErrorKind},
-    serializers::{
-        index::TermIndex,
-        metadata::GraphMetadata,
-        util::{PROPERTY_EDGE_TYPES, SYMMETRIC_EDGE_TYPES},
-    },
+use crate::datastructures::{
+    ArcEdge, ArcLockRestrictionState, ArcTriple,
+    graph_metadata_buffer::GraphMetadataBuffer,
+    index::TermIndex,
+    metadata::GraphMetadata,
+    util::{PROPERTY_EDGE_TYPES, SYMMETRIC_EDGE_TYPES},
 };
 use log::debug;
 
@@ -206,19 +203,19 @@ pub struct SerializationDataBuffer {
     /// Maps terms to integer ids and vice-versa.
     ///
     /// Reduces memory usage and allocations.
-    term_index: TermIndex,
+    pub term_index: TermIndex,
     /// Stores all resolved node elements.
     ///
     /// The key is a term's corresponding id.
     ///
     /// The value is a term's type, e.g., "Owl Class".
-    node_element_buffer: Arc<RwLock<HashMap<usize, ElementType>>>,
+    pub node_element_buffer: Arc<RwLock<HashMap<usize, ElementType>>>,
     /// Stores all resolved edge elements.
     ///
     /// The key is a term's corresponding id.
     ///
     /// The value is a term's type, e.g., "Owl Class".
-    edge_element_buffer: Arc<RwLock<HashMap<usize, ElementType>>>,
+    pub edge_element_buffer: Arc<RwLock<HashMap<usize, ElementType>>>,
     /// Keeps track of edges that should point to a node different
     /// from their definition.
     ///
@@ -227,27 +224,27 @@ pub struct SerializationDataBuffer {
     /// The key is the range term of an edge triple, translated to that term's corresponding id.
     ///
     /// The value is the domain term of an edge triple, translated to that term's corresponding id.
-    edge_redirection: Arc<RwLock<HashMap<usize, usize>>>,
+    pub edge_redirection: Arc<RwLock<HashMap<usize, usize>>>,
     /// Maps a term's corresponding id to the set of edges that include it.
     ///
     /// Used to remap edges when nodes are merged.
-    edges_include_map: Arc<RwLock<HashMap<usize, HashSet<ArcEdge>>>>,
+    pub edges_include_map: Arc<RwLock<HashMap<usize, HashSet<ArcEdge>>>>,
     /// Canonical synthesized owl:Thing node per resolved domain.
     ///
     /// This lets structurally-defined ranges like complement/union expressions
     /// collapse to the same owl:Thing node that direct owl:Thing ranges use.
-    anchor_thing_map: Arc<RwLock<HashMap<usize, usize>>>,
+    pub anchor_thing_map: Arc<RwLock<HashMap<usize, usize>>>,
     /// Partially assembled restriction metadata keyed by the restriction node.
-    restriction_buffer: Arc<RwLock<HashMap<usize, ArcLockRestrictionState>>>,
+    pub restriction_buffer: Arc<RwLock<HashMap<usize, ArcLockRestrictionState>>>,
     #[expect(clippy::type_complexity)]
     /// Final display cardinalities keyed by the concrete edge that will be emitted.
-    edge_cardinality_buffer: Arc<RwLock<HashMap<ArcEdge, (String, Option<String>)>>>,
+    pub edge_cardinality_buffer: Arc<RwLock<HashMap<ArcEdge, (String, Option<String>)>>>,
     /// Stores the edges of a property, keyed by the property's corresponding id.
-    property_edge_map: Arc<RwLock<HashMap<usize, ArcEdge>>>,
+    pub property_edge_map: Arc<RwLock<HashMap<usize, ArcEdge>>>,
     /// Stores the domains of a property, keyed by the property's corresponding id.
-    property_domain_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
+    pub property_domain_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
     /// Stores the ranges of a property, keyed by the property's corresponding id.
-    property_range_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
+    pub property_range_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
     /// Stores declared domains of a property, keyed by the property's corresponding id.
     ///
     /// This is used by owl:inverseOf resolution and should contain only query-level
@@ -259,31 +256,31 @@ pub struct SerializationDataBuffer {
     /// domain/range evidence, never endpoints inferred from rendered property edges.
     declared_property_range_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
     /// Stores labels of terms, keyed by the term's corresponding id.
-    label_buffer: Arc<RwLock<HashMap<usize, Option<String>>>>,
+    pub label_buffer: Arc<RwLock<HashMap<usize, Option<String>>>>,
     /// Stores labels of edges, keyed by the edge it belongs to.
-    edge_label_buffer: Arc<RwLock<HashMap<ArcEdge, Option<String>>>>,
+    pub edge_label_buffer: Arc<RwLock<HashMap<ArcEdge, Option<String>>>>,
     /// Edges in graph, to avoid duplicates
-    edge_buffer: Arc<RwLock<HashSet<ArcEdge>>>,
+    pub edge_buffer: Arc<RwLock<HashSet<ArcEdge>>>,
     /// Maps from an edge to its characteristic.
-    edge_characteristics: Arc<RwLock<HashMap<ArcEdge, HashSet<Characteristic>>>>,
+    pub edge_characteristics: Arc<RwLock<HashMap<ArcEdge, HashSet<Characteristic>>>>,
     /// Maps from a node term's corresponding id to its characteristics.
-    node_characteristics: Arc<RwLock<HashMap<usize, HashSet<Characteristic>>>>,
+    pub node_characteristics: Arc<RwLock<HashMap<usize, HashSet<Characteristic>>>>,
     /// Maps from node term's corresponding id to its number of individuals.
-    individual_count_buffer: Arc<RwLock<HashMap<usize, u32>>>,
+    pub individual_count_buffer: Arc<RwLock<HashMap<usize, u32>>>,
     /// Maps from a class term id to the set of canonical individual term ids already counted for it.
     counted_individual_members: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
     /// Stores unresolved triples.
     ///
     /// This is a mapping of a term's corresponding id to the set of triples referencing it.
-    unknown_buffer: Arc<RwLock<HashMap<usize, HashSet<ArcTriple>>>>,
+    pub unknown_buffer: Arc<RwLock<HashMap<usize, HashSet<ArcTriple>>>>,
     /// Stores errors encountered during serialization.
-    failed_buffer: Arc<RwLock<Vec<ErrorRecord>>>,
+    pub failed_buffer: Arc<RwLock<Vec<ErrorRecord>>>,
     /// The base IRI of the document.
     ///
     /// For instance: `http://purl.obolibrary.org/obo/envo.owl`
-    document_base: Arc<RwLock<Option<Arc<String>>>>,
+    pub document_base: Arc<RwLock<Option<Arc<String>>>>,
     /// Data not visualized in the graph.
-    metadata: GraphMetadata,
+    pub metadata: GraphMetadataBuffer,
 }
 impl SerializationDataBuffer {
     pub fn new() -> Self {

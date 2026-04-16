@@ -4,7 +4,7 @@ use std::{
 };
 
 #[derive(Default)]
-pub struct GraphMetadata {
+pub struct GraphMetadataBuffer {
     /// Stores comments of terms, keyed by the term's corresponding id.
     ///
     /// rdfs:comment
@@ -54,7 +54,7 @@ pub struct GraphMetadata {
     pub ontology_property: Arc<RwLock<String>>,
 }
 
-impl GraphMetadata {
+impl GraphMetadataBuffer {
     pub fn new() -> Self {
         Self::default()
     }
