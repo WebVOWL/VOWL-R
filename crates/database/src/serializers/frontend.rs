@@ -1704,6 +1704,8 @@ impl GraphDisplayDataSolutionSerializer {
         &self,
         data_buffer: &mut SerializationDataBuffer,
     ) -> Result<(), SerializationError> {
+        self.retry_restrictions(data_buffer)?;
+
         let mut pending = {
             let mut unknown_buffer = data_buffer.unknown_buffer.write()?;
             take(&mut *unknown_buffer)
@@ -4147,13 +4149,11 @@ impl GraphDisplayDataSolutionSerializer {
                     }
                     _ => match self.resolve(data_buffer, *filler_id)? {
                         Some(resolved) => resolved,
-                        None => {
-                            debug!(
-                                "Deferring restriction for term '{}': cannot resolve filler",
-                                data_buffer.term_index.get(restriction_term_id)?
-                            );
-                            return Ok(SerializationStatus::Deferred);
-                        }
+                        None => self.materialize_named_value_target(
+                            data_buffer,
+                            &property_term_id,
+                            filler_id,
+                        )?,
                     },
                 }
             } else {
