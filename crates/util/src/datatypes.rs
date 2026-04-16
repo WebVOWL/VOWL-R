@@ -14,6 +14,7 @@ use std::path::Path;
     strum::Display,
     strum::EnumIter,
     PartialEq,
+    Eq,
 )]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum DataType {
@@ -90,11 +91,10 @@ pub enum DataType {
 impl DataType {
     // Fixed string literals called by reference as to not allocate new memory each time the function is called
     /// Get mime type of the data.
-    pub fn mime_type(&self) -> &'static str {
+    pub const fn mime_type(&self) -> &'static str {
         match self {
-            Self::OWL => "application/owl+xml",
             Self::OFN => "text/ofn",
-            Self::OWX => "application/owl+xml",
+            Self::OWL | Self::OWX => "application/owl+xml",
             Self::TTL => "text/turtle",
             Self::RDF => "application/rdf+xml",
             Self::NTriples => "application/n-triples",
@@ -111,33 +111,33 @@ impl DataType {
     }
 
     /// Returns the extension of the data.
-    pub fn extension(&self) -> &'static str {
+    pub const fn extension(&self) -> &'static str {
         match self {
-            DataType::OWL => "owl",
-            DataType::OFN => "ofn",
-            DataType::OWX => "owx",
-            DataType::TTL => "ttl",
-            DataType::RDF => "rdf",
-            DataType::NTriples => "nt",
-            DataType::NQuads => "nq",
-            DataType::TriG => "trig",
-            DataType::JsonLd => "jsonld",
-            DataType::N3 => "n3",
-            DataType::SPARQLJSON => "srj",
-            DataType::SPARQLXML => "srx",
-            DataType::SPARQLCSV => "src",
-            DataType::SPARQLTSV => "tsv",
-            DataType::UNKNOWN => "txt",
+            Self::OWL => "owl",
+            Self::OFN => "ofn",
+            Self::OWX => "owx",
+            Self::TTL => "ttl",
+            Self::RDF => "rdf",
+            Self::NTriples => "nt",
+            Self::NQuads => "nq",
+            Self::TriG => "trig",
+            Self::JsonLd => "jsonld",
+            Self::N3 => "n3",
+            Self::SPARQLJSON => "srj",
+            Self::SPARQLXML => "srx",
+            Self::SPARQLCSV => "src",
+            Self::SPARQLTSV => "tsv",
+            Self::UNKNOWN => "txt",
         }
     }
 }
 
 impl From<&Path> for DataType {
     fn from(value: &Path) -> Self {
-        match value.extension().and_then(|os| os.to_str()) {
-            Some(ext) => ext.into(),
-            None => Self::UNKNOWN,
-        }
+        value
+            .extension()
+            .and_then(|os| os.to_str())
+            .map_or(Self::UNKNOWN, std::convert::Into::into)
     }
 }
 

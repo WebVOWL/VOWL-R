@@ -63,7 +63,7 @@ pub struct VOWLGrapherStoreError {
 
 impl From<VOWLGrapherStoreError> for io::Error {
     fn from(val: VOWLGrapherStoreError) -> Self {
-        io::Error::other(val.to_string())
+        Self::other(val.to_string())
     }
 }
 impl From<String> for VOWLGrapherStoreError {
@@ -182,13 +182,13 @@ impl std::fmt::Display for VOWLGrapherStoreError {
 impl std::error::Error for VOWLGrapherStoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.inner {
-            VOWLGrapherStoreErrorKind::InvalidFileType(_) => None,
-            VOWLGrapherStoreErrorKind::IncorrectFileExtension(_) => None,
             VOWLGrapherStoreErrorKind::HornedError(e) => Some(e),
             VOWLGrapherStoreErrorKind::IOError(e) => Some(e),
             VOWLGrapherStoreErrorKind::IriParseError(e) => Some(e),
-            VOWLGrapherStoreErrorKind::ImportResolutionError(_) => None,
-            VOWLGrapherStoreErrorKind::RemoteFetchError(_) => None,
+            VOWLGrapherStoreErrorKind::InvalidFileType(_)
+            | VOWLGrapherStoreErrorKind::IncorrectFileExtension(_)
+            | VOWLGrapherStoreErrorKind::ImportResolutionError(_)
+            | VOWLGrapherStoreErrorKind::RemoteFetchError(_) => None,
             VOWLGrapherStoreErrorKind::LoaderError(e) => Some(e),
             VOWLGrapherStoreErrorKind::QueryEvaluationError(e) => Some(e),
             VOWLGrapherStoreErrorKind::JoinError(e) => Some(e),
@@ -204,7 +204,9 @@ impl From<VOWLGrapherStoreError> for ErrorRecord {
             VOWLGrapherStoreErrorKind::InvalidFileType(e) => {
                 (e, ErrorSeverity::Critical, ErrorType::Parser)
             }
-            VOWLGrapherStoreErrorKind::IncorrectFileExtension(e) => {
+            VOWLGrapherStoreErrorKind::IncorrectFileExtension(e)
+            | VOWLGrapherStoreErrorKind::ImportResolutionError(e)
+            | VOWLGrapherStoreErrorKind::RemoteFetchError(e) => {
                 (e, ErrorSeverity::Warning, ErrorType::Parser)
             }
             VOWLGrapherStoreErrorKind::HornedError(horned_error) => (
@@ -222,12 +224,6 @@ impl From<VOWLGrapherStoreError> for ErrorRecord {
                 ErrorSeverity::Critical,
                 ErrorType::Parser,
             ),
-            VOWLGrapherStoreErrorKind::ImportResolutionError(e) => {
-                (e, ErrorSeverity::Warning, ErrorType::Parser)
-            }
-            VOWLGrapherStoreErrorKind::RemoteFetchError(e) => {
-                (e, ErrorSeverity::Warning, ErrorType::Parser)
-            }
             VOWLGrapherStoreErrorKind::LoaderError(loader_error) => (
                 loader_error.to_string(),
                 ErrorSeverity::Critical,
@@ -254,7 +250,8 @@ impl From<VOWLGrapherStoreError> for ErrorRecord {
                 ErrorType::Parser,
             ),
         };
-        ErrorRecord::new(
+
+        Self::new(
             value.timestamp,
             severity,
             error_type,
@@ -267,6 +264,6 @@ impl From<VOWLGrapherStoreError> for ErrorRecord {
 
 impl From<VOWLGrapherStoreError> for VOWLGrapherError {
     fn from(value: VOWLGrapherStoreError) -> Self {
-        <ErrorRecord as Into<VOWLGrapherError>>::into(value.into())
+        <ErrorRecord as Into<Self>>::into(value.into())
     }
 }

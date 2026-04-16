@@ -3,7 +3,7 @@
 use crate::errors::{VOWLGrapherStoreError, VOWLGrapherStoreErrorKind};
 use futures::{Stream, StreamExt, stream::BoxStream};
 use horned_owl::{
-    io::{rdf::reader::ConcreteRDFOntology, *},
+    io::{ParserConfiguration, ofn, owx, rdf, rdf::reader::ConcreteRDFOntology},
     model::{RcAnnotatedComponent, RcStr},
     ontology::component_mapped::RcComponentMappedOntology,
 };
@@ -54,7 +54,6 @@ pub fn path_type(path: &Path) -> Option<DataType> {
 /// Returns the parser format for the resource type, if it's supported by the parser.
 pub fn format_from_resource_type(resource_type: &DataType) -> Option<RdfFormat> {
     match resource_type {
-        DataType::RDF => Some(RdfFormat::RdfXml),
         DataType::TTL => Some(RdfFormat::Turtle),
         DataType::NTriples => Some(RdfFormat::NTriples),
         DataType::NQuads => Some(RdfFormat::NQuads),
@@ -63,13 +62,16 @@ pub fn format_from_resource_type(resource_type: &DataType) -> Option<RdfFormat> 
             profile: JsonLdProfileSet::default(),
         }),
         DataType::N3 => Some(RdfFormat::N3),
-        DataType::OWL => Some(RdfFormat::RdfXml),
+        DataType::RDF | DataType::OWL => Some(RdfFormat::RdfXml),
         _ => None,
     }
 }
 
 /// Converts a stream of quads to the target output format.
 /// Used for OWL/OFN/OWX formats that require horned-owl conversion.
+///
+/// # Errors
+/// Returns an error if the parser fails to parse the input.
 pub async fn parse_quads_to_format<E>(
     mut quads_stream: impl Stream<Item = Result<Quad, E>> + Unpin,
     output_type: DataType,
@@ -94,8 +96,7 @@ where
             let mut serializer =
                 RdfSerializer::from_format(format_from_resource_type(&DataType::OWL).ok_or(
                     VOWLGrapherStoreErrorKind::InvalidFileType(format!(
-                        "Unsupported output type: {:?}",
-                        output_type
+                        "Unsupported output type: {output_type:?}"
                     )),
                 )?)
                 .for_writer(&mut buf);
@@ -134,8 +135,7 @@ where
                     }
                     _ => Err(VOWLGrapherStoreError::from(
                         VOWLGrapherStoreErrorKind::InvalidFileType(format!(
-                            "Unsupported output type: {:?}",
-                            output_type
+                            "Unsupported output type: {output_type:?}"
                         )),
                     )),
                 })();
@@ -149,14 +149,16 @@ where
                 .boxed())
         }
         _ => Err(VOWLGrapherStoreErrorKind::InvalidFileType(format!(
-            "parse_quads_to_format only supports OFN/OWX/OWL, got {:?}",
-            output_type
+            "parse_quads_to_format only supports OFN/OWX/OWL, got {output_type:?}"
         ))
         .into()),
     }
 }
 
 /// Returns the quads from parsing the file at the path.
+///
+/// # Errors
+/// Returns an error if the parser fails to parse the input.
 pub fn parser_from_path(
     path: &Path,
     format: DataType,
@@ -169,16 +171,23 @@ pub fn parser_from_path(
 }
 
 /// Returns the quads from parsing the reader, reading from the path.
+///
+/// # Errors
+/// Returns an error if the parser fails to parse the input.
 pub fn parser_from_reader(
     mut reader: impl BufRead,
     format: DataType,
     lenient: bool,
     graph_iri: &str,
 ) -> Result<Vec<Quad>, VOWLGrapherStoreError> {
-    let make_parser = |fmt| {
-        let graph_node = NamedNodeRef::new(graph_iri).expect("Failed to parse graph IRI in parser");
+    let make_parser = |fmt| -> Result<RdfParser, VOWLGrapherStoreError> {
+        let graph_node = NamedNodeRef::new(graph_iri)?;
         let parser = RdfParser::from_format(fmt).with_default_graph(graph_node);
-        if lenient { parser.lenient() } else { parser }
+        if lenient {
+            Ok(parser.lenient())
+        } else {
+            Ok(parser)
+        }
     };
 
     let collect_quads =
@@ -220,7 +229,7 @@ pub fn parser_from_reader(
                     .as_secs_f32()
             );
 
-            collect_quads(make_parser(RdfFormat::RdfXml), &buf)
+            collect_quads(make_parser(RdfFormat::RdfXml)?, &buf)
         }
         DataType::OWX => {
             info!("Parsing OWX input...");
@@ -254,19 +263,19 @@ pub fn parser_from_reader(
                     .as_secs_f32()
             );
 
-            collect_quads(make_parser(RdfFormat::RdfXml), &buf)
+            collect_quads(make_parser(RdfFormat::RdfXml)?, &buf)
         }
         DataType::OWL | DataType::RDF => {
             let mut input = Vec::new();
             reader.read_to_end(&mut input)?;
-            collect_quads(make_parser(RdfFormat::RdfXml), &input)
+            collect_quads(make_parser(RdfFormat::RdfXml)?, &input)
         }
-        f @ DataType::TTL
-        | f @ DataType::NTriples
-        | f @ DataType::NQuads
-        | f @ DataType::TriG
-        | f @ DataType::JsonLd
-        | f @ DataType::N3 => {
+        f @ (DataType::TTL
+        | DataType::NTriples
+        | DataType::NQuads
+        | DataType::TriG
+        | DataType::JsonLd
+        | DataType::N3) => {
             let mut input = Vec::new();
             reader.read_to_end(&mut input)?;
             let format = format_from_resource_type(&f).ok_or_else(|| {
@@ -274,7 +283,7 @@ pub fn parser_from_reader(
                     "could not convert {f:?} to format"
                 ))
             })?;
-            collect_quads(make_parser(format), &input)
+            collect_quads(make_parser(format)?, &input)
         }
         _ => Err(VOWLGrapherStoreErrorKind::InvalidFileType(format!(
             "Unsupported parser: {}",
@@ -285,6 +294,9 @@ pub fn parser_from_reader(
 }
 
 /// in-memory parsing
+///
+/// # Errors
+/// Returns an error if parsing fails.
 pub fn parser_from_bytes(
     bytes: &[u8],
     format: DataType,
@@ -315,6 +327,11 @@ impl Write for ChannelWriter {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    clippy::future_not_send,
+    reason = "test are allowed to fail"
+)]
 #[cfg(test)]
 mod test {
     use std::path::PathBuf;
@@ -359,18 +376,24 @@ mod test {
                 warn!("skipping {:?}", resource.as_ref());
                 continue;
             }
-            let dt = path_type(resource.as_ref()).unwrap();
+            let dt = path_type(resource.as_ref()).expect("getting path type should succeed");
             let quads =
                 parser_from_path(resource.as_ref(), dt, false, "urn:vowlgrapher:test_graph")
-                    .unwrap();
+                    .expect("parsing should succeed");
             let _ = session.extend(quads).await;
             assert_ne!(
-                session.len().await.unwrap(),
+                session
+                    .len()
+                    .await
+                    .expect("getting store size should succeed"),
                 0,
                 "Expected non-zero quads for: {:?}",
                 resource.as_ref()
             );
-            session.clear().await.unwrap();
+            session
+                .clear()
+                .await
+                .expect("clearing the store should succeed");
         }
     }
 
@@ -403,7 +426,7 @@ mod test {
                         .to_owned()
                         .join(file_name)
                         .canonicalize()
-                        .unwrap(),
+                        .expect("making path should succeed"),
                 );
             }
         }

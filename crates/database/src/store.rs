@@ -52,7 +52,7 @@ pub struct VOWLGrapherStore {
 
 impl VOWLGrapherStore {
     /// Create a new database instance.
-    pub fn new(session: Store) -> Self {
+    pub const fn new(session: Store) -> Self {
         Self {
             session,
             user_id: None,
@@ -60,7 +60,7 @@ impl VOWLGrapherStore {
         }
     }
 
-    /// Create a new database instance with user_id.
+    /// Create a new database instance with a user id.
     pub fn new_for_user(user_id: String) -> Self {
         let session = GLOBAL_STORE.get_or_init(Store::default).clone();
         Self {
@@ -70,38 +70,36 @@ impl VOWLGrapherStore {
         }
     }
 
-    /// Update graph name (4th element in quad) with a compination of user_id and name of graph.
-    pub fn get_graph_iri(&self, filename: &str) -> String {
-        let filename = filename
-            .replace(" ", "_")
-            .replace("(", "")
-            .replace(")", "")
-            .replace("[", "")
-            .replace("]", "");
+    /// Returns the unique graph name for a given filename and user.
+    pub fn get_graph_name(&self, filename: &str) -> String {
+        let filename = filename.replace(' ', "_").replace(['(', ')', '[', ']'], "");
 
-        if let Some(ref uid) = self.user_id {
-            format!("urn:vowlgrapher:user:{}:graph:{}", uid, filename)
-        } else {
-            format!("urn:vowlgrapher:graph:{}", filename)
-        }
+        self.user_id.as_ref().map_or_else(
+            || format!("urn:vowlgrapher:graph:{filename}"),
+            |uid| format!("urn:vowlgrapher:user:{uid}:graph:{filename}"),
+        )
     }
 
     /// Executes a SPARQL query and serializes the result.
     ///
     /// This method tries to continue serializing despite errors.
     /// As such, the `Ok` value contains non-fatal errors encountered during serialization.
+    ///
+    /// # Errors
+    /// Returns an error if the query or serialization encountered a fatal problem.
     pub async fn query(
         &self,
         query: String,
         graph_name: Option<String>,
     ) -> Result<(GraphDisplayData, Option<VOWLGrapherError>), VOWLGrapherError> {
-        debug!("Querying with graph_name: {:#?}", graph_name);
-        let user_query = if let Some(name) = graph_name {
-            let graph_iri = self.get_graph_iri(&name);
-            query.replace("{GRAPH_IRI}", &graph_iri)
-        } else {
-            query.replace("GRAPH <{GRAPH_IRI}>", "")
-        };
+        debug!("Querying with graph_name: {graph_name:#?}");
+        let user_query = graph_name.map_or_else(
+            || query.replace("GRAPH <{GRAPH_IRI}>", ""),
+            |name| {
+                let graph_name = self.get_graph_name(&name);
+                query.replace("{GRAPH_IRI}", &graph_name)
+            },
+        );
 
         let solution_serializer = GraphDisplayDataSolutionSerializer::new();
         let query_stream = self
@@ -137,22 +135,25 @@ impl VOWLGrapherStore {
     /// Inserts a file into the store.
     ///
     /// Files are automatically parsed.
+    ///
+    /// # Errors
+    /// Returns an error if the file fails to parse or fails to be inserted into the store.
     pub async fn insert_file(
         &self,
         fs: &Path,
         lenient: bool,
     ) -> Result<Option<VOWLGrapherError>, VOWLGrapherStoreError> {
-        let graph_iri = self.get_graph_iri(&fs.to_string_lossy());
+        let graph_name = self.get_graph_name(&fs.to_string_lossy());
         let format = path_type(fs).ok_or_else(|| {
             VOWLGrapherStoreErrorKind::InvalidFileType("Unknown file extension".into())
         })?;
 
-        let root_quads = parser_from_path(fs, format, lenient, &graph_iri)?;
+        let root_quads = parser_from_path(fs, format, lenient, &graph_name)?;
         let (quads, warnings) = self
-            .flatten_import_closure(root_quads, &graph_iri, lenient, ImportBase::from_path(fs))
+            .flatten_import_closure(root_quads, &graph_name, lenient, ImportBase::from_path(fs))
             .await?;
 
-        info!("Loading graph '{}' into database...", graph_iri);
+        info!("Loading graph '{graph_name}' into database...");
         let start_time = Instant::now();
         self.session.extend(quads).await?;
         info!(
@@ -171,20 +172,20 @@ impl VOWLGrapherStore {
         &self,
         path: &Path,
         lenient: bool,
-        graph_iri: &str,
+        graph_name: &str,
     ) -> Result<(Vec<Quad>, DataType), VOWLGrapherStoreError> {
         let dtype = path.into();
-        match dtype {
-            DataType::UNKNOWN => self.try_load_fallback(path, lenient, None, graph_iri).await,
-            _ => {
-                let result =
-                    std::panic::catch_unwind(|| parser_from_path(path, dtype, lenient, graph_iri));
-                match result {
-                    Ok(Ok(quads)) => Ok((quads, dtype)),
-                    _ => {
-                        self.try_load_fallback(path, lenient, Some(dtype), graph_iri)
-                            .await
-                    }
+        if dtype == DataType::UNKNOWN {
+            self.try_load_fallback(path, lenient, None, graph_name)
+                .await
+        } else {
+            let result =
+                std::panic::catch_unwind(|| parser_from_path(path, dtype, lenient, graph_name));
+            match result {
+                Ok(Ok(quads)) => Ok((quads, dtype)),
+                _ => {
+                    self.try_load_fallback(path, lenient, Some(dtype), graph_name)
+                        .await
                 }
             }
         }
@@ -195,7 +196,7 @@ impl VOWLGrapherStore {
         path: &Path,
         lenient: bool,
         skip_format: Option<DataType>,
-        graph_iri: &str,
+        graph_name: &str,
     ) -> Result<(Vec<Quad>, DataType), VOWLGrapherStoreError> {
         for format in DataType::iter().filter(|f| *f != DataType::UNKNOWN) {
             if Some(format) == skip_format {
@@ -203,7 +204,7 @@ impl VOWLGrapherStore {
             }
 
             let result =
-                std::panic::catch_unwind(|| parser_from_path(path, format, lenient, graph_iri));
+                std::panic::catch_unwind(|| parser_from_path(path, format, lenient, graph_name));
             if let Ok(Ok(quads)) = result {
                 info!("Parsed file as {:?}", format);
                 return Ok((quads, format));
@@ -262,11 +263,11 @@ impl VOWLGrapherStore {
             "Store size before export: {}",
             self.session.len().await.unwrap_or(0)
         );
-        let graph_iri = self.get_graph_iri(graph_name);
-        let graph_ref = NamedNodeRef::new(&graph_iri)?;
+        let graph_name = self.get_graph_name(graph_name);
+        let graph_ref = NamedNodeRef::new(&graph_name)?;
 
         if matches!(resource_type, DataType::OWL | DataType::OFN | DataType::OWX) {
-            info!("Exporting graph '{}' as {:?}...", graph_iri, resource_type);
+            info!("Exporting graph '{}' as {:?}...", graph_name, resource_type);
             let quads_stream = self
                 .session
                 .quads_for_pattern(None, None, None, Some(graph_ref.into()))
@@ -275,7 +276,7 @@ impl VOWLGrapherStore {
         }
 
         if let Some(format) = format_from_resource_type(&resource_type) {
-            info!("Exporting graph '{}' as {:?}...", graph_iri, format);
+            info!("Exporting graph '{}' as {:?}...", graph_name, format);
             let buf = self
                 .session
                 .dump_graph_to_writer(graph_ref, format, Vec::new())
@@ -325,7 +326,7 @@ impl VOWLGrapherStore {
         &mut self,
         filename: &str,
     ) -> Result<(DataType, Option<VOWLGrapherError>), VOWLGrapherStoreError> {
-        let graph_iri = self.get_graph_iri(filename);
+        let graph_name = self.get_graph_name(filename);
         let path = if let Some(file) = &mut self.upload_handle {
             std::io::Write::flush(file)?;
             file.path().to_path_buf()
@@ -336,17 +337,17 @@ impl VOWLGrapherStore {
             .into());
         };
 
-        let (root_quads, loaded_format) = self.load_file(&path, false, &graph_iri).await?;
+        let (root_quads, loaded_format) = self.load_file(&path, false, &graph_name).await?;
         let (quads, warnings) = self
             .flatten_import_closure(
                 root_quads,
-                &graph_iri,
+                &graph_name,
                 false,
                 ImportBase::from_user_input(filename),
             )
             .await?;
 
-        info!("Loading graph '{}' into database...", graph_iri);
+        info!("Loading graph '{graph_name}' into database...");
         let start_time = Instant::now();
 
         self.session.extend(quads).await?;
@@ -463,7 +464,7 @@ async fn extract_import_iris(quads: &[Quad]) -> Result<Vec<String>, VOWLGrapherS
 
     let results = tmp
         .query(
-            r#"
+            r"
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
         SELECT DISTINCT ?import
         WHERE {
@@ -472,7 +473,7 @@ async fn extract_import_iris(quads: &[Quad]) -> Result<Vec<String>, VOWLGrapherS
                 FILTER(isIRI(?import))
             }
         }
-        "#,
+        ",
         )
         .await?;
 
@@ -565,7 +566,7 @@ impl ImportBase {
 }
 
 #[cfg(test)]
-#[allow(unused_must_use)]
+#[expect(unused_must_use, clippy::expect_used)]
 mod test {
     use super::*;
     use test_generator::test_resources;
@@ -576,12 +577,15 @@ mod test {
         store
             .insert_file(Path::new(&resource), false)
             .await
-            .unwrap();
+            .expect("inserting file should succeed");
         assert_ne!(
-            store.session.len().await.unwrap(),
+            store
+                .session
+                .len()
+                .await
+                .expect("getting store length should succeed"),
             0,
-            "Expected non-zero quads for: {}",
-            resource
+            "Expected non-zero quads for: {resource}"
         );
         store.session.clear().await?;
         Ok(())
@@ -592,12 +596,15 @@ mod test {
         store
             .insert_file(Path::new(&resource), false)
             .await
-            .unwrap();
+            .expect("inserting file should succeed");
         assert_ne!(
-            store.session.len().await.unwrap(),
+            store
+                .session
+                .len()
+                .await
+                .expect("getting store length should succeed"),
             0,
-            "Expected non-zero quads for: {}",
-            resource
+            "Expected non-zero quads for: {resource}"
         );
         store.session.clear().await?;
         Ok(())
@@ -608,12 +615,15 @@ mod test {
         store
             .insert_file(Path::new(&resource), false)
             .await
-            .unwrap();
+            .expect("inserting file should succeed");
         assert_ne!(
-            store.session.len().await.unwrap(),
+            store
+                .session
+                .len()
+                .await
+                .expect("getting store length should succeed"),
             0,
-            "Expected non-zero quads for: {}",
-            resource
+            "Expected non-zero quads for: {resource}"
         );
         store.session.clear().await?;
         Ok(())
@@ -624,12 +634,15 @@ mod test {
         store
             .insert_file(Path::new(&resource), false)
             .await
-            .unwrap();
+            .expect("inserting file should succeed");
         assert_ne!(
-            store.session.len().await.unwrap(),
+            store
+                .session
+                .len()
+                .await
+                .expect("getting store length should succeed"),
             0,
-            "Expected non-zero quads for: {}",
-            resource
+            "Expected non-zero quads for: {resource}"
         );
         store.session.clear().await?;
         Ok(())
@@ -645,7 +658,7 @@ mod test {
             out.extend(result?);
         }
 
-        assert_ne!(out.len(), 0, "Expected non-zero quads for: {}", resource);
+        assert_ne!(out.len(), 0, "Expected non-zero quads for: {resource}");
         store.session.clear().await?;
         Ok(())
     }
@@ -663,7 +676,7 @@ mod test {
             out.extend(result?);
         }
 
-        assert_ne!(out.len(), 0, "Expected non-zero quads for: {}", resource);
+        assert_ne!(out.len(), 0, "Expected non-zero quads for: {resource}");
         store.session.clear().await?;
         Ok(())
     }
@@ -681,7 +694,7 @@ mod test {
             out.extend(result?);
         }
 
-        assert_ne!(out.len(), 0, "Expected non-zero quads for: {}", resource);
+        assert_ne!(out.len(), 0, "Expected non-zero quads for: {resource}");
         store.session.clear().await?;
         Ok(())
     }
@@ -698,7 +711,7 @@ mod test {
         {
             out.extend(result?);
         }
-        assert_ne!(out.len(), 0, "Expected non-zero quads for: {}", resource);
+        assert_ne!(out.len(), 0, "Expected non-zero quads for: {resource}");
         store.session.clear().await?;
         Ok(())
     }

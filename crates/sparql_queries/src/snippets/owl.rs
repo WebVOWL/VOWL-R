@@ -36,15 +36,15 @@ impl SparqlSnippet for OwlNode {
                 }"#
             }
             Self::Class => {
-                r#"{
+                r"{
                 # owl:Class
                 ?id a owl:Class .
                 FILTER(isIRI(?id))
                 BIND(owl:Class AS ?nodeType)
-                }"#
+                }"
             }
             Self::Complement => {
-                r#"{
+                r"{
                 # owl:complementOf
                 {
                     ?id owl:complementOf ?target .
@@ -63,13 +63,13 @@ impl SparqlSnippet for OwlNode {
                     BIND(?named AS ?id)
                 }
                 BIND(owl:complementOf AS ?nodeType)
-                }"#
+                }"
             }
             Self::DeprecatedClass => {
-                r#"{
+                r"{
                 ?id a owl:DeprecatedClass .
                 BIND(owl:DeprecatedClass AS ?nodeType)
-                }"#
+                }"
             }
             Self::ExternalClass => {
                 // Not handled here as externals uses identical
@@ -77,13 +77,13 @@ impl SparqlSnippet for OwlNode {
                 ""
             }
             Self::EquivalentClass => {
-                r#"{
+                r"{
                 ?id owl:equivalentClass ?target
                 BIND(owl:equivalentClass AS ?nodeType)
-                }"#
+                }"
             }
             Self::DisjointUnion => {
-                r#"{
+                r"{
                 # owl:disjointUnionOf
                 {
                     ?id owl:disjointUnionOf/rdf:rest*/rdf:first ?target .
@@ -104,10 +104,10 @@ impl SparqlSnippet for OwlNode {
                     BIND(?named AS ?id)
                 }
                 BIND(owl:disjointUnionOf AS ?nodeType)
-                }"#
+                }"
             }
             Self::IntersectionOf => {
-                r#"{
+                r"{
                 # owl:intersectionOf
                 {
                     ?id owl:intersectionOf/rdf:rest*/rdf:first ?target .
@@ -128,16 +128,16 @@ impl SparqlSnippet for OwlNode {
                     BIND(?named AS ?id)
                 }
                 BIND(owl:intersectionOf AS ?nodeType)
-                }"#
+                }"
             }
             Self::Thing => {
-                r#"{
+                r"{
                 ?id a owl:Thing .
                 BIND(owl:Thing AS ?nodeType)
-                }"#
+                }"
             }
             Self::UnionOf => {
-                r#"{
+                r"{
                 # owl:unionOf
                 {
                     ?id owl:unionOf/rdf:rest*/rdf:first ?target .
@@ -158,19 +158,19 @@ impl SparqlSnippet for OwlNode {
                     BIND(?named AS ?id)
                 }
                 BIND(owl:unionOf AS ?nodeType)
-                }"#
+                }"
             }
             Self::Real => {
-                r#"{
+                r"{
                 ?id a owl:real .
                 BIND(owl:real AS ?nodeType)
-                }"#
+                }"
             }
             Self::Rational => {
-                r#"{
+                r"{
                 ?id a owl:rational .
                 BIND(owl:rational AS ?nodeType)
-                }"#
+                }"
             }
         }
     }
@@ -180,22 +180,22 @@ impl SparqlSnippet for OwlEdge {
     fn snippet(self) -> &'static str {
         match self {
             Self::DatatypeProperty => {
-                r#"{
+                r"{
                 ?id a owl:DatatypeProperty .
                 BIND(owl:DatatypeProperty AS ?nodeType)
-                }"#
+                }"
             }
             Self::DisjointWith => {
-                r#"{
+                r"{
                 ?id owl:disjointWith ?target
                 BIND(owl:disjointWith AS ?nodeType)
-                }"#
+                }"
             }
             Self::DeprecatedProperty => {
-                r#"{
+                r"{
                 ?id a owl:DeprecatedProperty .
                 BIND(owl:DeprecatedProperty AS ?nodeType)
-                }"#
+                }"
             }
             Self::ExternalProperty => {
                 // Not handled here as externals uses identical
@@ -203,19 +203,19 @@ impl SparqlSnippet for OwlEdge {
                 ""
             }
             Self::InverseOf => {
-                r#"{
+                r"{
                 ?id owl:inverseOf ?target .
                 BIND(owl:inverseOf AS ?nodeType)
-                }"#
+                }"
             }
             Self::ObjectProperty => {
-                r#"{
+                r"{
                 ?id a owl:ObjectProperty
                 BIND(owl:ObjectProperty AS ?nodeType)
-                }"#
+                }"
             }
             Self::ValuesFrom => {
-                r#"{
+                r"{
                 # Cardinalities
                 { ?id owl:onProperty ?target . BIND(owl:onProperty AS ?nodeType) }
                 UNION
@@ -242,7 +242,7 @@ impl SparqlSnippet for OwlEdge {
                 { ?id owl:onClass ?target . BIND(owl:onClass AS ?nodeType) }
                 UNION
                 { ?id owl:onDataRange ?target . BIND(owl:onDataRange AS ?nodeType) }
-                }"#
+                }"
             }
         }
     }

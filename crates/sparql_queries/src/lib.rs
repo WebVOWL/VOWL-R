@@ -1,4 +1,4 @@
-//! Shared SPARQL query strings for VOWLGrapher.
+//! Shared SPARQL query strings for `VOWLGrapher`.
 //!
 //! This crate is intentionally dependency-free and WASM-safe so it can be used by:
 //! - the SSR/server side (via `vowlgrapher-database`)
@@ -32,7 +32,7 @@ pub mod prelude {
     ];
 
     // PERF: this could maybe be a thread_local instead?
-    /// The default query contains all classes and properties supported by VOWLGrapher.
+    /// The default query contains all classes and properties supported by `VOWLGrapher`.
     pub static DEFAULT_QUERY: LazyLock<String> = LazyLock::new(|| {
         let snippets = [
             snippets_from_enum::<OwlNode>(),
@@ -45,6 +45,6 @@ pub mod prelude {
         ]
         .concat();
 
-        QueryAssembler::assemble_query(DEFAULT_PREFIXES.into(), snippets)
+        QueryAssembler::assemble_query(&DEFAULT_PREFIXES.into(), &snippets)
     });
 }

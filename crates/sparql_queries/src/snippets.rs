@@ -14,7 +14,7 @@ pub fn snippets_from_enum<T>() -> Vec<&'static str>
 where
     T: IntoEnumIterator + SparqlSnippet,
 {
-    T::iter().map(|item| item.snippet()).collect::<Vec<_>>()
+    T::iter().map(SparqlSnippet::snippet).collect::<Vec<_>>()
 }
 
 pub trait SparqlSnippet {

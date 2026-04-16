@@ -23,9 +23,9 @@ impl QueryAssembler {
     /// An example of a prefix is: `owl: <http://www.w3.org/2002/07/owl#>`.
     ///
     /// `snippets` is the collection of SPARQL snippets to use.
-    pub fn assemble_query(prefixes: Vec<&str>, snippets: Vec<&'static str>) -> String {
+    pub fn assemble_query(prefixes: &Vec<&str>, snippets: &Vec<&'static str>) -> String {
         format!(
-            r#"
+            r"
             {}
             SELECT ?id ?nodeType ?target ?label
             WHERE {{
@@ -40,7 +40,7 @@ impl QueryAssembler {
                 }}
             }}
             ORDER BY ?weight
-        "#,
+        ",
             prefixes
                 .iter()
                 .map(|item| format!("PREFIX {item}"))
@@ -48,7 +48,7 @@ impl QueryAssembler {
                 .join("\n"),
             snippets
                 .iter()
-                .map(|item| item.to_string())
+                .map(std::string::ToString::to_string)
                 .filter(|item| !item.is_empty())
                 .collect::<Vec<_>>()
                 .join(" UNION "),
@@ -71,6 +71,6 @@ impl QueryAssembler {
         } else {
             snippets.extend(GENERAL_SNIPPETS);
         }
-        Self::assemble_query(DEFAULT_PREFIXES.into(), snippets)
+        Self::assemble_query(&DEFAULT_PREFIXES.into(), &snippets)
     }
 }

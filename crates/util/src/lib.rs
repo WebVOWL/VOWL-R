@@ -1,4 +1,4 @@
-//! Utility code used by the entire VOWLGrapher workspace
+//! Utility code used by the entire `VOWLGrapher` workspace
 
 mod datatypes;
 mod error_handler;

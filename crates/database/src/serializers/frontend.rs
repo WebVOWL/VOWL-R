@@ -2261,9 +2261,8 @@ impl GraphDisplayDataSolutionSerializer {
 
                         if edge.is_some() {
                             return Ok(SerializationStatus::Serialized);
-                        } else {
-                            return Ok(SerializationStatus::Deferred);
                         }
+                        return Ok(SerializationStatus::Deferred);
                     }
 
                     //TODO: OWL1
@@ -4175,16 +4174,14 @@ impl GraphDisplayDataSolutionSerializer {
             .copied()
         {
             Some(
-                edge_type @ ElementType::Owl(OwlType::Edge(
+                edge_type @ (ElementType::Owl(OwlType::Edge(
                     OwlEdge::ObjectProperty
                     | OwlEdge::DatatypeProperty
                     | OwlEdge::DeprecatedProperty
                     | OwlEdge::ExternalProperty,
-                )),
-            )
-            | Some(edge_type @ ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty))) => {
-                Ok(edge_type)
-            }
+                ))
+                | ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty))),
+            ) => Ok(edge_type),
             Some(_) | None => Ok(ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty))),
         }
     }
@@ -4540,10 +4537,14 @@ impl GraphDisplayDataSolutionSerializer {
                 .copied()
         };
         match property_element_type {
-            Some(ElementType::Owl(OwlType::Edge(OwlEdge::ObjectProperty)))
-            | Some(ElementType::Owl(OwlType::Edge(OwlEdge::ExternalProperty)))
-            | Some(ElementType::Owl(OwlType::Edge(OwlEdge::DeprecatedProperty)))
-            | Some(ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty))) => {
+            Some(
+                ElementType::Owl(OwlType::Edge(
+                    OwlEdge::ObjectProperty
+                    | OwlEdge::ExternalProperty
+                    | OwlEdge::DeprecatedProperty,
+                ))
+                | ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty)),
+            ) => {
                 let target_has_label = {
                     data_buffer
                         .label_buffer
