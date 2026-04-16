@@ -7747,6 +7747,7 @@ dependencies = [
  "test-generator",
  "tokio",
  "unescape_zero_copy",
+ "uuid",
  "vowlr-parser",
  "vowlr-sparql-queries",
  "vowlr-util",

@@ -73,12 +73,19 @@ impl VOWLRStore {
         graph_name: Option<String>,
     ) -> Result<(GraphDisplayData, Option<VOWLRError>), VOWLRError> {
         debug!("Querying with graph_name: {:#?}", graph_name);
+
         let user_query = if let Some(name) = graph_name {
-            let graph_iri = self.get_graph_iri(&name);
+            let graph_iri = if name.starts_with("urn:vowlr") {
+                name
+            } else {
+                self.get_graph_iri(&name)
+            };
             query.replace("{GRAPH_IRI}", &graph_iri)
         } else {
-            query.replace("GRAPH <{{GRAPH_IRI}}>", "")
+            query.replace("GRAPH <{{GRAPH_IRI}}> {", "").replace("} # end graph", "")
         };
+
+        debug!("EXECUTING SPARQL: {}", user_query);
 
         let solution_serializer = GraphDisplayDataSolutionSerializer::new();
         let query_stream = self
@@ -100,12 +107,56 @@ impl VOWLRStore {
                 "Query stream is not a SELECT query".to_string(),
             )
             .into()),
-            QueryResults::Graph(_query_triple_stream) => {
+            QueryResults::Graph(mut _query_triple_stream) => {
                 // TODO: Implement to support user-defined SPARQL queries
-                Err(SerializationErrorKind::UnsupportedQueryType(
-                    "Query stream is not a SELECT query".to_string(),
-                )
-                .into())
+                let temp_id = uuid::Uuid::new_v4().to_string();
+                let temp_graph_iri = format!("urn:vowlr:temp:{}", temp_id);
+                debug!("Creating temporary view graph: {}", temp_graph_iri);
+                
+                let mut buffer = Vec::new();
+
+                while let Some(maybe_triple) = _query_triple_stream.next().await {
+                    let t = maybe_triple.map_err(|e| {
+                        <VOWLRStoreError as Into<VOWLRError>>::into(VOWLRStoreError::from(e))
+                    })?;
+                    let line = format!("{} {} {} .\n", t.subject, t.predicate, t.object);
+                    buffer.extend_from_slice(line.as_bytes());
+                }
+
+                let start_time = Instant::now();
+                let cursor = std::io::Cursor::new(buffer);
+
+                let prepared = vowlr_parser::parser_util::parser_from_reader(
+                    cursor, 
+                    Path::new("temp.nt"), 
+                    false, 
+                    &temp_graph_iri
+                ).map_err(|e| <VOWLRStoreError as Into<VOWLRError>>::into(e))?;
+
+                self.session
+                    .load_from_reader(prepared.parser, prepared.input.as_slice())
+                    .await
+                    .map_err(|e| <VOWLRStoreError as Into<VOWLRError>>::into(VOWLRStoreError::from(e)))?;
+
+                debug!(
+                    "Loaded {} quad in {} s",
+                    temp_graph_iri,
+                    Instant::now()
+                        .checked_duration_since(start_time)
+                        .unwrap_or(Duration::new(0, 0))
+                        .as_secs_f32()
+                );
+
+                let default_query_logic = vowlr_sparql_queries::prelude::DEFAULT_QUERY.clone();
+
+                let (display_data, errors) = Box::pin(self.query(default_query_logic, Some(temp_graph_iri))).await?;
+
+
+                // Err(SerializationErrorKind::UnsupportedQueryType(
+                //     "Query stream is not a SELECT query".to_string(),
+                // )
+                // .into())
+                Ok((display_data, errors))
             }
         }
     }

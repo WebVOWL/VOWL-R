@@ -33,3 +33,4 @@
     vowlr-parser={path="../parser"}
     vowlr-sparql-queries={path="../sparql_queries"}
     vowlr-util={path="../util"}
+    uuid = {version = "1.0", features = ["v4"]}
