@@ -356,7 +356,7 @@ impl std::fmt::Display for VOWLGrapherError {
         }
 
         let mut buffer = String::new();
-        for record in self.records.iter() {
+        for record in &self.records {
             writeln!(buffer, "{}", record)?;
         }
         write!(f, "{buffer}")

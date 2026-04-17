@@ -10,6 +10,10 @@ use std::path::Path;
 use vowlgrapher_database::prelude::VOWLGrapherStore;
 use vowlgrapher_sparql_queries::prelude::DEFAULT_QUERY;
 
+#[expect(
+    clippy::expect_used,
+    reason = "code not running in production is allowed to panic"
+)]
 #[tokio::main]
 async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -24,14 +28,17 @@ async fn main() {
             .await
             .expect("Error inserting file");
 
-        let (_data, _) = store.query(DEFAULT_QUERY.to_string(), None).await.unwrap();
+        let (_data, _) = store
+            .query(DEFAULT_QUERY.to_string(), None)
+            .await
+            .expect("querying the store should succeed");
 
         // Uncomment to enable rendering
         // EVENT_DISPATCHER
         //     .rend_write_chan
         //     .send(RenderEvent::LoadGraph(_data))
-        //     .unwrap();
+        //     .expect("sending events should succeed");
     }
     // Uncomment to enable rendering
-    // run().unwrap();
+    // run().expect("rendering graph should succeed");
 }

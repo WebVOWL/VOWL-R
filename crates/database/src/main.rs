@@ -9,6 +9,10 @@ use vowlgrapher_database::prelude::VOWLGrapherStore;
 use vowlgrapher_sparql_queries::prelude::DEFAULT_QUERY;
 
 /// Entrypoint
+#[expect(
+    clippy::expect_used,
+    reason = "code not running in production is allowed to panic"
+)]
 #[tokio::main]
 pub async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -23,5 +27,8 @@ pub async fn main() {
         .insert_file(path, false)
         .await
         .expect("Error inserting file");
-    store.query(DEFAULT_QUERY.to_string(), None).await.unwrap();
+    store
+        .query(DEFAULT_QUERY.to_string(), None)
+        .await
+        .expect("querying the store should succeed");
 }

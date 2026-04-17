@@ -5,7 +5,7 @@ use leptos::prelude::*;
 use leptos::server_fn::ServerFnError;
 use leptos::server_fn::codec::{MultipartData, MultipartFormData, StreamingText, TextStream};
 use leptos::task::spawn_local;
-use log::info;
+use log::{debug, info, trace};
 #[cfg(feature = "server")]
 use reqwest::Client;
 use std::cell::RefCell;
@@ -119,7 +119,7 @@ pub async fn handle_local(
         progress::reset(&name);
         debug!("Resetting progress");
 
-        session.start_upload(&name).await?;
+        session.start_upload(&name)?;
 
         dtype = Path::new(&name).into();
 
@@ -135,7 +135,7 @@ pub async fn handle_local(
                 .into());
             }
 
-            session.upload_chunk(&chunk).await?;
+            session.upload_chunk(&chunk)?;
             progress::add_chunk(&name, len).await;
         }
 
@@ -198,7 +198,7 @@ pub async fn handle_remote(
 
     let progress_key = url.clone();
     progress::reset(&progress_key);
-    session.start_upload(&url).await?;
+    session.start_upload(&url)?;
 
     let mut total = 0;
     let dtype = Path::new(&url).into();
@@ -209,7 +209,7 @@ pub async fn handle_remote(
             chunk_result.map_err(|e| ServerFnError::new(format!("Error reading chunk: {e}")))?;
 
         total += chunk.len();
-        session.upload_chunk(&chunk).await?;
+        session.upload_chunk(&chunk)?;
         progress::add_chunk(&progress_key, chunk.len()).await;
     }
     progress::remove(&progress_key);
@@ -267,7 +267,7 @@ pub async fn handle_sparql(
 
     let progress_key = format!("sparql-{endpoint}");
     progress::reset(&progress_key);
-    session.start_upload(&progress_key).await?;
+    session.start_upload(&progress_key)?;
 
     let mut total = 0;
     let mut stream = resp.bytes_stream();
@@ -276,7 +276,7 @@ pub async fn handle_sparql(
             chunk_result.map_err(|e| ServerFnError::new(format!("Error reading chunk: {e}")))?;
 
         total += chunk.len();
-        session.upload_chunk(&chunk).await?;
+        session.upload_chunk(&chunk)?;
         progress::add_chunk(&progress_key, chunk.len()).await;
     }
 
