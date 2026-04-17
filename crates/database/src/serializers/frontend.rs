@@ -1314,6 +1314,28 @@ impl GraphDisplayDataSolutionSerializer {
             }
         }
 
+        {
+            let mut declared_property_domain_map =
+                data_buffer.declared_property_domain_map.write()?;
+            if let Some(domains) = declared_property_domain_map.remove(old_term_id) {
+                declared_property_domain_map
+                    .entry(*new_term_id)
+                    .or_default()
+                    .extend(domains);
+            }
+        }
+
+        {
+            let mut declared_property_range_map =
+                data_buffer.declared_property_range_map.write()?;
+            if let Some(ranges) = declared_property_range_map.remove(old_term_id) {
+                declared_property_range_map
+                    .entry(*new_term_id)
+                    .or_default()
+                    .extend(ranges);
+            }
+        }
+
         self.redirect_iri(data_buffer, *old_term_id, *new_term_id)?;
         Ok(())
     }
@@ -1344,6 +1366,35 @@ impl GraphDisplayDataSolutionSerializer {
             )) => self.get_or_create_anchor_thing(data_buffer, opposite_term_id),
             _ => Ok(*endpoint_term_id),
         }
+    }
+
+    fn is_inverse_fallback_term_id(
+        &self,
+        data_buffer: &SerializationDataBuffer,
+        term_id: usize,
+    ) -> Result<bool, SerializationError> {
+        let resolved_term_id = self.follow_redirection(data_buffer, term_id)?;
+        let term = data_buffer.term_index.get(&resolved_term_id)?;
+
+        if is_query_fallback_endpoint(&term) {
+            return Ok(true);
+        }
+
+        if !is_synthetic(&term) {
+            return Ok(false);
+        }
+
+        let node_type = data_buffer
+            .node_element_buffer
+            .read()?
+            .get(&resolved_term_id)
+            .copied();
+
+        Ok(matches!(
+            node_type,
+            Some(ElementType::Owl(OwlType::Node(OwlNode::Thing)))
+                | Some(ElementType::Rdfs(RdfsType::Node(RdfsNode::Literal)))
+        ))
     }
 
     fn is_preferred_inverse_endpoint(
@@ -1449,16 +1500,16 @@ impl GraphDisplayDataSolutionSerializer {
         property_term_id: &usize,
     ) -> Result<Option<(usize, usize)>, SerializationError> {
         let domain = {
-            let property_domain_map = data_buffer.property_domain_map.read()?;
-            match property_domain_map.get(property_term_id) {
+            let declared_property_domain_map = data_buffer.declared_property_domain_map.read()?;
+            match declared_property_domain_map.get(property_term_id) {
                 Some(domains) => self.select_property_endpoint(data_buffer, domains)?,
                 None => None,
             }
         };
 
         let range = {
-            let property_range_map = data_buffer.property_range_map.read()?;
-            match property_range_map.get(property_term_id) {
+            let declared_property_range_map = data_buffer.declared_property_range_map.read()?;
+            match declared_property_range_map.get(property_term_id) {
                 Some(ranges) => self.select_property_endpoint(data_buffer, ranges)?,
                 None => None,
             }
@@ -1533,7 +1584,7 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(SerializationStatus::Serialized);
         }
 
-        let (left_subject, left_object) =
+        let (left_subject_raw, left_object_raw) =
             match self.inverse_edge_endpoints(data_buffer, &left_property)? {
                 Some(endpoints) => endpoints,
                 None => {
@@ -1542,7 +1593,7 @@ impl GraphDisplayDataSolutionSerializer {
                 }
             };
 
-        let (right_subject, right_object) =
+        let (right_subject_raw, right_object_raw) =
             match self.inverse_edge_endpoints(data_buffer, &right_property)? {
                 Some(endpoints) => endpoints,
                 None => {
@@ -1550,6 +1601,36 @@ impl GraphDisplayDataSolutionSerializer {
                     return Ok(SerializationStatus::Deferred);
                 }
             };
+
+        let left_subject_is_fallback =
+            self.is_inverse_fallback_term_id(data_buffer, left_subject_raw)?;
+        let left_object_is_fallback =
+            self.is_inverse_fallback_term_id(data_buffer, left_object_raw)?;
+        let right_subject_is_fallback =
+            self.is_inverse_fallback_term_id(data_buffer, right_subject_raw)?;
+        let right_object_is_fallback =
+            self.is_inverse_fallback_term_id(data_buffer, right_object_raw)?;
+
+        let left_subject = if left_subject_is_fallback && !right_object_is_fallback {
+            right_object_raw
+        } else {
+            left_subject_raw
+        };
+        let left_object = if left_object_is_fallback && !right_subject_is_fallback {
+            right_subject_raw
+        } else {
+            left_object_raw
+        };
+        let right_subject = if right_subject_is_fallback && !left_object_is_fallback {
+            left_object_raw
+        } else {
+            right_subject_raw
+        };
+        let right_object = if right_object_is_fallback && !left_subject_is_fallback {
+            left_subject_raw
+        } else {
+            right_object_raw
+        };
 
         let compatible = left_subject == right_object && left_object == right_subject;
         if !compatible {
@@ -3344,6 +3425,12 @@ impl GraphDisplayDataSolutionSerializer {
                                                     .or_default()
                                                     .insert(edge.range_term_id);
                                             }
+                                            self.register_declared_property_endpoints(
+                                                data_buffer,
+                                                edge_triple_predicate_term_id,
+                                                edge.domain_term_id,
+                                                edge.range_term_id,
+                                            )?;
                                         }
                                     }
                                     None => {
@@ -3713,39 +3800,6 @@ impl GraphDisplayDataSolutionSerializer {
         Ok(data_buffer.edge_buffer.read()?.contains(&candidate))
     }
 
-    fn individual_count_literal(
-        data_buffer: &SerializationDataBuffer,
-        triple: &ArcTriple,
-    ) -> Result<u32, SerializationError> {
-        let Some(object_term_id) = triple.object_term_id else {
-            return Err(SerializationErrorKind::MissingObject(
-                data_buffer.term_index.display_triple(triple)?,
-                "NamedIndividual count triple is missing a target".to_string(),
-            )
-            .into());
-        };
-
-        let object_term = data_buffer.term_index.get(&object_term_id)?;
-        match object_term.as_ref() {
-            Term::Literal(literal) => match literal.value().parse::<u32>() {
-                Ok(val) => Ok(val),
-                Err(e) => Err(SerializationErrorKind::SerializationFailedTriple(
-                    data_buffer.term_index.display_triple(triple)?,
-                    format!(
-                        "Expected individual count literal, got '{}': {}",
-                        literal.value(),
-                        e
-                    ),
-                ))?,
-            },
-            other => Err(SerializationErrorKind::SerializationFailedTriple(
-                data_buffer.term_index.display_triple(triple)?,
-                format!("Expected individual count literal, got '{other}'"),
-            )
-            .into()),
-        }
-    }
-
     fn is_consumed_restriction(
         data_buffer: &SerializationDataBuffer,
         restriction_term_id: &usize,
@@ -4022,6 +4076,30 @@ impl GraphDisplayDataSolutionSerializer {
             .insert(subject_term_id, Some(literal.value().to_string()));
 
         Ok(subject_term_id)
+    }
+
+    fn register_declared_property_endpoints(
+        &self,
+        data_buffer: &mut SerializationDataBuffer,
+        property_term_id: usize,
+        domain_term_id: usize,
+        range_term_id: usize,
+    ) -> Result<(), SerializationError> {
+        data_buffer
+            .declared_property_domain_map
+            .write()?
+            .entry(property_term_id)
+            .or_default()
+            .insert(domain_term_id);
+
+        data_buffer
+            .declared_property_range_map
+            .write()?
+            .entry(property_term_id)
+            .or_default()
+            .insert(range_term_id);
+
+        Ok(())
     }
 
     fn register_property_endpoints(

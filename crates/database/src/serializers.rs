@@ -248,6 +248,16 @@ pub struct SerializationDataBuffer {
     property_domain_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
     /// Stores the ranges of a property, keyed by the property's corresponding id.
     property_range_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
+    /// Stores declared domains of a property, keyed by the property's corresponding id.
+    ///
+    /// This is used by owl:inverseOf resolution and should contain only query-level
+    /// domain/range evidence, never endpoints inferred from rendered property edges.
+    declared_property_domain_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
+    /// Stores declared ranges of a property, keyed by the property's corresponding id.
+    ///
+    /// This is used by owl:inverseOf resolution and should contain only query-level
+    /// domain/range evidence, never endpoints inferred from rendered property edges.
+    declared_property_range_map: Arc<RwLock<HashMap<usize, HashSet<usize>>>>,
     /// Stores labels of terms, keyed by the term's corresponding id.
     label_buffer: Arc<RwLock<HashMap<usize, Option<String>>>>,
     /// Stores labels of edges, keyed by the edge it belongs to.
