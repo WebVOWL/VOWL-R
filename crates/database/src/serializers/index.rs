@@ -153,8 +153,7 @@ impl TermIndex {
             String::new()
         };
         Ok(format!(
-            "Triple{{ {} - {} - {} }}",
-            subject, predicate, object
+            "Triple{{ {subject} - {predicate} - {object} }}"
         ))
     }
 
