@@ -326,7 +326,7 @@ impl SerializationDataBuffer {
         let mut node_element_buffer = self.node_element_buffer.write()?;
         for (term_id, element) in take(&mut *node_element_buffer) {
             let label = label_buffer.remove(&term_id);
-            if label.is_none() && !self.term_index.is_blank_node(&term_id)? {
+            if label.is_none() && !self.term_index.is_blank_node(term_id)? {
                 let msg = match self.term_index.get(term_id) {
                     Ok(term) => {
                         format!("Label not found for term '{term}'. Using None")

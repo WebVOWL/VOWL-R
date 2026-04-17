@@ -87,11 +87,11 @@ impl TermIndex {
     ///
     /// # Errors
     /// Returns an error if the underlying lock is poisoned when accessed.
-    pub fn is_named_node(&self, id: &usize) -> Result<bool, SerializationError> {
+    pub fn is_named_node(&self, id: usize) -> Result<bool, SerializationError> {
         let result = self
             .int_index
             .read()?
-            .get(id)
+            .get(&id)
             .is_some_and(|term| term.is_named_node());
         Ok(result)
     }
@@ -100,11 +100,11 @@ impl TermIndex {
     ///
     /// # Errors
     /// Returns an error if the underlying lock is poisoned when accessed.
-    pub fn is_blank_node(&self, id: &usize) -> Result<bool, SerializationError> {
+    pub fn is_blank_node(&self, id: usize) -> Result<bool, SerializationError> {
         let result = self
             .int_index
             .read()?
-            .get(id)
+            .get(&id)
             .is_some_and(|term| term.is_blank_node());
         Ok(result)
     }
@@ -114,11 +114,11 @@ impl TermIndex {
     ///
     /// # Errors
     /// Returns an error if the underlying lock is poisoned when accessed.
-    pub fn is_literal(&self, id: &usize) -> Result<bool, SerializationError> {
+    pub fn is_literal(&self, id: usize) -> Result<bool, SerializationError> {
         let result = self
             .int_index
             .read()?
-            .get(id)
+            .get(&id)
             .is_some_and(|term| term.is_literal());
         Ok(result)
     }
@@ -127,8 +127,8 @@ impl TermIndex {
     ///
     /// # Errors
     /// Returns an error if the underlying lock is poisoned when accessed.
-    pub fn is_literal_truthy(&self, id: &usize) -> Result<bool, SerializationError> {
-        let result = self.int_index.read()?.get(id).is_some_and(
+    pub fn is_literal_truthy(&self, id: usize) -> Result<bool, SerializationError> {
+        let result = self.int_index.read()?.get(&id).is_some_and(
             |term| matches!(term.as_ref().as_ref(), TermRef::Literal(lit) if lit.value() == "true"),
         );
 
@@ -152,9 +152,7 @@ impl TermIndex {
         } else {
             String::new()
         };
-        Ok(format!(
-            "Triple{{ {subject} - {predicate} - {object} }}"
-        ))
+        Ok(format!("Triple{{ {subject} - {predicate} - {object} }}"))
     }
 
     /// Returns a pretty-printed version of an edge with term ids translated to
