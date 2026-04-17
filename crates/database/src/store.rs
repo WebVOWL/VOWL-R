@@ -25,20 +25,18 @@ static RESOLVE_IMPORTS: std::sync::LazyLock<bool> =
     std::sync::LazyLock::new(|| parse_bool_env("VOWLGRAPHER_RESOLVE_IMPORTS", true));
 
 fn parse_bool_env(key: &str, default: bool) -> bool {
-    match var(key) {
-        Ok(value) => match value.trim().to_ascii_lowercase().as_str() {
+    var(key).map_or(default, |value| {
+        match value.trim().to_ascii_lowercase().as_str() {
             "1" | "true" | "yes" | "on" => true,
             "0" | "false" | "no" | "off" => false,
             other => {
                 warn!(
-                    "Failed to parse value '{}' for environment variable {}. Using default '{}'",
-                    other, key, default
+                    "Failed to parse value '{other}' for environment variable {key}. Using default '{default}'"
                 );
                 default
             }
-        },
-        Err(_) => default,
-    }
+        }
+    })
 }
 
 /// The graph database.
@@ -221,8 +219,7 @@ impl VOWLGrapherStore {
         .into())
     }
 
-    async fn load_bytes_with_fallback(
-        &self,
+    fn load_bytes_with_fallback(
         bytes: &[u8],
         hinted_format: DataType,
         lenient: bool,
@@ -242,7 +239,7 @@ impl VOWLGrapherStore {
             let result =
                 std::panic::catch_unwind(|| parser_from_bytes(bytes, format, lenient, graph_iri));
             if let Ok(Ok(quads)) = result {
-                info!("Parsed import as {:?}", format);
+                info!("Parsed import as {format:?}");
                 return Ok((quads, format));
             }
         }
@@ -346,12 +343,14 @@ impl VOWLGrapherStore {
         };
 
         let (root_quads, loaded_format) = Self::load_file(&path, false, &graph_name)?;
-        let (quads, warnings) = self.flatten_import_closure(
-            root_quads,
-            &graph_name,
-            false,
-            ImportBase::from_user_input(filename),
-        )?;
+        let (quads, warnings) = self
+            .flatten_import_closure(
+                root_quads,
+                &graph_name,
+                false,
+                ImportBase::from_user_input(filename),
+            )
+            .await?;
 
         info!("Loading graph '{graph_name}' into database...");
         let start_time = Instant::now();
@@ -396,7 +395,7 @@ impl VOWLGrapherStore {
             let resolved = match parent_base.resolve(&raw_import) {
                 Ok(url) => url,
                 Err(err) => {
-                    warn!("Skipping unresolved import '{}': {}", raw_import, err);
+                    warn!("Skipping unresolved import '{raw_import}': {err}");
                     warnings.push(err.into());
                     continue;
                 }
@@ -411,23 +410,21 @@ impl VOWLGrapherStore {
                 match fetch_import_source(&client, &resolved).await {
                     Ok(source) => source,
                     Err(err) => {
-                        warn!("Skipping failed import fetch '{}': {}", resolved, err);
+                        warn!("Skipping failed import fetch '{resolved}': {err}");
                         warnings.push(err.into());
                         continue;
                     }
                 };
 
-            let (quads, _) = match self
-                .load_bytes_with_fallback(&bytes, hinted_format, lenient, graph_iri)
-                .await
-            {
-                Ok(parsed) => parsed,
-                Err(err) => {
-                    warn!("Skipping unparsable import '{}': {}", resolved, err);
-                    warnings.push(err.into());
-                    continue;
-                }
-            };
+            let (quads, _) =
+                match Self::load_bytes_with_fallback(&bytes, hinted_format, lenient, graph_iri) {
+                    Ok(parsed) => parsed,
+                    Err(err) => {
+                        warn!("Skipping unparsable import '{resolved}': {err}");
+                        warnings.push(err.into());
+                        continue;
+                    }
+                };
 
             match extract_import_iris(&quads).await {
                 Ok(nested_imports) => {
@@ -436,10 +433,7 @@ impl VOWLGrapherStore {
                     }
                 }
                 Err(err) => {
-                    warn!(
-                        "Failed to inspect nested imports for '{}': {}",
-                        resolved, err
-                    );
+                    warn!("Failed to inspect nested imports for '{resolved}': {err}");
                     warnings.push(err.into());
                 }
             }
@@ -509,7 +503,7 @@ async fn fetch_import_source(
 
     match url.scheme() {
         "file" => {
-            let path = url.to_file_path().map_err(|_| {
+            let path = url.to_file_path().map_err(|()| {
                 VOWLGrapherStoreErrorKind::ImportResolutionError(format!(
                     "Could not convert file URL to path: {url}"
                 ))
