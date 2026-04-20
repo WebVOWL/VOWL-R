@@ -85,7 +85,6 @@ impl VOWLGrapherStore {
     ///
     /// # Errors
     /// Returns an error if the query or serialization encountered a fatal problem.
-    #[expect(clippy::literal_string_with_formatting_args)]
     pub async fn query(
         &self,
         query: String,
@@ -99,7 +98,7 @@ impl VOWLGrapherStore {
                 query.replace("{GRAPH_IRI}", &graph_name)
             },
         );
-
+        info!("{user_query}");
         let solution_serializer = GraphDisplayDataSolutionSerializer::new();
         let query_stream = self
             .session
