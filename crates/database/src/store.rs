@@ -98,7 +98,7 @@ impl VOWLGrapherStore {
                 query.replace("{GRAPH_IRI}", &graph_name)
             },
         );
-        info!("{user_query}");
+
         let solution_serializer = GraphDisplayDataSolutionSerializer::new();
         let query_stream = self
             .session
