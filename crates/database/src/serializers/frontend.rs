@@ -724,7 +724,7 @@ impl GraphDisplayDataSolutionSerializer {
                 data_buffer
                     .edge_label_buffer
                     .write()?
-                    .insert(edge.clone(), label.unwrap_or_else(|| new_type.to_string()));
+                    .insert(edge.clone(), label);
                 return Ok(Some(edge));
             }
             (None, Some(_)) => {
@@ -815,23 +815,24 @@ impl GraphDisplayDataSolutionSerializer {
         }
         Self::update_edges(data_buffer, old_term_id, new_term_id)?;
         Self::merge_individual_counts(data_buffer, old_term_id, new_term_id)?;
-        self.merge_individual_members(data_buffer, &old_term_id, new_term_id)?;
+        Self::merge_individual_members(data_buffer, old_term_id, new_term_id)?;
         self.redirect_iri(data_buffer, old_term_id, new_term_id)?;
         Ok(())
     }
 
     fn merge_individual_members(
-        &self,
-        data_buffer: &mut SerializationDataBuffer,
-        old_term_id: &usize,
+        data_buffer: &SerializationDataBuffer,
+        old_term_id: usize,
         new_term_id: usize,
     ) -> Result<(), SerializationError> {
-        let mut counted_members = data_buffer.counted_individual_members.write()?;
-        if let Some(old_members) = counted_members.remove(old_term_id) {
-            counted_members
-                .entry(new_term_id)
-                .or_default()
-                .extend(old_members);
+        {
+            let mut counted_members = data_buffer.counted_individual_members.write()?;
+            if let Some(old_members) = counted_members.remove(&old_term_id) {
+                counted_members
+                    .entry(new_term_id)
+                    .or_default()
+                    .extend(old_members);
+            }
         }
         Ok(())
     }
@@ -1300,9 +1301,9 @@ impl GraphDisplayDataSolutionSerializer {
         {
             let mut declared_property_domain_map =
                 data_buffer.declared_property_domain_map.write()?;
-            if let Some(domains) = declared_property_domain_map.remove(old_term_id) {
+            if let Some(domains) = declared_property_domain_map.remove(&old_term_id) {
                 declared_property_domain_map
-                    .entry(*new_term_id)
+                    .entry(new_term_id)
                     .or_default()
                     .extend(domains);
             }
@@ -1311,31 +1312,9 @@ impl GraphDisplayDataSolutionSerializer {
         {
             let mut declared_property_range_map =
                 data_buffer.declared_property_range_map.write()?;
-            if let Some(ranges) = declared_property_range_map.remove(old_term_id) {
+            if let Some(ranges) = declared_property_range_map.remove(&old_term_id) {
                 declared_property_range_map
-                    .entry(*new_term_id)
-                    .or_default()
-                    .extend(ranges);
-            }
-        }
-
-        {
-            let mut declared_property_domain_map =
-                data_buffer.declared_property_domain_map.write()?;
-            if let Some(domains) = declared_property_domain_map.remove(old_term_id) {
-                declared_property_domain_map
-                    .entry(*new_term_id)
-                    .or_default()
-                    .extend(domains);
-            }
-        }
-
-        {
-            let mut declared_property_range_map =
-                data_buffer.declared_property_range_map.write()?;
-            if let Some(ranges) = declared_property_range_map.remove(old_term_id) {
-                declared_property_range_map
-                    .entry(*new_term_id)
+                    .entry(new_term_id)
                     .or_default()
                     .extend(ranges);
             }
@@ -1374,12 +1353,11 @@ impl GraphDisplayDataSolutionSerializer {
     }
 
     fn is_inverse_fallback_term_id(
-        &self,
         data_buffer: &SerializationDataBuffer,
         term_id: usize,
     ) -> Result<bool, SerializationError> {
-        let resolved_term_id = self.follow_redirection(data_buffer, term_id)?;
-        let term = data_buffer.term_index.get(&resolved_term_id)?;
+        let resolved_term_id = Self::follow_redirection(data_buffer, term_id)?;
+        let term = data_buffer.term_index.get(resolved_term_id)?;
 
         if is_query_fallback_endpoint(&term) {
             return Ok(true);
@@ -1397,18 +1375,19 @@ impl GraphDisplayDataSolutionSerializer {
 
         Ok(matches!(
             node_type,
-            Some(ElementType::Owl(OwlType::Node(OwlNode::Thing)))
-                | Some(ElementType::Rdfs(RdfsType::Node(RdfsNode::Literal)))
+            Some(
+                ElementType::Owl(OwlType::Node(OwlNode::Thing))
+                    | ElementType::Rdfs(RdfsType::Node(RdfsNode::Literal))
+            )
         ))
     }
 
     fn is_preferred_inverse_endpoint(
-        &self,
         data_buffer: &SerializationDataBuffer,
         term_id: usize,
     ) -> Result<bool, SerializationError> {
-        let resolved_term_id = self.follow_redirection(data_buffer, term_id)?;
-        let term = data_buffer.term_index.get(&resolved_term_id)?;
+        let resolved_term_id = Self::follow_redirection(data_buffer, term_id)?;
+        let term = data_buffer.term_index.get(resolved_term_id)?;
 
         if term.is_blank_node() || is_synthetic(&term) {
             return Ok(false);
@@ -1436,7 +1415,6 @@ impl GraphDisplayDataSolutionSerializer {
     }
 
     fn select_property_endpoint(
-        &self,
         data_buffer: &SerializationDataBuffer,
         candidates: &HashSet<usize>,
     ) -> Result<Option<usize>, SerializationError> {
@@ -1445,17 +1423,17 @@ impl GraphDisplayDataSolutionSerializer {
         let mut any_fallback = None;
 
         for candidate in candidates {
-            let resolved_candidate = self.follow_redirection(data_buffer, *candidate)?;
+            let resolved_candidate = Self::follow_redirection(data_buffer, *candidate)?;
 
             if any_fallback.is_none() {
                 any_fallback = Some(resolved_candidate);
             }
 
-            if self.is_preferred_inverse_endpoint(data_buffer, resolved_candidate)? {
+            if Self::is_preferred_inverse_endpoint(data_buffer, resolved_candidate)? {
                 return Ok(Some(resolved_candidate));
             }
 
-            let term = data_buffer.term_index.get(&resolved_candidate)?;
+            let term = data_buffer.term_index.get(resolved_candidate)?;
             if concrete_fallback.is_none() && !is_synthetic(&term) {
                 concrete_fallback = Some(resolved_candidate);
             }
@@ -1480,133 +1458,6 @@ impl GraphDisplayDataSolutionSerializer {
     }
 
     fn collect_property_render_edges(
-        &self,
-        data_buffer: &SerializationDataBuffer,
-        property_term_ids: &[usize],
-    ) -> Result<Vec<ArcEdge>, SerializationError> {
-        let property_term_ids = property_term_ids.iter().copied().collect::<HashSet<_>>();
-
-        Ok(data_buffer
-            .edge_buffer
-            .read()?
-            .iter()
-            .filter(|edge| {
-                edge.property_term_id
-                    .is_some_and(|property_term_id| property_term_ids.contains(&property_term_id))
-                    && Self::is_direct_property_render_edge(edge)
-            })
-            .cloned()
-            .collect())
-    }
-
-    fn is_inverse_fallback_term_id(
-        &self,
-        data_buffer: &SerializationDataBuffer,
-        term_id: usize,
-    ) -> Result<bool, SerializationError> {
-        let resolved_term_id = self.follow_redirection(data_buffer, term_id)?;
-        let term = data_buffer.term_index.get(&resolved_term_id)?;
-
-        if is_query_fallback_endpoint(&term) {
-            return Ok(true);
-        }
-
-        if !is_synthetic(&term) {
-            return Ok(false);
-        }
-
-        let node_type = data_buffer
-            .node_element_buffer
-            .read()?
-            .get(&resolved_term_id)
-            .copied();
-
-        Ok(matches!(
-            node_type,
-            Some(ElementType::Owl(OwlType::Node(OwlNode::Thing)))
-                | Some(ElementType::Rdfs(RdfsType::Node(RdfsNode::Literal)))
-        ))
-    }
-
-    fn is_preferred_inverse_endpoint(
-        &self,
-        data_buffer: &SerializationDataBuffer,
-        term_id: usize,
-    ) -> Result<bool, SerializationError> {
-        let resolved_term_id = self.follow_redirection(data_buffer, term_id)?;
-        let term = data_buffer.term_index.get(&resolved_term_id)?;
-
-        if term.is_blank_node() || is_synthetic(&term) {
-            return Ok(false);
-        }
-
-        let node_type = {
-            data_buffer
-                .node_element_buffer
-                .read()?
-                .get(&resolved_term_id)
-                .copied()
-        };
-
-        Ok(!matches!(
-            node_type,
-            Some(ElementType::Owl(OwlType::Node(
-                OwlNode::AnonymousClass
-                    | OwlNode::Complement
-                    | OwlNode::IntersectionOf
-                    | OwlNode::UnionOf
-                    | OwlNode::DisjointUnion
-                    | OwlNode::EquivalentClass
-            )))
-        ))
-    }
-
-    fn select_property_endpoint(
-        &self,
-        data_buffer: &SerializationDataBuffer,
-        candidates: &HashSet<usize>,
-    ) -> Result<Option<usize>, SerializationError> {
-        let mut concrete_fallback = None;
-        let mut non_query_fallback = None;
-        let mut any_fallback = None;
-
-        for candidate in candidates {
-            let resolved_candidate = self.follow_redirection(data_buffer, *candidate)?;
-
-            if any_fallback.is_none() {
-                any_fallback = Some(resolved_candidate);
-            }
-
-            if self.is_preferred_inverse_endpoint(data_buffer, resolved_candidate)? {
-                return Ok(Some(resolved_candidate));
-            }
-
-            let term = data_buffer.term_index.get(&resolved_candidate)?;
-            if concrete_fallback.is_none() && !is_synthetic(&term) {
-                concrete_fallback = Some(resolved_candidate);
-            }
-            if non_query_fallback.is_none() && !is_query_fallback_endpoint(&term) {
-                non_query_fallback = Some(resolved_candidate);
-            }
-        }
-
-        Ok(concrete_fallback.or(non_query_fallback).or(any_fallback))
-    }
-
-    fn is_direct_property_render_edge(edge: &ArcEdge) -> bool {
-        matches!(
-            edge.edge_type,
-            ElementType::Owl(OwlType::Edge(
-                OwlEdge::ObjectProperty
-                    | OwlEdge::DatatypeProperty
-                    | OwlEdge::DeprecatedProperty
-                    | OwlEdge::ExternalProperty
-            )) | ElementType::Rdf(RdfType::Edge(RdfEdge::RdfProperty))
-        )
-    }
-
-    fn collect_property_render_edges(
-        &self,
         data_buffer: &SerializationDataBuffer,
         property_term_ids: &[usize],
     ) -> Result<Vec<ArcEdge>, SerializationError> {
@@ -1632,24 +1483,24 @@ impl GraphDisplayDataSolutionSerializer {
     ) -> Result<Option<(usize, usize)>, SerializationError> {
         let domain = {
             let declared_property_domain_map = data_buffer.declared_property_domain_map.read()?;
-            match declared_property_domain_map.get(property_term_id) {
-                Some(domains) => self.select_property_endpoint(data_buffer, domains)?,
+            match declared_property_domain_map.get(&property_term_id) {
+                Some(domains) => Self::select_property_endpoint(data_buffer, domains)?,
                 None => None,
             }
         };
 
         let range = {
             let declared_property_range_map = data_buffer.declared_property_range_map.read()?;
-            match declared_property_range_map.get(property_term_id) {
-                Some(ranges) => self.select_property_endpoint(data_buffer, ranges)?,
+            match declared_property_range_map.get(&property_term_id) {
+                Some(ranges) => Self::select_property_endpoint(data_buffer, ranges)?,
                 None => None,
             }
         };
 
         match (domain, range) {
             (Some(domain), Some(range)) => {
-                let subject = self.normalize_inverse_endpoint(data_buffer, &domain, &range)?;
-                let object = self.normalize_inverse_endpoint(data_buffer, &range, &domain)?;
+                let subject = self.normalize_inverse_endpoint(data_buffer, domain, range)?;
+                let object = self.normalize_inverse_endpoint(data_buffer, range, domain)?;
                 Ok(Some((subject, object)))
             }
             _ => Ok(None),
@@ -1677,22 +1528,22 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(SerializationStatus::Serialized);
         };
 
-        let left_is_blank = data_buffer.term_index.is_blank_node(&left_property_raw)?;
-        let right_is_blank = data_buffer.term_index.is_blank_node(&right_property_raw)?;
+        let left_is_blank = data_buffer.term_index.is_blank_node(left_property_raw)?;
+        let right_is_blank = data_buffer.term_index.is_blank_node(right_property_raw)?;
 
         match (left_is_blank, right_is_blank) {
             (true, false) => {
                 self.ensure_object_property_registration(data_buffer, right_property_raw)?;
-                self.merge_properties(data_buffer, &left_property_raw, &right_property_raw)?;
+                self.merge_properties(data_buffer, left_property_raw, right_property_raw)?;
                 return Ok(SerializationStatus::Serialized);
             }
             (false, true) => {
                 self.ensure_object_property_registration(data_buffer, left_property_raw)?;
-                self.merge_properties(data_buffer, &right_property_raw, &left_property_raw)?;
+                self.merge_properties(data_buffer, right_property_raw, left_property_raw)?;
                 return Ok(SerializationStatus::Serialized);
             }
             (true, true) => {
-                self.add_to_unknown_buffer(data_buffer, left_property_raw, triple)?;
+                Self::add_to_unknown_buffer(data_buffer, left_property_raw, triple)?;
                 return Ok(SerializationStatus::Deferred);
             }
             (false, false) => {}
@@ -1715,30 +1566,27 @@ impl GraphDisplayDataSolutionSerializer {
             return Ok(SerializationStatus::Serialized);
         }
 
-        let (left_subject_raw, left_object_raw) =
-            if let Some(endpoints) = self.inverse_edge_endpoints(data_buffer, &left_property)? {
-                endpoints
-            } else {
-                Self::add_to_unknown_buffer(data_buffer, left_property, triple)?;
-                return Ok(SerializationStatus::Deferred);
-            };
+        let Some((left_subject_raw, left_object_raw)) =
+            self.inverse_edge_endpoints(data_buffer, left_property)?
+        else {
+            Self::add_to_unknown_buffer(data_buffer, left_property, triple)?;
+            return Ok(SerializationStatus::Deferred);
+        };
 
-        let (right_subject_raw, right_object_raw) =
-            if let Some(endpoints) = self.inverse_edge_endpoints(data_buffer, &right_property)? {
-                endpoints
-            } else {
-                Self::add_to_unknown_buffer(data_buffer, right_property, triple)?;
-                return Ok(SerializationStatus::Deferred);
-            };
-
+        let Some((right_subject_raw, right_object_raw)) =
+            self.inverse_edge_endpoints(data_buffer, right_property)?
+        else {
+            Self::add_to_unknown_buffer(data_buffer, right_property, triple)?;
+            return Ok(SerializationStatus::Deferred);
+        };
         let left_subject_is_fallback =
-            self.is_inverse_fallback_term_id(data_buffer, left_subject_raw)?;
+            Self::is_inverse_fallback_term_id(data_buffer, left_subject_raw)?;
         let left_object_is_fallback =
-            self.is_inverse_fallback_term_id(data_buffer, left_object_raw)?;
+            Self::is_inverse_fallback_term_id(data_buffer, left_object_raw)?;
         let right_subject_is_fallback =
-            self.is_inverse_fallback_term_id(data_buffer, right_subject_raw)?;
+            Self::is_inverse_fallback_term_id(data_buffer, right_subject_raw)?;
         let right_object_is_fallback =
-            self.is_inverse_fallback_term_id(data_buffer, right_object_raw)?;
+            Self::is_inverse_fallback_term_id(data_buffer, right_object_raw)?;
 
         let left_subject = if left_subject_is_fallback && !right_object_is_fallback {
             right_object_raw
@@ -1783,7 +1631,7 @@ impl GraphDisplayDataSolutionSerializer {
         }
 
         let property_edges_to_remove =
-            self.collect_property_render_edges(data_buffer, &[left_property, right_property])?;
+            Self::collect_property_render_edges(data_buffer, &[left_property, right_property])?;
 
         let merged_label = {
             let left_edge = data_buffer
@@ -1821,8 +1669,8 @@ impl GraphDisplayDataSolutionSerializer {
             let mut merged_characteristics = HashSet::new();
 
             for edge in &property_edges_to_remove {
-                self.remove_edge_include(data_buffer, &edge.domain_term_id, edge)?;
-                self.remove_edge_include(data_buffer, &edge.range_term_id, edge)?;
+                Self::remove_edge_include(data_buffer, edge.domain_term_id, edge)?;
+                Self::remove_edge_include(data_buffer, edge.range_term_id, edge)?;
                 data_buffer.edge_buffer.write()?.remove(edge);
                 data_buffer.edge_label_buffer.write()?.remove(edge);
                 data_buffer.edge_cardinality_buffer.write()?.remove(edge);
@@ -2532,7 +2380,7 @@ impl GraphDisplayDataSolutionSerializer {
                         (Some(resolved_subject_term_id), Some(resolved_object_term_id)) => {
                             let object_was_anonymous_expr = match triple.object_term_id {
                                 Some(object_term_id) => {
-                                    data_buffer.term_index.is_blank_node(&object_term_id)?
+                                    data_buffer.term_index.is_blank_node(object_term_id)?
                                 }
                                 None => false,
                             };
@@ -2549,37 +2397,24 @@ impl GraphDisplayDataSolutionSerializer {
                                 resolved_subject_term_id,
                             )?;
 
-                            let resolved_subject_element = {
-                                let value = data_buffer
-                                    .node_element_buffer
-                                    .read()?
-                                    .get(&resolved_subject_term_id)
-                                    .copied();
-                                if let Some(elem) = value {
-                                    elem
-                                } else {
-                                    let msg =
-                                        "subject not present in node_element_buffer".to_string();
-                                    return Err(
-                                        SerializationErrorKind::SerializationFailedTriple(
-                                            data_buffer.term_index.display_triple(&triple)?,
-                                            msg,
-                                        ),
-                                    )?;
-                                }
+                            let value = data_buffer
+                                .node_element_buffer
+                                .read()?
+                                .get(&resolved_subject_term_id)
+                                .copied();
+
+                            let Some(resolved_subject_element) = value else {
+                                let msg = "subject not present in node_element_buffer".to_string();
+                                return Err(SerializationErrorKind::SerializationFailedTriple(
+                                    data_buffer.term_index.display_triple(&triple)?,
+                                    msg,
+                                )
+                                .into());
                             };
 
                             if resolved_subject_element
                                 != ElementType::Owl(OwlType::Node(OwlNode::AnonymousClass))
                             {
-                                let object_was_anonymous_expr = {
-                                    match triple.object_term_id {
-                                        Some(object_term_id) => {
-                                            data_buffer.term_index.is_blank_node(object_term_id)?
-                                        }
-                                        None => false,
-                                    }
-                                };
                                 let keep_structural_type = object_was_anonymous_expr
                                     && !Self::has_named_equivalent_aliases(
                                         data_buffer,
@@ -2627,6 +2462,12 @@ impl GraphDisplayDataSolutionSerializer {
                                 Self::add_to_unknown_buffer(data_buffer, target, triple)?;
                                 return Ok(SerializationStatus::Deferred);
                             }
+                            let msg = "Failed to merge object of equivalence relation into subject: object not found".to_string();
+                            return Err(SerializationErrorKind::MissingObject(
+                                data_buffer.term_index.display_triple(&triple)?,
+                                msg,
+                            )
+                            .into());
                         }
                         (None, Some(resolved_object_term_id)) => {
                             Self::add_to_unknown_buffer(
@@ -3497,7 +3338,7 @@ impl GraphDisplayDataSolutionSerializer {
                                         };
                                         let maybe_edge = self.insert_edge(
                                             data_buffer,
-                                            edge_triple.clone(),
+                                            edge_triple,
                                             property,
                                             label.flatten(),
                                         )?;
@@ -3539,7 +3380,7 @@ impl GraphDisplayDataSolutionSerializer {
                                                     .or_default()
                                                     .insert(edge.range_term_id);
                                             }
-                                            self.register_declared_property_endpoints(
+                                            Self::register_declared_property_endpoints(
                                                 data_buffer,
                                                 edge_triple_predicate_term_id,
                                                 edge.domain_term_id,
@@ -3863,6 +3704,10 @@ impl GraphDisplayDataSolutionSerializer {
         Self::follow_redirection(data_buffer, term_id)
     }
 
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "it's at the end of the scope anyway"
+    )]
     fn increment_individual_count(
         data_buffer: &SerializationDataBuffer,
         class_term_id: usize,
@@ -3873,7 +3718,7 @@ impl GraphDisplayDataSolutionSerializer {
 
         if let Some(individual_term_id) = individual_term_id {
             let canonical_individual_term_id =
-                self.canonical_count_term_id(data_buffer, individual_term_id)?;
+                Self::canonical_count_term_id(data_buffer, individual_term_id)?;
 
             let mut counted_members = data_buffer.counted_individual_members.write()?;
             let members = counted_members.entry(canonical_class_term_id).or_default();
@@ -4190,8 +4035,7 @@ impl GraphDisplayDataSolutionSerializer {
     }
 
     fn register_declared_property_endpoints(
-        &self,
-        data_buffer: &mut SerializationDataBuffer,
+        data_buffer: &SerializationDataBuffer,
         property_term_id: usize,
         domain_term_id: usize,
         range_term_id: usize,
@@ -4214,55 +4058,7 @@ impl GraphDisplayDataSolutionSerializer {
     }
 
     fn register_property_endpoints(
-        &self,
-        data_buffer: &mut SerializationDataBuffer,
-        property_term_id: usize,
-        edge: &ArcEdge,
-    ) -> Result<(), SerializationError> {
-        data_buffer
-            .property_domain_map
-            .write()?
-            .entry(property_term_id)
-            .or_default()
-            .insert(edge.domain_term_id);
-
-        data_buffer
-            .property_range_map
-            .write()?
-            .entry(property_term_id)
-            .or_default()
-            .insert(edge.range_term_id);
-
-        Ok(())
-    }
-
-    fn register_declared_property_endpoints(
-        &self,
-        data_buffer: &mut SerializationDataBuffer,
-        property_term_id: usize,
-        domain_term_id: usize,
-        range_term_id: usize,
-    ) -> Result<(), SerializationError> {
-        data_buffer
-            .declared_property_domain_map
-            .write()?
-            .entry(property_term_id)
-            .or_default()
-            .insert(domain_term_id);
-
-        data_buffer
-            .declared_property_range_map
-            .write()?
-            .entry(property_term_id)
-            .or_default()
-            .insert(range_term_id);
-
-        Ok(())
-    }
-
-    fn register_property_endpoints(
-        &self,
-        data_buffer: &mut SerializationDataBuffer,
+        data_buffer: &SerializationDataBuffer,
         property_term_id: usize,
         edge: &ArcEdge,
     ) -> Result<(), SerializationError> {
@@ -4463,8 +4259,8 @@ impl GraphDisplayDataSolutionSerializer {
                 return Ok(SerializationStatus::Deferred);
             };
 
-            let object_term_id = if let Some(filler_id) = state.filler.as_ref() {
-                let filler_term = data_buffer.term_index.get(*filler_id)?;
+            let object_term_id = if let Some(filler_id) = state.filler {
+                let filler_term = data_buffer.term_index.get(filler_id)?;
                 match &*filler_term {
                     Term::Literal(literal) => {
                         data_buffer.label_buffer.write()?.insert(
@@ -4473,11 +4269,11 @@ impl GraphDisplayDataSolutionSerializer {
                         );
                         existing_edge.range_term_id
                     }
-                    _ => match self.resolve(data_buffer, *filler_id)? {
+                    _ => match Self::resolve(data_buffer, filler_id)? {
                         Some(resolved) => resolved,
                         None => self.materialize_named_value_target(
                             data_buffer,
-                            &property_term_id,
+                            property_term_id,
                             filler_id,
                         )?,
                     },
@@ -4587,7 +4383,7 @@ impl GraphDisplayDataSolutionSerializer {
                 )?)
                 .map_or(existing_edge, |edge| edge);
 
-                self.register_property_endpoints(data_buffer, property_term_id, &edge)?;
+                Self::register_property_endpoints(data_buffer, property_term_id, &edge)?;
 
                 {
                     data_buffer
@@ -4622,8 +4418,8 @@ impl GraphDisplayDataSolutionSerializer {
             restriction_label,
             state.cardinality.clone(),
         )?;
-
-        self.register_property_endpoints(data_buffer, property_term_id, &edge)?;
+        drop(state);
+        Self::register_property_endpoints(data_buffer, property_term_id, &edge)?;
 
         {
             data_buffer
@@ -4708,24 +4504,24 @@ impl GraphDisplayDataSolutionSerializer {
                     data_buffer
                         .label_buffer
                         .read()?
-                        .contains_key(target_term_id)
+                        .contains_key(&target_term_id)
                 };
                 if !target_has_label {
-                    let target_term = data_buffer.term_index.get(*target_term_id)?;
-                    Self::extract_label(data_buffer, None, &target_term, *target_term_id)?;
+                    let target_term = data_buffer.term_index.get(target_term_id)?;
+                    Self::extract_label(data_buffer, None, &target_term, target_term_id)?;
                 }
 
                 let node_exists = {
                     data_buffer
                         .node_element_buffer
                         .read()?
-                        .contains_key(target_term_id)
+                        .contains_key(&target_term_id)
                 };
                 if !node_exists {
                     let predicate_term_id = data_buffer.term_index.insert(rdfs::RESOURCE.into())?;
                     let resource_triple = Self::create_triple_from_id(
                         &data_buffer.term_index,
-                        *target_term_id,
+                        target_term_id,
                         Some(predicate_term_id),
                         None,
                     )?;
@@ -4737,7 +4533,7 @@ impl GraphDisplayDataSolutionSerializer {
                     )?;
                 }
 
-                Ok(*target_term_id)
+                Ok(target_term_id)
             }
 
             Some(ElementType::Owl(OwlType::Edge(OwlEdge::DatatypeProperty))) => {
@@ -4745,18 +4541,18 @@ impl GraphDisplayDataSolutionSerializer {
                     data_buffer
                         .label_buffer
                         .read()?
-                        .contains_key(target_term_id)
+                        .contains_key(&target_term_id)
                 };
                 if !target_has_label {
                     let target_term = data_buffer.term_index.get(target_term_id)?;
-                    self.extract_label(data_buffer, None, &target_term, target_term_id)?;
+                    Self::extract_label(data_buffer, None, &target_term, target_term_id)?;
                 }
 
                 let node_exists = {
                     data_buffer
                         .node_element_buffer
                         .read()?
-                        .contains_key(target_term_id)
+                        .contains_key(&target_term_id)
                 };
                 if !node_exists {
                     let target_term = data_buffer.term_index.get(target_term_id)?;
@@ -4770,41 +4566,41 @@ impl GraphDisplayDataSolutionSerializer {
                                 _ => data_buffer.term_index.insert(rdfs::RESOURCE.into())?,
                             };
 
-                            let datatype_triple = self.create_triple_from_id(
+                            let datatype_triple = Self::create_triple_from_id(
                                 &data_buffer.term_index,
-                                *target_term_id,
+                                target_term_id,
                                 Some(predicate),
                                 None,
                             )?;
 
-                            self.insert_node(data_buffer, datatype_triple, element_type)?;
-                            return Ok(*target_term_id);
+                            self.insert_node(data_buffer, &datatype_triple, element_type)?;
+                            return Ok(target_term_id);
                         } else {
                             data_buffer.term_index.insert(rdfs::DATATYPE.into())?
                         };
 
-                    let datatype_triple = self.create_triple_from_id(
+                    let datatype_triple = Self::create_triple_from_id(
                         &data_buffer.term_index,
-                        *target_term_id,
+                        target_term_id,
                         Some(predicate_term_id),
                         None,
                     )?;
 
                     self.insert_node(
                         data_buffer,
-                        datatype_triple,
+                        &datatype_triple,
                         ElementType::Rdfs(RdfsType::Node(RdfsNode::Datatype)),
                     )?;
                 }
 
-                Ok(*target_term_id)
+                Ok(target_term_id)
             }
 
             _ => {
                 let triple = Self::create_triple_from_id(
                     &data_buffer.term_index,
-                    *target_term_id,
-                    Some(*property_term_id),
+                    target_term_id,
+                    Some(property_term_id),
                     None,
                 )?;
                 let display_triple = data_buffer.term_index.display_triple(&triple)?;
@@ -4812,7 +4608,7 @@ impl GraphDisplayDataSolutionSerializer {
                     display_triple,
                     format!(
                         "Cannot materialize named value target '{}' for non-object restriction",
-                        data_buffer.term_index.get(*target_term_id)?
+                        data_buffer.term_index.get(target_term_id)?
                     ),
                 )
                 .into())

@@ -1,5 +1,11 @@
 //! Test the serializer by comparing to the sovs test suite
 
+#![expect(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    reason = "tests are allowed to panic"
+)]
+
 use anyhow::{Context, anyhow, ensure};
 use log::{error, info};
 use rdf_fusion::store::Store;
@@ -14,7 +20,7 @@ async fn test_sovs_spec(test_case: TestCase) -> anyhow::Result<()> {
     let session = Store::default();
     let store = VOWLGrapherStore::new(session);
     let path = Path::new(test_case.name);
-    let graph_iri = store.get_graph_iri(test_case.name);
+    let graph_iri = store.get_graph_name(test_case.name);
     let quads = parser_util::parser_from_reader(
         Cursor::new(test_case.text),
         path_type(path).context("test case should have valid format")?,
@@ -33,7 +39,7 @@ async fn test_sovs_spec(test_case: TestCase) -> anyhow::Result<()> {
         .await
         .unwrap();
     if let Some(e) = e {
-        error!("Errors serializing ontology: {:?}", e);
+        error!("Errors serializing ontology: {e:?}");
     }
     let spec = Specification::try_from(display_data).context("spec should be built properly")?;
     ensure!(
@@ -144,7 +150,5 @@ async fn test_sovs_specs() {
     for fail in &fails {
         error!("test case failed {fail:#}");
     }
-    if !fails.is_empty() {
-        panic!("some test cases failed");
-    }
+    assert!(fails.is_empty(), "some test cases failed");
 }

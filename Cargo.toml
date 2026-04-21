@@ -51,7 +51,7 @@
         expect_used="deny"
         missing_panics_doc="allow"
         too_many_lines="allow"
-        unwrap_used="forbid"
+        unwrap_used="deny"
         # Triggers false positives on components,
         # See https://github.com/leptos-rs/leptos/issues/3172
         # This should have been fixed around 0.8.3 but it seems not to be?

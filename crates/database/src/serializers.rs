@@ -548,7 +548,7 @@ impl Display for SerializationDataBuffer {
                 .term_index
                 .get(*term_id)
                 .map_or_else(|e| e.to_string(), |term| term.to_string());
-            writeln!(f, "\t\t{term} : {:?label}")?;
+            writeln!(f, "\t\t{term} : {label:?}")?;
         }
         writeln!(f, "\tedge_buffer:")?;
         for edge in self
