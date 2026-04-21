@@ -29,50 +29,58 @@ RUN ./build_mimalloc.sh
 ENV LEPTOS_BIN_TARGET_TRIPLE="x86_64-unknown-linux-musl"
 
 # Build VOWLGrapher
-RUN ./build.sh binary
+# RUN ./build.sh binary
 
-FROM scratch AS runner
+ENV RUST_FLAGS="-Ctarget-feature=+crt-static -Clink-arg=-fuse-ld=mold -Cprofile-generate=/target/pgo-data"
 
-USER 10001
+RUN cargo leptos build --server-only -vv
 
-# Make a directory for temporary files writable by 10001
-# (Done this way as no shell command is available)
-COPY --chown=10001 --from=builder --exclude=/tmp/* /tmp /tmp
+ENV RUST_FLAGS="-Ctarget-feature=+crt-static -Clinker-plugin-lto -Clink-arg=-fuse-ld=mold -Clink-arg=-flto -Zpre-link-args=link_libs/mimalloc.o -Cprofile-generate=/target/pgo-data"
 
-WORKDIR /app
 
-# Import VOWLGrapher from the build stage
-COPY --chown=10001 --from=builder /build/target/x86_64-unknown-linux-musl/release/vowlgrapher /app/
-COPY --chown=10001 --from=builder /build/target/site /app/site
 
-# Import the CAcertificates from the build stage to enable HTTPS
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# FROM scratch AS runner
 
-# Set CAcertificates directory
-ENV SSL_CERT_DIR=/etc/ssl/certs/
+# USER 10001
 
-# The delay in N milli-seconds (by default 10) after which mimalloc will purge OS pages that are not in use.
-# Setting N to a higher value like 100 can improve performance (sometimes by a lot) at the cost of potentially
-# using more memory at times
-ENV MIMALLOC_PURGE_DELAY=50
+# # Make a directory for temporary files writable by 10001
+# # (Done this way as no shell command is available)
+# COPY --chown=10001 --from=builder --exclude=/tmp/* /tmp /tmp
 
-# Show statistics when the program terminates
-ENV MIMALLOC_SHOW_STATS=1
+# WORKDIR /app
 
-# Set log level for server binary
-ENV RUST_LOG="info"
+# # Import VOWLGrapher from the build stage
+# COPY --chown=10001 --from=builder /build/target/x86_64-unknown-linux-musl/release/vowlgrapher /app/
+# COPY --chown=10001 --from=builder /build/target/site /app/site
 
-# IP address the server is listening on
-ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+# # Import the CAcertificates from the build stage to enable HTTPS
+# COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Set directory to serve files from by the server
-ENV LEPTOS_SITE_ROOT=./site
+# # Set CAcertificates directory
+# ENV SSL_CERT_DIR=/etc/ssl/certs/
 
-# VOWLGrapher settings
-ENV VOWLGRAPHER_MAX_INPUT_SIZE_BYTES=52428800
+# # The delay in N milli-seconds (by default 10) after which mimalloc will purge OS pages that are not in use.
+# # Setting N to a higher value like 100 can improve performance (sometimes by a lot) at the cost of potentially
+# # using more memory at times
+# ENV MIMALLOC_PURGE_DELAY=50
 
-# Depends on the port you choose
-EXPOSE 8080
+# # Show statistics when the program terminates
+# ENV MIMALLOC_SHOW_STATS=1
 
-# Must match your final server executable name
-CMD ["/app/vowlgrapher"]
+# # Set log level for server binary
+# ENV RUST_LOG="info"
+
+# # IP address the server is listening on
+# ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
+
+# # Set directory to serve files from by the server
+# ENV LEPTOS_SITE_ROOT=./site
+
+# # VOWLGrapher settings
+# ENV VOWLGRAPHER_MAX_INPUT_SIZE_BYTES=52428800
+
+# # Depends on the port you choose
+# EXPOSE 8080
+
+# # Must match your final server executable name
+# CMD ["/app/vowlgrapher"]
