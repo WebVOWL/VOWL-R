@@ -103,6 +103,44 @@ impl VOWLGrapherEnviron {
                 default
             })
     }
+
+    /// Returns the value of a key from the environment, if found, otherwise returns the provided default.
+    fn parse_environment_opt<T, K>(key: &K, default: Option<T>) -> Option<T>
+    where
+        K: ToString + ?Sized,
+        T: FromStr + ToString + Clone + Default,
+        <T as FromStr>::Err: Debug,
+    {
+        if let Ok(value) = var(key.to_string()) {
+            match value.parse::<T>() {
+                Ok(value) => Some(value),
+                Err(e) => {
+                    warn!(
+                        "Failed to parse value for environment variable {}: {:#?}. Using default '{}'",
+                        key.to_string(),
+                        e,
+                        if default.is_some() {
+                            default.clone().unwrap_or_default().to_string()
+                        } else {
+                            "None".to_string()
+                        }
+                    );
+                    default
+                }
+            }
+        } else {
+            warn!(
+                "Did not find variable {} in environment. Using default '{}'",
+                key.to_string(),
+                if default.is_some() {
+                    default.clone().unwrap_or_default().to_string()
+                } else {
+                    "None".to_string()
+                }
+            );
+            default
+        }
+    }
 }
 
 impl Default for VOWLGrapherEnviron {
