@@ -4,6 +4,7 @@
 
 use std::env::var;
 use std::fmt::Debug;
+
 use std::str::FromStr;
 #[cfg(feature = "server")]
 use std::sync::LazyLock;
@@ -21,7 +22,7 @@ pub static VOWLGRAPHER_ENVIRONMENT: LazyLock<VOWLGrapherEnviron> =
 /// Client-side access to environment variables.
 #[server(input = Rkyv, output = Rkyv)]
 pub async fn environ() -> Result<VOWLGrapherEnviron, ServerFnError> {
-    Ok(*VOWLGRAPHER_ENVIRONMENT)
+    Ok(VOWLGRAPHER_ENVIRONMENT.clone())
 }
 
 /// Wrapper type to remotely derive impls for rkyv and serde.
@@ -52,7 +53,6 @@ impl From<SerilizableByteSize> for ByteSize {
     serde::Deserialize,
     serde::Serialize,
     Debug,
-    Copy,
     Clone,
 )]
 pub struct VOWLGrapherEnviron {
@@ -62,6 +62,8 @@ pub struct VOWLGrapherEnviron {
     pub max_input_size_bytes: ByteSize,
     /// Whether owl:imports should be fetched and loaded recursively.
     pub resolve_imports: bool,
+    /// A file to load into the database on server startup.
+    pub load_initial_file: Option<String>,
 }
 
 impl VOWLGrapherEnviron {
@@ -70,9 +72,11 @@ impl VOWLGrapherEnviron {
         let max_input_size_bytes =
             Self::parse_environment("VOWLGRAPHER_MAX_INPUT_SIZE_BYTES", ByteSize::mb(50));
         let resolve_imports = Self::parse_environment("VOWLGRAPHER_RESOLVE_IMPORTS", true);
+        let load_initial_file = Self::parse_environment_opt("VOWLGRAPHER_LOAD_INITIAL_FILE", None);
         Self {
             max_input_size_bytes,
             resolve_imports,
+            load_initial_file,
         }
     }
 
