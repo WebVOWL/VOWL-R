@@ -11,6 +11,7 @@ use leptos_meta::MetaTags;
 use log::info;
 use vowlgrapher::app::App;
 use vowlgrapher::hydration_scripts::HydrationScripts as Hydro;
+use vowlgrapher::process_env::execute_env;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -27,6 +28,8 @@ async fn main() -> std::io::Result<()> {
     let addr = conf.leptos_options.site_addr;
 
     let secret_key = Key::generate();
+
+    execute_env().await;
 
     HttpServer::new(move || {
         // Generate the list of routes in your Leptos App

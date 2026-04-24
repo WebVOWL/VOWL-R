@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 modes=(
+    "wasm_debug"
     "trace"
     "dev"
     "release"
     "binary"
 )
 commands=(
+    "MIMALLOC_VERBOSE=1 RUST_BACKTRACE=1 RUST_LOG=trace,datafusion=off,datafusion_physical_plan=off,datafusion_optimizer=off,sqlparser=off cargo leptos watch -v --wasm-debug"
     "MIMALLOC_VERBOSE=1 RUST_BACKTRACE=1 RUST_LOG=trace,datafusion=off,datafusion_physical_plan=off,datafusion_optimizer=off,sqlparser=off cargo leptos watch -v"
-    "MIMALLOC_VERBOSE=1 RUST_BACKTRACE=1 RUST_LOG=debug,datafusion=off,datafusion_physical_plan=off,datafusion_optimizer=off,sqlparser=off cargo leptos watch -v" # --wasm-debug
+    "MIMALLOC_VERBOSE=1 RUST_BACKTRACE=1 RUST_LOG=debug,datafusion=off,datafusion_physical_plan=off,datafusion_optimizer=off,sqlparser=off cargo leptos watch -v"
     "RUST_LOG=info cargo leptos watch --release --precompress -v"
     "cargo leptos build --release --precompress -vv"
     )
 help=(
+    "Builds VOWLGrapher in development mode with extra debug info for the WebAssembly module and runs it on a local server. Compile times are very long"
     "Builds VOWLGrapher in trace development mode and runs it on a local server"
     "Builds VOWLGrapher in development mode and runs it on a local server"
     "Builds VOWLGrapher in production mode and runs it on a local server"

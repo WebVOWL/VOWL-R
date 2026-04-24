@@ -53,7 +53,8 @@ VOWLGRAPHER_MAX_INPUT_SIZE_BYTES=50000000 RUST_BACKTRACE=1 RUST_LOG=info ./targe
 
 The following environment variables are available:
 
-|              Variable              |  Type   |    Default value    | Description                                                        |
-| :--------------------------------: | :-----: | :-----------------: | :----------------------------------------------------------------- |
-| `VOWLGRAPHER_MAX_INPUT_SIZE_BYTES` |  Bytes  | `52,428,800` (50MB) | The maximum allowed size, in bytes, of any input into VOWLGrapher. |
-|   `VOWLGRAPHER_RESOLVE_IMPORTS`    | Boolean |       `true`        | Whether owl:imports should be fetched and loaded recursively.      |
+|              Variable              |   Type    |    Default value    | Description                                                                  |
+| :--------------------------------: | :-------: | :-----------------: | :--------------------------------------------------------------------------- |
+| `VOWLGRAPHER_MAX_INPUT_SIZE_BYTES` |   Bytes   | `52,428,800` (50MB) | The maximum allowed size, in bytes, of any input into VOWLGrapher.           |
+|   `VOWLGRAPHER_RESOLVE_IMPORTS`    |  Boolean  |       `true`        | Whether owl:imports should be fetched and loaded recursively.                |
+|  `VOWLGRAPHER_LOAD_INITIAL_FILE`   | File Path |        `""`         | A file to load into the database on server startup. For instance, `envo.owl` |
