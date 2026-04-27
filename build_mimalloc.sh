@@ -6,8 +6,8 @@
 set -eu
 
 # Get mimalloc version from command argument.
-# If none is supplied, use the default "2.2.7".
-MIMALLOC_VERSION=${1:-2.2.7}
+# If none is supplied, use the default "3.3.1".
+MIMALLOC_VERSION=${1:-3.3.1}
 
 # Fetch mimalloc source files
 curl -f -L --retry 5 https://github.com/microsoft/mimalloc/archive/refs/tags/v$MIMALLOC_VERSION.tar.gz | tar xz
